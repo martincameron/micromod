@@ -1,0 +1,10 @@
+
+Micromod Protracker Replay (C)2010 mumart@gmail.com
+
+To build the simple Win32 MMAPI test player:
+
+FreePascal: fpc PlayMod.pas
+Delphi: dcc32 PlayMod.pas
+
+Cheers,
+Martin
