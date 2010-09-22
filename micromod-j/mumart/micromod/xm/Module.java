@@ -122,7 +122,7 @@ public class Module {
 				instrument.vibrato_sweep = module_data[ data_offset + 236 ] & 0xFF;
 				instrument.vibrato_depth = module_data[ data_offset + 237 ] & 0xFF;
 				instrument.vibrato_rate = module_data[ data_offset + 238 ] & 0xFF;
-				instrument.volume_fade_out = module_data[ data_offset + 239 ] & 0xFF;
+				instrument.volume_fade_out = ushortle( module_data, data_offset + 239 );
 			}
 			data_offset += intle( module_data, data_offset );
 			int sample_header_offset = data_offset;
