@@ -1,5 +1,5 @@
 
-package micromod;
+package mumart.micromod.mod;
 
 public class Module {
 	public static final int C2_PAL = 8287, C2_NTSC = 8363;

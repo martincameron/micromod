@@ -1,5 +1,5 @@
 
-package ibxm;
+package mumart.micromod.xm;
 
 public class Pattern {
 	public int num_rows;

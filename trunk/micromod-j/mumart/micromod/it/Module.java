@@ -1,5 +1,5 @@
 
-package xcit;
+package mumart.micromod.it;
 
 public class Module {
 	public String song_name, message;

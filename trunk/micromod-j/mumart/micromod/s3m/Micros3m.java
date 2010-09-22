@@ -1,21 +1,25 @@
 
-package micromod;
+package mumart.micromod.s3m;
 
 /*
-	java protracker replay (c)2010 mumart@gmail.com
+	java scream tracker 3 replay (c)2010 mumart@gmail.com
 */
-public class Micromod implements replay.Replay {
-	public static final String VERSION = "20100627";
+public class Micros3m implements mumart.micromod.replay.Replay {
+	public static final String VERSION = "20100922 (c)2010 mumart@gmail.com";
+
+	private static final int MIN_TEMPO = 10;
 
 	private Module module;
 	private int[] ramp_buf;
 	private Channel[] channels;
+	private boolean interpolate;
 	private int sampling_rate, tick_len, ramp_len, ramp_rate;
 	private int seq_pos, break_seq_pos, row, next_row, tick;
 	private int speed, pl_count, pl_channel;
-	private boolean interpolate;
+	private GlobalVol global_vol;
+	private Note note;
 
-	public Micromod( Module module, int sampling_rate, boolean interpolate ) {
+	public Micros3m( Module module, int sampling_rate, boolean interpolate ) {
 		this.module = module;
 		this.sampling_rate = sampling_rate;
 		this.interpolate = interpolate;
@@ -26,7 +30,13 @@ public class Micromod implements replay.Replay {
 		ramp_buf = new int[ ramp_len * 2 ];
 		ramp_rate = 256 / ramp_len;
 		channels = new Channel[ module.num_channels ];
+		global_vol = new GlobalVol();
+		note = new Note();
 		set_sequence_pos( 0 );
+	}
+
+	public String get_version() {
+		return VERSION;
 	}
 
 	public int get_sampling_rate() {
@@ -34,7 +44,7 @@ public class Micromod implements replay.Replay {
 	}
 
 	public int get_mix_buffer_length() {
-		return ( sampling_rate * 5 / 32 ) + ( ramp_len * 2 );
+		return ( sampling_rate * 5 / MIN_TEMPO ) + ( ramp_len * 2 );
 	}
 
 	public String get_string( int index ) {
@@ -48,11 +58,12 @@ public class Micromod implements replay.Replay {
 		break_seq_pos = pos;
 		next_row = 0;
 		tick = 1;
-		speed = 6;
-		set_tempo( 125 );
+		speed = module.default_speed > 0 ? module.default_speed : 6;
+		set_tempo( module.default_tempo > 0 ? module.default_tempo : 125 );
+		global_vol.volume = module.default_g_vol < 64 ? module.default_g_vol : 64;
 		pl_count = pl_channel = -1;
 		for( int idx = 0; idx < module.num_channels; idx++ )
-			channels[ idx ] = new Channel( module, idx, sampling_rate );
+			channels[ idx ] = new Channel( module, idx, sampling_rate, global_vol );
 		for( int idx = 0, end = ramp_len * 2; idx < end; idx++ ) ramp_buf[ idx ] = 0;
 		tick();
 	}
@@ -141,59 +152,57 @@ public class Micromod implements replay.Replay {
 		boolean song_end = false;
 		if( break_seq_pos >= 0 ) {
 			if( break_seq_pos >= module.sequence_length ) break_seq_pos = next_row = 0;
+			while( module.sequence[ break_seq_pos ] >= module.num_patterns ) {
+				break_seq_pos++;
+				if( break_seq_pos >= module.sequence_length ) break_seq_pos = next_row = 0;
+			}
 			if( break_seq_pos <= seq_pos ) song_end = true;
 			seq_pos = break_seq_pos;
 			for( int idx = 0; idx < module.num_channels; idx++ ) channels[ idx ].pl_row = 0;
 			break_seq_pos = -1;
 		}
+		Pattern pattern = module.patterns[ module.sequence[ seq_pos ] ];
 		row = next_row;
+		if( row >= Pattern.NUM_ROWS ) row = 0;
 		next_row = row + 1;
-		if( next_row >= 64 ) {
+		if( next_row >= Pattern.NUM_ROWS ) {
 			break_seq_pos = seq_pos + 1;
 			next_row = 0;
 		}
-		int pat_offset = ( module.sequence[ seq_pos ] * 64 + row ) * module.num_channels * 4;
+		int note_idx = row * module.num_channels;
 		for( int chan_idx = 0; chan_idx < module.num_channels; chan_idx++ ) {
 			Channel channel = channels[ chan_idx ];
-			int key = ( module.patterns[ pat_offset ] & 0xF ) << 8;
-			key = key | module.patterns[ pat_offset + 1 ] & 0xFF;
-			int ins = ( module.patterns[ pat_offset + 2 ] & 0xF0 ) >> 4;
-			ins = ins | module.patterns[ pat_offset ] & 0x10;
-			int effect = module.patterns[ pat_offset + 2 ] & 0x0F;
-			int param  = module.patterns[ pat_offset + 3 ] & 0xFF;
-			pat_offset += 4;
-			if( effect == 0xE ) {
-				effect = 0x10 | ( param >> 4 );
-				param &= 0xF;
+			pattern.get_note( note_idx + chan_idx, note );
+			if( note.effect == 0x13 ) {
+				note.effect = 0x100 | ( note.param >> 4 );
+				note.param &= 0xF;
 			}
-			if( effect == 0 && param > 0 ) effect = 0xE;
-			channel.row( key, ins, effect, param );
-			switch( effect ) {
-				case 0xB: /* Pattern Jump.*/
+			channel.row( note );
+			switch( note.effect ) {
+				case 0x01: /* Set Speed.*/
+					if( note.param > 0 ) speed = tick = note.param;
+					break;
+				case 0x02: /* Pattern Jump.*/
 					if( pl_count < 0 ) {
-						break_seq_pos = param;
+						break_seq_pos = note.param;
 						next_row = 0;
 					}
 					break;
-				case 0xD: /* Pattern Break.*/
+				case 0x03: /* Pattern Break.*/
 					if( pl_count < 0 ) {
 						break_seq_pos = seq_pos + 1;
-						next_row = ( param >> 4 ) * 10 + ( param & 0xF );
-						if( next_row >= 64 ) next_row = 0;
+						next_row = ( note.param >> 4 ) * 10 + ( note.param & 0xF );
 					}
 					break;
-				case 0xF: /* Set Speed.*/
-					if( param > 0 ) {
-						if( param < 32 ) tick = speed = param;
-						else set_tempo( param );
-					}
+				case 0x14: /* Set Tempo.*/
+					if( note.param >= MIN_TEMPO ) set_tempo( note.param );
 					break;
-				case 0x16: /* Pattern Loop.*/
-					if( param == 0 ) /* Set loop marker on this channel. */
+				case 0x10B: /* Pattern Loop.*/
+					if( note.param == 0 ) /* Set loop marker on this channel. */
 						channel.pl_row = row;
 					if( channel.pl_row < row ) { /* Marker valid. Begin looping. */
 						if( pl_count < 0 ) { /* Not already looping, begin. */
-							pl_count = param;
+							pl_count = note.param;
 							pl_channel = chan_idx;
 						}
 						if( pl_channel == chan_idx ) { /* Next Loop.*/
@@ -208,8 +217,8 @@ public class Micromod implements replay.Replay {
 						}
 					}
 					break;
-				case 0x1E: /* Pattern Delay.*/
-					tick = speed + speed * param;
+				case 0x10E: /* Pattern Delay.*/
+					tick = speed + speed * note.param;
 					break;
 			}
 		}

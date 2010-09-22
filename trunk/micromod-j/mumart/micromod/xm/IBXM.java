@@ -1,11 +1,11 @@
 
-package ibxm;
+package mumart.micromod.xm;
 
 /*
 	java fast-tracker 2 replay (c)2010 mumart@gmail.com
 */
-public class IBXM implements replay.Replay {
-	public static final String VERSION = "20100808";
+public class IBXM implements mumart.micromod.replay.Replay {
+	public static final String VERSION = "20100922 (c)2010 mumart@gmail.com";
 
 	private Module module;
 	private int[] ramp_buf;
@@ -31,6 +31,10 @@ public class IBXM implements replay.Replay {
 		global_vol = new GlobalVol();
 		note = new Note();
 		set_sequence_pos( 0 );
+	}
+
+	public String get_version() {
+		return VERSION;
 	}
 
 	public int get_sampling_rate() {

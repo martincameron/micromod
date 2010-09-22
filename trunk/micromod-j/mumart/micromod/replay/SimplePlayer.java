@@ -1,12 +1,11 @@
 
-package replay;
+package mumart.micromod.replay;
 
 import java.io.*;
 import javax.sound.sampled.*;
 
 public class SimplePlayer implements Runnable {
 	private static final int OVERSAMPLE = 2;
-	private static final boolean INTERPOLATE = false;
 
 	private Replay replay;
 	private boolean playing, loop;
@@ -18,6 +17,10 @@ public class SimplePlayer implements Runnable {
 		this.loop = loop;
 		replay = init_replay( module_data, sampling_rate * OVERSAMPLE );
 		duration = replay.calculate_song_duration();
+	}
+
+	public String get_version() {
+		return replay.get_version();
 	}
 
 	public String get_string( int idx ) {
@@ -84,12 +87,19 @@ public class SimplePlayer implements Runnable {
 
 	private Replay init_replay( byte[] module_data, int sampling_rate ) {
 		try {
-			return new ibxm.IBXM( new ibxm.Module( module_data ), sampling_rate, true/*INTERPOLATE*/ );
+			// Try loading as an XM.
+			mumart.micromod.xm.Module module = new mumart.micromod.xm.Module( module_data );
+			// XMs generally sound better with interpolation, Mods and S3Ms generally without.
+			return new mumart.micromod.xm.IBXM( module, sampling_rate, true );
 		} catch( IllegalArgumentException e ) {}
 		try {
-			return new micros3m.Micros3m( new micros3m.Module( module_data ), sampling_rate, INTERPOLATE );
+			// Not an XM, try as an S3M.
+			mumart.micromod.s3m.Module module = new mumart.micromod.s3m.Module( module_data );
+			return new mumart.micromod.s3m.Micros3m( module, sampling_rate, false );
 		} catch( IllegalArgumentException e ) {}
-		return new micromod.Micromod( new micromod.Module( module_data ), sampling_rate, INTERPOLATE );
+		// Must be a MOD ...
+		mumart.micromod.mod.Module module = new mumart.micromod.mod.Module( module_data );
+		return new mumart.micromod.mod.Micromod( module, sampling_rate, false );
 	}
 
 	public static void main( String[] args ) throws Exception {
@@ -109,6 +119,9 @@ public class SimplePlayer implements Runnable {
 		
 		// Initialise SimplePlayer to play once.
 		SimplePlayer player = new SimplePlayer( module_data, SAMPLING_RATE, false );
+
+		// Print the player version.
+		System.out.println( "Replay version: " + player.get_version() );
 
 		// Print the song and instrument names.
 		System.out.println( "Song name: " + player.get_string( 0 ) );

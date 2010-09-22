@@ -1,5 +1,5 @@
 
-package ibxm;
+package mumart.micromod.xm;
 
 public class Module {
 	public String song_name;

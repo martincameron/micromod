@@ -1,5 +1,5 @@
 
-package micromod;
+package mumart.micromod.mod;
 
 public class Instrument {
 	public String name;

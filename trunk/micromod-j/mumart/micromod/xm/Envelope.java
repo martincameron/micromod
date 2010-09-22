@@ -1,5 +1,5 @@
 
-package ibxm;
+package mumart.micromod.xm;
 
 public class Envelope {
 	public boolean enabled, sustain, looped;

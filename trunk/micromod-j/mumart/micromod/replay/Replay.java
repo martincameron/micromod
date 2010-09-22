@@ -1,10 +1,15 @@
 
-package replay;
+package mumart.micromod.replay;
 
 /*
 	Basic functionality for a tracker replay.
 */
 public interface Replay {
+	/*
+		Get a String containing version information.
+	*/
+	public String get_version();
+
 	/*
 		Return the sampling rate of playback.
 	*/
