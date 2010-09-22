@@ -1,5 +1,5 @@
 
-package micros3m;
+package mumart.micromod.s3m;
 
 public class Pattern {
 	public static final int NUM_ROWS = 64;

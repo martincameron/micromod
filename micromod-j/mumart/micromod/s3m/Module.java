@@ -1,5 +1,5 @@
 
-package micros3m;
+package mumart.micromod.s3m;
 
 public class Module {
 	public String song_name;
