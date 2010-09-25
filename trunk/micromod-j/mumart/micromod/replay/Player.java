@@ -117,7 +117,10 @@ public class Player {
 		return count >> 1;
 	}
 
-	private Replay init_replay( byte[] module_data, int sampling_rate ) {
+	/*
+		Attempt to initialise a replay from the specified module data.
+	*/
+	public static Replay init_replay( byte[] module_data, int sampling_rate ) {
 		try {
 			// Try loading as an XM.
 			mumart.micromod.xm.Module module = new mumart.micromod.xm.Module( module_data );
