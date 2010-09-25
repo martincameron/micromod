@@ -13,13 +13,12 @@ public class Player {
 
 	private Replay replay;
 	private boolean loop;
-	private int sampling_rate, duration, sample_pos;
+	private int duration, sample_pos;
 	private int filt_l, filt_r, mix_pos, mix_len;
 	private int[] mix_buffer;
 
 	/* Initialise a Player to play the specified music module. */
 	public Player( byte[] module_data, int sampling_rate, boolean loop ) {
-		this.sampling_rate = sampling_rate;
 		this.loop = loop;
 		replay = init_replay( module_data, sampling_rate * OVERSAMPLE );
 		duration = replay.calculate_song_duration() / OVERSAMPLE;
