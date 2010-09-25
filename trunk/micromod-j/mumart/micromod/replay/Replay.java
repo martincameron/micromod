@@ -46,7 +46,7 @@ public interface Replay {
 
 	/*
 		Generate audio.
-		The number of samples placed into output_buf is returned.
+		The number of samples placed into output_buf is returned, and is always even.
 		The output buffer length must be at least that returned by get_mix_buffer_length().
 		A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels.
 	*/
