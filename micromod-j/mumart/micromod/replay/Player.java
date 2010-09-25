@@ -44,7 +44,7 @@ public class Player {
 	/* Set playback to begin at the specified pattern position. */
 	public void set_sequence_pos( int pos ) {
 		loop = true;
-		sample_pos = 0;
+		mix_pos = mix_len = sample_pos = 0;
 		replay.set_sequence_pos( pos );
 	}
 
@@ -53,6 +53,7 @@ public class Player {
 		The actual position reached is returned.
 	*/
 	public int seek( int sample_pos ) {
+		mix_pos = mix_len = 0;
 		return sample_pos = replay.seek( sample_pos * OVERSAMPLE ) / OVERSAMPLE;
 	}
 
