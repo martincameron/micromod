@@ -3,7 +3,7 @@ package mumart.micromod.s3m;
 
 public class Channel {
 	private static final int
-		FP_SHIFT = 15,
+		FP_SHIFT = 14,
 		FP_ONE = 1 << FP_SHIFT,
 		FP_MASK = FP_ONE - 1;
 
@@ -262,9 +262,9 @@ public class Channel {
 	private void update_frequency() {
 		int period, freq, volume;
 		period = this.period + vibrato_add;
-		if( period < 56 ) period = 56;
+		if( period < 28 ) period = 28;
 		freq = 8363 * 428 / period;
-		freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0xFFFF;
+		freq = freq * arp_tuning[ arpeggio_add ] >> 12;
 		step = ( freq << FP_SHIFT ) / ( sample_rate >> 2 );
 		volume = this.volume + tremolo_add;
 		if( volume > 64 ) volume = 64;
