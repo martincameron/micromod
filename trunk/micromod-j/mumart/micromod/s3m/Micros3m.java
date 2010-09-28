@@ -5,7 +5,7 @@ package mumart.micromod.s3m;
 	java scream tracker 3 replay (c)2010 mumart@gmail.com
 */
 public class Micros3m implements mumart.micromod.replay.Replay {
-	public static final String VERSION = "20100927 (c)2010 mumart@gmail.com";
+	public static final String VERSION = "20100928 (c)2010 mumart@gmail.com";
 
 	private static final int MIN_TEMPO = 10;
 

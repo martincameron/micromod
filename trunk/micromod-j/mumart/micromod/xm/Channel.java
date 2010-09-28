@@ -3,7 +3,7 @@ package mumart.micromod.xm;
 
 public class Channel {
 	private static final int
-		FP_SHIFT = 14,
+		FP_SHIFT = 15,
 		FP_ONE = 1 << FP_SHIFT,
 		FP_MASK = FP_ONE - 1;
 
@@ -483,13 +483,15 @@ public class Channel {
 			int x = tone & 0x7;
 			int y = ( ( m * x ) >> 3 ) + c;
 			int freq = y >> ( 9 - tone / 768 );
-			step = ( freq << ( FP_SHIFT - 2 ) ) / ( sample_rate >> 2 );
+			if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;
+			else step = ( freq << ( FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
 		} else {
 			int per = period + vibrato_add;
 			if( per < 28 ) per = 28;
-			int freq = 8363 * 428 / per;
-			freq = freq * arp_tuning[ arpeggio_add ] >> 12;
-			step = ( freq << FP_SHIFT ) / ( sample_rate >> 2 );
+			int freq = 8363 * 1712 / per;
+			freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0x7FFFF;
+			if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;
+			else step = ( freq << ( FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
 		}
 	}
 
