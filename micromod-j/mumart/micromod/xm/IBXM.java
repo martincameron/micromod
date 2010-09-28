@@ -5,7 +5,7 @@ package mumart.micromod.xm;
 	java fast-tracker 2 replay (c)2010 mumart@gmail.com
 */
 public class IBXM implements mumart.micromod.replay.Replay {
-	public static final String VERSION = "20100927 (c)2010 mumart@gmail.com";
+	public static final String VERSION = "20100928 (c)2010 mumart@gmail.com";
 
 	private Module module;
 	private int[] ramp_buf;
