@@ -6,21 +6,24 @@ import javax.sound.sampled.*;
 
 /*
 	Module player class.
-	Provides module loading, oversampling and simpler buffering.
+	Provides module loading, oversampling and simpler buffering functions.
 */
 public class Player {
 	private static final int OVERSAMPLE = 2;
 
 	private Replay replay;
-	private boolean loop;
-	private int duration, sample_pos;
-	private int filt_l, filt_r, mix_pos, mix_len;
+	private int filt_l, filt_r, mix_pos, mix_len, duration;
 	private int[] mix_buffer;
 
-	/* Initialise a Player to play the specified music module. */
-	public Player( byte[] module_data, int sampling_rate, boolean loop ) {
-		this.loop = loop;
-		replay = init_replay( module_data, sampling_rate * OVERSAMPLE );
+	/*
+		Initialise a Player to play the specified music module.
+		The resampling argument is one of:
+			0 - Auto.
+			1 - Nearest-neighbour.
+			2 - Linear interpolation.
+	*/
+	public Player( byte[] module_data, int sampling_rate, int resampling ) {
+		replay = init_replay( module_data, sampling_rate * OVERSAMPLE, resampling );
 		duration = replay.calculate_song_duration() / OVERSAMPLE;
 		mix_buffer = new int[ replay.get_mix_buffer_length() ];
 	}
@@ -42,8 +45,7 @@ public class Player {
 
 	/* Set playback to begin at the specified pattern position. */
 	public void set_sequence_pos( int pos ) {
-		loop = true;
-		mix_pos = mix_len = sample_pos = 0;
+		mix_pos = mix_len = 0;
 		replay.set_sequence_pos( pos );
 	}
 
@@ -57,25 +59,14 @@ public class Player {
 	}
 
 	/*
-		Get up to the specified number of stereo samples of audio into
-		the specified buffer. Returns false if the song has finished.
+		Get up to the specified number of stereo samples of audio into the specified buffer.
 	*/
-	public boolean get_audio( short[] output, int offset, int count ) {
+	public void get_audio( short[] output, int offset, int count ) {
 		int[] mix_buf = mix_buffer;
 		while( count > 0 ) {
 			if( mix_pos >= mix_len ) {
 				// More audio required from Replay.
 				mix_pos = 0;
-				if( !loop ) {
-					sample_pos += mix_len;
-					if( sample_pos >= duration ) {
-						mix_len = 0;
-						// Song finished, zero rest of output buffer.
-						int end = offset + count * 2;
-						while( offset < end ) output[ offset++ ] = 0;
-						return false;
-					}
-				}
 				mix_len = downsample( mix_buf, replay.get_audio( mix_buf ) );
 			}
 			// Calculate maximum number of samples to copy.
@@ -93,7 +84,6 @@ public class Player {
 			mix_pos += len;
 			count -= len;
 		}
-		return ( sample_pos + mix_pos ) < duration;
 	}
 
 	/*
@@ -115,24 +105,21 @@ public class Player {
 		filt_r = fr;
 		return count >> 1;
 	}
-
-	/*
-		Attempt to initialise a replay from the specified module data.
-	*/
-	public static Replay init_replay( byte[] module_data, int sampling_rate ) {
+	
+	/* Attempt to initialise a Replay from the specified module data. */
+	public static Replay init_replay( byte[] module_data, int sampling_rate, int resampling ) {
 		try {
 			// Try loading as an XM.
 			mumart.micromod.xm.Module module = new mumart.micromod.xm.Module( module_data );
-			// XMs generally sound better with interpolation, Mods and S3Ms generally without.
-			return new mumart.micromod.xm.IBXM( module, sampling_rate, true );
+			return new mumart.micromod.xm.IBXM( module, sampling_rate, resampling != 1 );
 		} catch( IllegalArgumentException e ) {}
 		try {
 			// Not an XM, try as an S3M.
 			mumart.micromod.s3m.Module module = new mumart.micromod.s3m.Module( module_data );
-			return new mumart.micromod.s3m.Micros3m( module, sampling_rate, false );
+			return new mumart.micromod.s3m.Micros3m( module, sampling_rate, resampling >= 2 );
 		} catch( IllegalArgumentException e ) {}
 		// Must be a MOD ...
 		mumart.micromod.mod.Module module = new mumart.micromod.mod.Module( module_data );
-		return new mumart.micromod.mod.Micromod( module, sampling_rate, false );
+		return new mumart.micromod.mod.Micromod( module, sampling_rate, resampling >= 2 );
 	}
 }

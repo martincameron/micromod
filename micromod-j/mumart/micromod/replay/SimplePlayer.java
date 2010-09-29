@@ -24,8 +24,8 @@ public class SimplePlayer {
 		data_stream.readFully( module_data );
 		data_stream.close();
 		
-		// Initialise Player to play once.
-		Player player = new Player( module_data, SAMPLING_RATE, false );
+		// Initialise Player.
+		Player player = new Player( module_data, SAMPLING_RATE, 0 );
 
 		// Print the player version.
 		System.out.println( "Replay version: " + player.get_version() );
@@ -41,7 +41,8 @@ public class SimplePlayer {
 		}
 		
 		// Print the duration.
-		System.out.println( "Song length: " + player.get_song_duration() / SAMPLING_RATE + " seconds." );
+		int duration = player.get_song_duration();
+		System.out.println( "Song length: " + duration / SAMPLING_RATE + " seconds." );
 		
 		// Application will exit when song finishes.
 		short[] mix_buf = new short[ MIX_BUF_LEN * 2 ];
@@ -50,17 +51,25 @@ public class SimplePlayer {
 		SourceDataLine audio_line = AudioSystem.getSourceDataLine( audio_format );
 		audio_line.open();
 		audio_line.start();
-		boolean playing = true;
-		while( playing ) {
-			playing = player.get_audio( mix_buf, 0, MIX_BUF_LEN );
+		int sample_pos = 0;
+		boolean song_end = false;
+		while( !song_end ) {
+			// Calculate number of samples to write.
+			int mix_len = duration - sample_pos;
+			if( mix_len > MIX_BUF_LEN ) mix_len = MIX_BUF_LEN;
+			// Get audio and write to output device.
+			player.get_audio( mix_buf, 0, mix_len );
 			int out_idx = 0;
-			int mix_idx = 0, mix_end = MIX_BUF_LEN * 2;
+			int mix_idx = 0, mix_end = mix_len * 2;
 			while( mix_idx < mix_end ) {
 				int out = mix_buf[ mix_idx++ ];
 				out_buf[ out_idx++ ] = ( byte ) ( out & 0xFF );
 				out_buf[ out_idx++ ] = ( byte ) ( out >> 8 );
 			}
 			audio_line.write( out_buf, 0, out_idx );
+			// Exit if song finished.
+			sample_pos += mix_len;
+			if( sample_pos >= duration ) song_end = true;
 		}
 		audio_line.drain();
 		audio_line.close();
