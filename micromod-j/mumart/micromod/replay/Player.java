@@ -12,7 +12,7 @@ public class Player {
 	private static final int OVERSAMPLE = 2;
 
 	private Replay replay;
-	private int filt_l, filt_r, mix_pos, mix_len, duration;
+	private int sample_rate, filt_l, filt_r, mix_pos, mix_len, duration;
 	private int[] mix_buffer;
 
 	/*
@@ -23,6 +23,7 @@ public class Player {
 			2 - Linear interpolation.
 	*/
 	public Player( byte[] module_data, int sampling_rate, int resampling ) {
+		sample_rate = sampling_rate;
 		replay = init_replay( module_data, sampling_rate * OVERSAMPLE, resampling );
 		duration = replay.calculate_song_duration() / OVERSAMPLE;
 		mix_buffer = new int[ replay.get_mix_buffer_length() ];
@@ -36,6 +37,13 @@ public class Player {
 	/* Get the song and instrument names, or null if idx is out of range. */
 	public String get_string( int idx ) {
 		return replay.get_string( idx );
+	}
+
+	/*
+		Get the sampling rate of playback.
+	*/
+	public int get_sampling_rate() {
+		return sample_rate;
 	}
 
 	/* Get the song duration in samples at the current sampling rate. */
