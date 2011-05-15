@@ -21,6 +21,7 @@ public class Player {
 			0 - Auto.
 			1 - Nearest-neighbour.
 			2 - Linear interpolation.
+			3 - Sinc interpolation (if supported).
 	*/
 	public Player( byte[] module_data, int sampling_rate, int resampling ) {
 		sample_rate = sampling_rate;
@@ -119,7 +120,7 @@ public class Player {
 		try {
 			// Try loading as an XM.
 			mumart.micromod.xm.Module module = new mumart.micromod.xm.Module( module_data );
-			return new mumart.micromod.xm.IBXM( module, sampling_rate, resampling != 1 );
+			return new mumart.micromod.xm.IBXM( module, sampling_rate, resampling );
 		} catch( IllegalArgumentException e ) {}
 		try {
 			// Not an XM, try as an S3M.

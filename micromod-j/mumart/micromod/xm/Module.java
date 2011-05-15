@@ -147,13 +147,14 @@ public class Module {
 					sample_loop_start /= 2;
 					sample_loop_length /=2;
 				}
-				if( sample_loop_start + sample_loop_length > sample_data_length ) looped = false;
-				if( looped && ping_pong ) sample_data_length += sample_loop_length;
-				short[] sample_data = sample.sample_data = new short[ sample_data_length + 1 ];
+				if( !looped || ( sample_loop_start + sample_loop_length ) > sample_data_length ) {
+					sample_loop_start = sample_data_length;
+					sample_loop_length = 0;
+				}
+				short[] sample_data = new short[ sample_data_length ];
 				if( sixteen_bit ) {
 					short ampl = 0;
-					int out_end = sample_data_bytes / 2;
-					for( int out_idx = 0; out_idx < out_end; out_idx++ ) {
+					for( int out_idx = 0; out_idx < sample_data_length; out_idx++ ) {
 						int in_idx = data_offset + out_idx * 2;
 						ampl += module_data[ in_idx ] & 0xFF;
 						ampl += ( module_data[ in_idx + 1 ] & 0xFF ) << 8;
@@ -161,25 +162,12 @@ public class Module {
 					}
 				} else {
 					byte ampl = 0;
-					for( int out_idx = 0; out_idx < sample_data_bytes; out_idx++ ) {
+					for( int out_idx = 0; out_idx < sample_data_length; out_idx++ ) {
 						ampl += module_data[ data_offset + out_idx ] & 0xFF;
 						sample_data[ out_idx ] = ( short ) ( ampl << 8 );
 					}
 				}
-				if( looped ) {
-					if( ping_pong ) {
-						int loop_end = sample_loop_start + sample_loop_length;
-						for( int loop_idx = 0; loop_idx < sample_loop_length; loop_idx++ )
-							sample_data[ loop_end + loop_idx ] = sample_data[ loop_end - loop_idx - 1 ];
-						sample_loop_length *= 2;
-					}
-				} else {
-					sample_loop_start = sample_data_length;
-					sample_loop_length = 0;
-				}
-				sample.loop_start = sample_loop_start;
-				sample.loop_length = sample_loop_length;
-				sample_data[ sample_loop_start + sample_loop_length ] = sample_data[ sample_loop_start ];
+				sample.set_sample_data( sample_data, sample_loop_start, sample_loop_length, ping_pong );
 				data_offset += sample_data_bytes;
 			}
 		}
