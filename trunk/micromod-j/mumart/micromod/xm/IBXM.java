@@ -2,25 +2,25 @@
 package mumart.micromod.xm;
 
 /*
-	java fast-tracker 2 replay (c)2010 mumart@gmail.com
+	java fast-tracker 2 replay (c)2011 mumart@gmail.com
 */
 public class IBXM implements mumart.micromod.replay.Replay {
-	public static final String VERSION = "20100928 (c)2010 mumart@gmail.com";
+	public static final String VERSION = "20110515 (c)2011 mumart@gmail.com";
 
 	private Module module;
 	private int[] ramp_buf;
 	private Channel[] channels;
-	private boolean interpolate;
+	private int interpolation;
 	private int sampling_rate, tick_len, ramp_len, ramp_rate;
 	private int seq_pos, break_seq_pos, row, next_row, tick;
 	private int speed, pl_count, pl_channel;
 	private GlobalVol global_vol;
 	private Note note;
 
-	public IBXM( Module module, int sampling_rate, boolean interpolate ) {
+	public IBXM( Module module, int sampling_rate, int interpolation ) {
 		this.module = module;
 		this.sampling_rate = sampling_rate;
-		this.interpolate = interpolate;
+		this.interpolation = interpolation;
 		if( sampling_rate < 16000 )
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
 		ramp_len = 256;
@@ -108,7 +108,7 @@ public class IBXM implements mumart.micromod.replay.Replay {
 		// Resample.
 		for( int chan_idx = 0; chan_idx < module.num_channels; chan_idx++ ) {
 			Channel chan = channels[ chan_idx ];
-			chan.resample( output_buf, 0, tick_len + ramp_len, interpolate );
+			chan.resample( output_buf, 0, tick_len + ramp_len, interpolation );
 			chan.update_sample_idx( tick_len );
 		}
 		volume_ramp( output_buf );

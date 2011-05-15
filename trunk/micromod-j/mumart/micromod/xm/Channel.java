@@ -2,11 +2,6 @@
 package mumart.micromod.xm;
 
 public class Channel {
-	private static final int
-		FP_SHIFT = 15,
-		FP_ONE = 1 << FP_SHIFT,
-		FP_MASK = FP_ONE - 1;
-
 	private static final int[] period_table = {
 		// Periods for keys -11 to 1 with 8 finetune values.
 		54784, 54390, 53999, 53610, 53224, 52841, 52461, 52084, 
@@ -80,61 +75,24 @@ public class Channel {
 		instrument = new Instrument();
 		sample = instrument.samples[ 0 ];
 	}
-	
-	public void resample( int[] out_buf, int offset, int length, boolean interpolate ) {
+
+	public void resample( int[] out_buf, int offset, int length, int interpolation ) {
 		if( ampl <= 0 ) return;
 		int l_ampl = ampl * ( 255 - pann ) >> 8;
 		int r_ampl = ampl * pann >> 8;
-		int sam_idx = sample_idx;
-		int sam_fra = sample_fra;
-		int step = this.step;
-		int loop_len = sample.loop_length;
-		int loop_ep1 = sample.loop_start + loop_len;
-		short[] sample_data = sample.sample_data;
-		int out_idx = offset << 1;
-		int out_ep1 = offset + length << 1;
-		if( interpolate ) {
-			while( out_idx < out_ep1 ) {
-				if( sam_idx >= loop_ep1 ) {
-					if( loop_len <= 1 ) break;
-					while( sam_idx >= loop_ep1 ) sam_idx -= loop_len;
-				}
-				int c = sample_data[ sam_idx ];
-				int m = sample_data[ sam_idx + 1 ] - c;
-				int y = ( m * sam_fra >> FP_SHIFT ) + c;
-				out_buf[ out_idx++ ] += y * l_ampl >> FP_SHIFT;
-				out_buf[ out_idx++ ] += y * r_ampl >> FP_SHIFT;
-				sam_fra += step;
-				sam_idx += sam_fra >> FP_SHIFT;
-				sam_fra &= FP_MASK;
-			}
-		} else {
-			while( out_idx < out_ep1 ) {
-				if( sam_idx >= loop_ep1 ) {
-					if( loop_len <= 1 ) break;
-					while( sam_idx >= loop_ep1 ) sam_idx -= loop_len;
-				}
-				int y = sample_data[ sam_idx ];
-				out_buf[ out_idx++ ] += y * l_ampl >> FP_SHIFT;
-				out_buf[ out_idx++ ] += y * r_ampl >> FP_SHIFT;
-				sam_fra += step;
-				sam_idx += sam_fra >> FP_SHIFT;
-				sam_fra &= FP_MASK;
-			}
+		if( interpolation == 1 ) {
+			sample.resample_nearest( sample_idx, sample_fra, step, l_ampl, r_ampl, out_buf, offset, length );
+		} else if( interpolation >= 3 ) {
+			sample.resample_sinc( sample_idx, sample_fra, step, l_ampl, r_ampl, out_buf, offset, length );
+		} else { /* 0(auto) or 2. */
+			sample.resample_linear( sample_idx, sample_fra, step, l_ampl, r_ampl, out_buf, offset, length );
 		}
 	}
 
 	public void update_sample_idx( int length ) {
 		sample_fra += step * length;
-		sample_idx += sample_fra >> FP_SHIFT;
-		int loop_start = sample.loop_start;
-		int loop_length = sample.loop_length;
-		int loop_offset = sample_idx - loop_start;
-		if( loop_offset > 0 ) {
-			sample_idx = loop_start;
-			if( loop_length > 1 ) sample_idx += loop_offset % loop_length;
-		}
-		sample_fra &= FP_MASK;
+		sample_idx = sample.normalise_sample_idx( sample_idx + ( sample_fra >> Sample.FP_SHIFT ) );
+		sample_fra &= Sample.FP_MASK;
 	}
 
 	public void row( Note note ) {
@@ -483,15 +441,15 @@ public class Channel {
 			int x = tone & 0x7;
 			int y = ( ( m * x ) >> 3 ) + c;
 			int freq = y >> ( 9 - tone / 768 );
-			if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;
-			else step = ( freq << ( FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
+			if( freq < 65536 ) step = ( freq << Sample.FP_SHIFT ) / sample_rate;
+			else step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
 		} else {
 			int per = period + vibrato_add;
 			if( per < 28 ) per = 28;
 			int freq = 8363 * 1712 / per;
 			freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0x7FFFF;
-			if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;
-			else step = ( freq << ( FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
+			if( freq < 65536 ) step = ( freq << Sample.FP_SHIFT ) / sample_rate;
+			else step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
 		}
 	}
 
@@ -502,7 +460,7 @@ public class Channel {
 		int vol = volume + tremolo_add;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		vol = vol * FP_ONE >> 7;
+		vol = vol * Sample.FP_ONE >> 7;
 		vol = vol * fade_out_vol >> 15;
 		ampl = vol * global_vol.volume * env_vol >> 12;
 		int env_pan = 32;
