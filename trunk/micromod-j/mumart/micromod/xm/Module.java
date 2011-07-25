@@ -105,7 +105,11 @@ public class Module {
 					pan_env.points_ampl[ point ] = ushortle( module_data, point_offset + 2 );
 				}
 				vol_env.num_points = module_data[ data_offset + 225 ];
+				if( vol_env.num_points < 1 ) vol_env.num_points = 1;
+				if( vol_env.num_points > 12 ) vol_env.num_points = 12;
 				pan_env.num_points = module_data[ data_offset + 226 ];
+				if( pan_env.num_points < 1 ) pan_env.num_points = 1;
+				if( pan_env.num_points > 12 ) pan_env.num_points = 12;
 				vol_env.sustain_tick = vol_env.points_tick[ module_data[ data_offset + 227 ] ];
 				vol_env.loop_start_tick = vol_env.points_tick[ module_data[ data_offset + 228 ] ];
 				vol_env.loop_end_tick = vol_env.points_tick[ module_data[ data_offset + 229 ] ];
