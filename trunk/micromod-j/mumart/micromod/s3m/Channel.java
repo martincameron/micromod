@@ -62,7 +62,8 @@ public class Channel {
 		Instrument ins = module.instruments[ instrument ];
 		int loop_len = ins.loop_length;
 		int loop_ep1 = ins.loop_start + loop_len;
-		byte[] sample_data = ins.sample_data;
+		short[] sample_data_left = ins.sample_data_left;
+		short[] sample_data_right = ins.sample_data_right;
 		int out_idx = offset << 1;
 		int out_ep1 = offset + length << 1;
 		if( interpolate ) {
@@ -71,11 +72,14 @@ public class Channel {
 					if( loop_len <= 1 ) break;
 					while( sam_idx >= loop_ep1 ) sam_idx -= loop_len;
 				}
-				int c = sample_data[ sam_idx ];
-				int m = sample_data[ sam_idx + 1 ] - c;
-				int y = ( m * sam_fra >> FP_SHIFT - 8 ) + ( c << 8 );
-				out_buf[ out_idx++ ] += y * l_ampl >> FP_SHIFT;
-				out_buf[ out_idx++ ] += y * r_ampl >> FP_SHIFT;
+				int cl = sample_data_left[ sam_idx ];
+				int ml = sample_data_left[ sam_idx + 1 ] - cl;
+				int yl = ( ml * sam_fra >> FP_SHIFT ) + cl;
+				out_buf[ out_idx++ ] += yl * l_ampl >> FP_SHIFT;
+				int cr = sample_data_right[ sam_idx ];
+				int mr = sample_data_right[ sam_idx + 1 ] - cr;
+				int yr = ( mr * sam_fra >> FP_SHIFT ) + cr;
+				out_buf[ out_idx++ ] += yr * r_ampl >> FP_SHIFT;
 				sam_fra += step;
 				sam_idx += sam_fra >> FP_SHIFT;
 				sam_fra &= FP_MASK;
@@ -86,9 +90,8 @@ public class Channel {
 					if( loop_len <= 1 ) break;
 					while( sam_idx >= loop_ep1 ) sam_idx -= loop_len;
 				}
-				int y = sample_data[ sam_idx ];
-				out_buf[ out_idx++ ] += y * l_ampl >> FP_SHIFT - 8;
-				out_buf[ out_idx++ ] += y * r_ampl >> FP_SHIFT - 8;
+				out_buf[ out_idx++ ] += sample_data_left[ sam_idx ] * l_ampl >> FP_SHIFT;
+				out_buf[ out_idx++ ] += sample_data_right[ sam_idx ] * r_ampl >> FP_SHIFT;
 				sam_fra += step;
 				sam_idx += sam_fra >> FP_SHIFT;
 				sam_fra &= FP_MASK;
