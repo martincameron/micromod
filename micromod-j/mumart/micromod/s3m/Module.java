@@ -73,9 +73,9 @@ public class Module {
 			if( ushortle( module, inst_offset + 76 ) != 0x4353 ) continue;
 			int sample_offset = ( module[ inst_offset + 13 ] & 0xFF ) << 20;
 			sample_offset += ushortle( module, inst_offset + 14 ) << 4;
-			int sample_length = ushortle( module, inst_offset + 16 );
-			int loop_start = ushortle( module, inst_offset + 20 );
-			int loop_length = ushortle( module, inst_offset + 24 ) - loop_start;
+			int sample_length = intle( module, inst_offset + 16 );
+			int loop_start = intle( module, inst_offset + 20 );
+			int loop_length = intle( module, inst_offset + 24 ) - loop_start;
 			inst.volume = module[ inst_offset + 28 ] & 0xFF;
 			boolean packed = module[ inst_offset + 30 ] != 0;
 			boolean loop_on = ( module[ inst_offset + 31 ] & 0x1 ) == 0x1;
@@ -87,21 +87,22 @@ public class Module {
 			}
 			inst.loop_start = loop_start;
 			inst.loop_length = loop_length;
-			boolean sixteen_bit = ( module[ inst_offset + 31 ] & 0x2 ) == 0x2;
-			boolean stereo = ( module[ inst_offset + 31 ] & 0x4 ) == 0x4;
-			if( packed || sixteen_bit || stereo )
-				throw new IllegalArgumentException( "Sample type not supported!" );
+			int loop_end = loop_start + loop_length;
+			boolean stereo = ( module[ inst_offset + 31 ] & 0x2 ) == 0x2;
+			boolean sixteen_bit = ( module[ inst_offset + 31 ] & 0x4 ) == 0x4;
+			if( packed ) throw new IllegalArgumentException( "Packed samples not supported!" );
 			inst.c2_rate = ushortle( module, inst_offset + 32 );
-			byte[] sample_data = new byte[ sample_length + 1 ];
-			System.arraycopy( module, sample_offset, sample_data, 0, sample_length );
-			if( !signed_samples ) {
-				for( int sam_idx = 0; sam_idx < sample_length; sam_idx++ ) {
-					int sam = sample_data[ sam_idx ] & 0xFF;
-					sample_data[ sam_idx ] = ( byte ) ( sam - 128 );
-				}
+			short[] sample_data = new short[ loop_end + 1 ];
+			convert_samples( module, sample_offset, sample_data, loop_end, signed_samples, sixteen_bit );
+			sample_data[ loop_end ] = sample_data[ loop_start ];
+			inst.sample_data_left = sample_data;
+			if( stereo ) {
+				sample_offset += sample_length + ( sixteen_bit ? sample_length : 0 );
+				sample_data = new short[ loop_end + 1 ];
+				convert_samples( module, sample_offset, sample_data, loop_end, signed_samples, sixteen_bit );
+				sample_data[ loop_end ] = sample_data[ loop_start ];
 			}
-			sample_data[ loop_start + loop_length ] = sample_data[ loop_start ];
-			inst.sample_data = sample_data;
+			inst.sample_data_right = sample_data;
 		}
 		patterns = new Pattern[ num_patterns ];
 		for( int pat_idx = 0; pat_idx < num_patterns; pat_idx++ ) {
@@ -161,8 +162,43 @@ public class Module {
 		}
 	}
 
+	public static void convert_samples( byte[] input, int offset, short[] output, int count, boolean signed, boolean sixteen_bit ) {
+		if( sixteen_bit ) {
+			if( signed ) {
+				for( int idx = 0; idx < count; idx++ ) {
+					output[ idx ] = ( short ) ( ( input[ offset ] & 0xFF ) | ( input[ offset + 1 ] << 8 ) );
+					offset += 2;
+				}
+			} else {
+				for( int idx = 0; idx < count; idx++ ) {
+					int sam = ( input[ offset ] & 0xFF ) | ( ( input[ offset + 1 ] & 0xFF ) << 8 );
+					output[ idx ] = ( short ) ( sam - 32768 );
+					offset += 2;
+				}
+			}
+		} else {
+			if( signed ) {
+				for( int idx = 0; idx < count; idx++ ) {
+					output[ idx ] = ( short ) ( input[ offset++ ] << 8 );
+				}
+			} else {
+				for( int idx = 0; idx < count; idx++ ) {
+					output[ idx ] = ( short ) ( ( ( input[ offset++ ] & 0xFF ) - 128 ) << 8 );
+				}
+			}
+		}
+	}
+
 	private static int ushortle( byte[] buf, int offset ) {
 		return ( buf[ offset ] & 0xFF ) | ( ( buf[ offset + 1 ] & 0xFF ) << 8 ) ;
+	}
+
+	private static int intle( byte[] buf, int offset ) {
+		int value = buf[ offset ] & 0xFF;
+		value  |= ( buf[ offset + 1 ] & 0xFF ) << 8;
+		value  |= ( buf[ offset + 2 ] & 0xFF ) << 16;
+		value  |= ( buf[ offset + 3 ] & 0x7F ) << 24;
+		return value;
 	}
 
 	private static String ascii( byte[] buf, int offset, int len ) {
