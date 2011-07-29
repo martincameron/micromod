@@ -91,7 +91,7 @@ public class Module {
 			boolean stereo = ( module[ inst_offset + 31 ] & 0x2 ) == 0x2;
 			boolean sixteen_bit = ( module[ inst_offset + 31 ] & 0x4 ) == 0x4;
 			if( packed ) throw new IllegalArgumentException( "Packed samples not supported!" );
-			inst.c2_rate = ushortle( module, inst_offset + 32 );
+			inst.c2_rate = intle( module, inst_offset + 32 );
 			short[] sample_data = new short[ loop_end + 1 ];
 			convert_samples( module, sample_offset, sample_data, loop_end, signed_samples, sixteen_bit );
 			sample_data[ loop_end ] = sample_data[ loop_start ];
@@ -178,13 +178,11 @@ public class Module {
 			}
 		} else {
 			if( signed ) {
-				for( int idx = 0; idx < count; idx++ ) {
+				for( int idx = 0; idx < count; idx++ )
 					output[ idx ] = ( short ) ( input[ offset++ ] << 8 );
-				}
 			} else {
-				for( int idx = 0; idx < count; idx++ ) {
+				for( int idx = 0; idx < count; idx++ )
 					output[ idx ] = ( short ) ( ( ( input[ offset++ ] & 0xFF ) - 128 ) << 8 );
-				}
 			}
 		}
 	}

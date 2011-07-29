@@ -281,7 +281,7 @@ public class Channel {
 		if( note_ins > 0 && note_ins <= module.num_instruments ) {
 			assigned = note_ins;
 			Instrument assigned_ins = module.instruments[ assigned ];
-			c2_rate = assigned_ins.c2_rate & 0xFFFF;
+			c2_rate = assigned_ins.c2_rate;
 			volume = assigned_ins.volume >= 64 ? 64 : assigned_ins.volume & 0x3F;
 		}
 		if( note_vol >= 0x10 )
@@ -290,12 +290,11 @@ public class Channel {
 			if( note_key > 108 ) {
 				volume = 0;
 			} else {
-				int period = period_table[ note_key - 1 ];
-				int c2_rate = ( this.c2_rate > 0 ) ? this.c2_rate : 8363;
-				porta_period = 8363 * period / c2_rate;
+				porta_period = period_table[ note_key - 1 ];
+				if( c2_rate > 0 ) porta_period = 8363 * porta_period / c2_rate;
 				if( note_effect != 0x07 && note_effect != 0x0C ) {
 					instrument = assigned;
-					this.period = porta_period;
+					period = porta_period;
 					sample_idx = sample_fra = 0;
 					if( vibrato_type < 4 ) vibrato_phase = 0;
 					if( tremolo_type < 4 ) tremolo_phase = 0;
