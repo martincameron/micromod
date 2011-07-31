@@ -36,7 +36,7 @@ public class Channel {
 	private int sample_idx, sample_fra, step;
 	private int volume, panning, c2_rate, ampl;
 	private int period, porta_period, retrig_count, fx_count;
-	private int porta_param, tone_porta_param, vslide_param, offset_param;
+	private int porta_param, tone_porta_param, vslide_param, offset_param, arpeggio_param;
 	private int retrig_volume, retrig_ticks, tremor_on_ticks, tremor_off_ticks;
 	private int vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
 	private int tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
@@ -148,6 +148,9 @@ public class Channel {
 				if( ( note_param & 0xF ) > 0 ) tremor_off_ticks = note_param & 0xF;
 				tremor();
 				break;
+			case 0x0A: /* Arpeggio.*/
+				if( note_param > 0 ) arpeggio_param = note_param;
+				break;
 			case 0x0B: /* Vibrato + Volume Slide.*/
 				if( note_param > 0 ) vslide_param = note_param;
 				vibrato( false );
@@ -229,8 +232,8 @@ public class Channel {
 			case 0x0A: /* Arpeggio.*/
 				if( fx_count > 2 ) fx_count = 0;
 				if( fx_count == 0 ) arpeggio_add = 0;
-				if( fx_count == 1 ) arpeggio_add = note_param >> 4;
-				if( fx_count == 2 ) arpeggio_add = note_param & 0xF;
+				if( fx_count == 1 ) arpeggio_add = arpeggio_param >> 4;
+				if( fx_count == 2 ) arpeggio_add = arpeggio_param & 0xF;
 				break;
 			case 0x0B: /* Vibrato + Volume Slide.*/
 				vibrato_phase += vibrato_speed;
