@@ -432,8 +432,7 @@ public class Channel {
 	private void calculate_frequency() {
 		if( module.linear_periods ) {
 			int per = period + vibrato_add - ( arpeggio_add << 6 );
-			if( per < 28 ) per = 28;
-			if( per > 7680 ) per = 7680;
+			if( per < 28 || per > 7680 ) per = 7680;
 			int tone = 7680 - per;
 			int i = ( tone >> 3 ) % 96;
 			int c = freq_table[ i ];
@@ -445,7 +444,7 @@ public class Channel {
 			else step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sample_rate >> 3 );
 		} else {
 			int per = period + vibrato_add;
-			if( per < 28 ) per = 28;
+			if( per < 28 ) per = period_table[ 0 ];
 			int freq = 8363 * 1712 / per;
 			freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0x7FFFF;
 			if( freq < 65536 ) step = ( freq << Sample.FP_SHIFT ) / sample_rate;

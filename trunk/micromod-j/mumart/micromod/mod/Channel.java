@@ -230,7 +230,7 @@ public class Channel {
 	private void update_frequency() {
 		int period, freq, volume;
 		period = this.period + vibrato_add;
-		if( period < 7 ) period = 7;
+		if( period < 7 ) period = 6848;
 		freq = module.c2_rate * 428 / period;
 		freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0x7FFFF;
 		if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;
