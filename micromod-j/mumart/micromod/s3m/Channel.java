@@ -268,7 +268,7 @@ public class Channel {
 	private void update_frequency() {
 		int period, freq, volume;
 		period = this.period + vibrato_add;
-		if( period < 28 ) period = 28;
+		if( period < 28 ) period = period_table[ 0 ];
 		freq = 8363 * 1712 / period;
 		freq = ( freq * arp_tuning[ arpeggio_add ] >> 12 ) & 0x7FFFF;
 		if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sample_rate;

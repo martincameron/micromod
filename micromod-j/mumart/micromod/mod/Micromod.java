@@ -2,10 +2,10 @@
 package mumart.micromod.mod;
 
 /*
-	java protracker replay (c)2010 mumart@gmail.com
+	java protracker replay (c)2011 mumart@gmail.com
 */
 public class Micromod implements mumart.micromod.replay.Replay {
-	public static final String VERSION = "20100928 (c)2010 mumart@gmail.com";
+	public static final String VERSION = "20110801a (c)2011 mumart@gmail.com";
 
 	private Module module;
 	private int[] ramp_buf;
