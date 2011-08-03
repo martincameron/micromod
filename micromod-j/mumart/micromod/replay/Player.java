@@ -1,9 +1,6 @@
 
 package mumart.micromod.replay;
 
-import java.io.*;
-import javax.sound.sampled.*;
-
 /*
 	Module player class.
 	Provides module loading, oversampling and simpler buffering functions.
@@ -117,18 +114,17 @@ public class Player {
 	
 	/* Attempt to initialise a Replay from the specified module data. */
 	public static Replay init_replay( byte[] module_data, int sampling_rate, int resampling ) {
-		try {
-			// Try loading as an XM.
+		Replay replay = null;
+		if( mumart.micromod.xm.Module.is_xm( module_data ) ) {
 			mumart.micromod.xm.Module module = new mumart.micromod.xm.Module( module_data );
-			return new mumart.micromod.xm.IBXM( module, sampling_rate, resampling );
-		} catch( IllegalArgumentException e ) {}
-		try {
-			// Not an XM, try as an S3M.
+			replay = new mumart.micromod.xm.IBXM( module, sampling_rate, resampling );
+		} else if( mumart.micromod.s3m.Module.is_s3m( module_data ) ) {
 			mumart.micromod.s3m.Module module = new mumart.micromod.s3m.Module( module_data );
-			return new mumart.micromod.s3m.Micros3m( module, sampling_rate, resampling >= 2 );
-		} catch( IllegalArgumentException e ) {}
-		// Must be a MOD ...
-		mumart.micromod.mod.Module module = new mumart.micromod.mod.Module( module_data );
-		return new mumart.micromod.mod.Micromod( module, sampling_rate, resampling >= 2 );
+			replay = new mumart.micromod.s3m.Micros3m( module, sampling_rate, resampling >= 2 );
+		} else {
+			mumart.micromod.mod.Module module = new mumart.micromod.mod.Module( module_data );
+			replay = new mumart.micromod.mod.Micromod( module, sampling_rate, resampling >= 2 );
+		}
+		return replay;
 	}
 }

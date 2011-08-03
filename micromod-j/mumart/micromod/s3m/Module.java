@@ -43,7 +43,7 @@ public class Module {
 		int version = ushortle( module, 40 );
 		fast_vol_slides = ( ( flags & 0x40 ) == 0x40 ) || version == 0x1300;
 		boolean signed_samples = ushortle( module, 42 ) == 1;
-		if( ushortle( module, 44 ) != 0x4353 )
+		if( intle( module, 44 ) != 0x4d524353 )
 			throw new IllegalArgumentException( "Not an S3M file!" );
 		default_g_vol = module[ 48 ] & 0xFF;
 		default_speed = module[ 49 ] & 0xFF;
@@ -162,7 +162,12 @@ public class Module {
 		}
 	}
 
-	public static void convert_samples( byte[] input, int offset, short[] output, int count, boolean signed, boolean sixteen_bit ) {
+	/* Return true if the specified module data is in S3M format. */
+	public static boolean is_s3m( byte[] module ) {
+		return ascii( module, 44, 4 ).equals( "SCRM" );
+	}
+
+	private static void convert_samples( byte[] input, int offset, short[] output, int count, boolean signed, boolean sixteen_bit ) {
 		if( sixteen_bit ) {
 			if( signed ) {
 				for( int idx = 0; idx < count; idx++ ) {
