@@ -29,7 +29,7 @@ public class Module {
 	}
 	
 	public Module( byte[] module_data ) {
-		if( !ascii( module_data, 0, 17 ).equals( "Extended Module: " ) )
+		if( !is_xm( module_data ) )
 			throw new IllegalArgumentException( "Not an XM file!" );
 		if( ushortle( module_data, 58 ) != 0x0104 )
 			throw new IllegalArgumentException( "XM format version must be 0x0104!" );
@@ -175,6 +175,11 @@ public class Module {
 		}
 	}
 	
+	/* Return true if the specified module data is in XM format. */
+	public static boolean is_xm( byte[] module_data ) {
+		return ascii( module_data, 0, 17 ).equals( "Extended Module: " );
+	}
+
 	private static int ushortle( byte[] buf, int offset ) {
 		return ( buf[ offset ] & 0xFF ) | ( ( buf[ offset + 1 ] & 0xFF ) << 8 ) ;
 	}
