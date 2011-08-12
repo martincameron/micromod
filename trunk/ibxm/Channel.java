@@ -112,11 +112,11 @@ public class Channel {
 		switch( noteEffect ) {
 			case 0x01: case 0x86: /* Porta Up. */
 				if( noteParam > 0 ) portaUpParam = noteParam;
-				portamentoUp();
+				portamentoUp( portaUpParam );
 				break;
 			case 0x02: case 0x85: /* Porta Down. */
 				if( noteParam > 0 ) portaDownParam = noteParam;
-				portamentoDown();
+				portamentoDown( portaDownParam );
 				break;
 			case 0x03: case 0x87: /* Tone Porta. */
 				if( noteParam > 0 ) tonePortaParam = noteParam;
@@ -182,23 +182,22 @@ public class Channel {
 				break;
 			case 0x21: /* Extra Fine Porta. */
 				if( noteParam > 0 ) extraFinePortaParam = noteParam;
-				if( ( extraFinePortaParam & 0xF0 ) == 0x10 ) {
-					period -= extraFinePortaParam & 0xF;
-					if( period < 0 ) period = 0;
-				} else if( ( extraFinePortaParam & 0xF0 ) == 0x20 ) {
-					period += extraFinePortaParam & 0xF;
-					if( period > 65535 ) period = 65535;
+				switch( extraFinePortaParam & 0xF0 ) {
+					case 0x10:
+						portamentoUp( 0xE0 | ( extraFinePortaParam & 0xF ) );
+						break;
+					case 0x20:
+						portamentoDown( 0xE0 | ( extraFinePortaParam & 0xF ) );
+						break;
 				}
 				break;
 			case 0x71: /* Fine Porta Up. */
 				if( noteParam > 0 ) finePortaUpParam = noteParam;
-				period -= finePortaUpParam << 2;
-				if( period < 0 ) period = 0;
+				portamentoUp( 0xF0 | ( finePortaUpParam & 0xF ) );
 				break;
 			case 0x72: /* Fine Porta Down. */
 				if( noteParam > 0 ) finePortaDownParam = noteParam;
-				period += finePortaDownParam << 2;
-				if( period > 65535 ) period = 65535;
+				portamentoDown( 0xF0 | ( finePortaDownParam & 0xF ) );
 				break;
 			case 0x74: case 0xF3: /* Set Vibrato Waveform. */
 				if( noteParam < 8 ) vibratoType = noteParam;
@@ -277,10 +276,10 @@ public class Channel {
 		}
 		switch( noteEffect ) {
 			case 0x01: case 0x86: /* Porta Up. */
-				portamentoUp();
+				portamentoUp( portaUpParam );
 				break;
 			case 0x02: case 0x85: /* Porta Down. */
-				portamentoDown();
+				portamentoDown( portaDownParam );
 				break;
 			case 0x03: case 0x87: /* Tone Porta. */
 				tonePortamento();
@@ -387,39 +386,48 @@ public class Channel {
 		if( volume < 0 ) volume = 0;
 	}
 
-	private void portamentoUp() {
-		int param = portaUpParam;
-		if( ( param & 0xF0 ) == 0xE0 ) { /* Extra-fine porta.*/
-			if( fxCount == 0 ) period -= param & 0xF;
-		} else if( ( param & 0xF0 ) == 0xF0 ) { /* Fine porta.*/
-			if( fxCount == 0 ) period -= ( param & 0x0F ) << 2;
-		} else if( fxCount > 0 ) /* Normal porta.*/
-			period -= param << 2;
+	private void portamentoUp( int param ) {
+		switch( param & 0xF0 ) {
+			case 0xE0: /* Extra-fine porta.*/
+				if( fxCount == 0 ) period -= param & 0xF;
+				break;
+			case 0xF0: /* Fine porta.*/
+				if( fxCount == 0 ) period -= ( param & 0xF ) << 2;
+				break;
+			default:/* Normal porta.*/
+				if( fxCount > 0 ) period -= param << 2;
+				break;
+		}
 		if( period < 0 ) period = 0;
 	}
 
-	private void portamentoDown() {
-		int param = portaDownParam;
-		if( ( param & 0xF0 ) == 0xE0 ) { /* Extra-fine porta.*/
-			if( fxCount == 0 ) period += param & 0xF;
-		} else if( ( param & 0xF0 ) == 0xF0 ) { /* Fine porta.*/
-			if( fxCount == 0 ) period += ( param & 0x0F ) << 2;
-		} else if( fxCount > 0 ) /* Normal porta.*/
-			period += param << 2;
-		if( period > 65535 ) period = 65535;
+	private void portamentoDown( int param ) {
+		if( period > 0 ) {
+			switch( param & 0xF0 ) {
+				case 0xE0: /* Extra-fine porta.*/
+					if( fxCount == 0 ) period += param & 0xF;
+					break;
+				case 0xF0: /* Fine porta.*/
+					if( fxCount == 0 ) period += ( param & 0xF ) << 2;
+					break;
+				default:/* Normal porta.*/
+					if( fxCount > 0 ) period += param << 2;
+					break;
+			}
+			if( period > 65535 ) period = 65535;
+		}
 	}
 
 	private void tonePortamento() {
-		int source = period;
-		int dest = portaPeriod;
-		if( source < dest ) {
-			source += tonePortaParam << 2;
-			if( source > dest ) source = dest;
-		} else if( source > dest ) {
-			source -= tonePortaParam << 2;
-			if( source < dest ) source = dest;
+		if( period > 0 ) {
+			if( period < portaPeriod ) {
+				period += tonePortaParam << 2;
+				if( period > portaPeriod ) period = portaPeriod;
+			} else {
+				period -= tonePortaParam << 2;
+				if( period < portaPeriod ) period = portaPeriod;
+			}
 		}
-		period = source;
 	}
 
 	private void vibrato( boolean fine ) {
@@ -526,13 +534,17 @@ public class Channel {
 	}
 	
 	private void trigger() {
+		boolean isPorta = ( noteVol & 0xF0 ) == 0xF0 ||
+			noteEffect == 0x03 || noteEffect == 0x05 ||
+			noteEffect == 0x87 || noteEffect == 0x8C;
 		if( noteIns > 0 && noteIns <= module.numInstruments ) {
 			instrument = module.instruments[ noteIns ];
 			Sample sam = instrument.samples[ instrument.keyToSample[ noteKey < 97 ? noteKey : 0 ] ];
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
 			fineTune = ( byte ) sam.fineTune;
-			if( noteKey > 0 || sample.looped() ) sample = sam;
+			if( noteKey > 0 && !isPorta ) sample = sam; // Normal trigger.
+			if( period > 0 && sam.looped() ) sample = sam; // Amiga auto trigger.
 			volEnvTick = panEnvTick = 0;
 			fadeOutVol = 32768;
 			keyOn = true;
@@ -581,9 +593,7 @@ public class Channel {
 					portaPeriod = y >> ( tone / 768 );
 					portaPeriod = module.c2Rate * portaPeriod / sample.c2Rate;
 				}
-				if( period == 0 || ( noteEffect != 0x03 && noteEffect != 0x05
-						&& noteEffect != 0x87 && noteEffect != 0x8C
-						&& ( noteVol & 0xF0 ) != 0xF0 ) ) {
+				if( !isPorta ) {
 					period = portaPeriod;
 					sampleIdx = sampleFra = 0;
 					if( vibratoType < 4 ) vibratoPhase = 0;
