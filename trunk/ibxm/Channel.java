@@ -534,17 +534,13 @@ public class Channel {
 	}
 	
 	private void trigger() {
-		boolean isPorta = ( noteVol & 0xF0 ) == 0xF0 ||
-			noteEffect == 0x03 || noteEffect == 0x05 ||
-			noteEffect == 0x87 || noteEffect == 0x8C;
 		if( noteIns > 0 && noteIns <= module.numInstruments ) {
 			instrument = module.instruments[ noteIns ];
 			Sample sam = instrument.samples[ instrument.keyToSample[ noteKey < 97 ? noteKey : 0 ] ];
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
 			fineTune = ( byte ) sam.fineTune;
-			if( noteKey > 0 && !isPorta ) sample = sam; // Normal trigger.
-			if( period > 0 && sam.looped() ) sample = sam; // Amiga auto trigger.
+			if( period > 0 && sam.looped() ) sample = sam;
 			volEnvTick = panEnvTick = 0;
 			fadeOutVol = 32768;
 			keyOn = true;
@@ -593,7 +589,11 @@ public class Channel {
 					portaPeriod = y >> ( tone / 768 );
 					portaPeriod = module.c2Rate * portaPeriod / sample.c2Rate;
 				}
+				boolean isPorta = ( noteVol & 0xF0 ) == 0xF0 ||
+					noteEffect == 0x03 || noteEffect == 0x05 ||
+					noteEffect == 0x87 || noteEffect == 0x8C;
 				if( !isPorta ) {
+					sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
 					period = portaPeriod;
 					sampleIdx = sampleFra = 0;
 					if( vibratoType < 4 ) vibratoPhase = 0;
