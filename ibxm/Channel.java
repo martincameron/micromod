@@ -52,9 +52,8 @@ public class Channel {
 	private Sample sample;
 	private boolean keyOn;
 	private int noteKey, noteIns, noteVol, noteEffect, noteParam;
-	private int volume, panning, fineTune, relNote;
 	private int sampleIdx, sampleFra, step, ampl, pann;
-	private int fadeOutVol, volEnvTick, panEnvTick;
+	private int volume, panning, fadeOutVol, volEnvTick, panEnvTick;
 	private int period, portaPeriod, retrigCount, fxCount, autoVibratoCount;
 	private int portaUpParam, portaDownParam, tonePortaParam, offsetParam;
 	private int finePortaUpParam, finePortaDownParam, extraFinePortaParam;
@@ -201,10 +200,6 @@ public class Channel {
 				break;
 			case 0x74: case 0xF3: /* Set Vibrato Waveform. */
 				if( noteParam < 8 ) vibratoType = noteParam;
-				break;
-			case 0x75: case 0xF2: /* Set Finetune. */
-				fineTune = ( noteParam & 0xF ) << 4;
-				if( fineTune > 127 ) fineTune -= 256;
 				break;
 			case 0x77: case 0xF4: /* Set Tremolo Waveform. */
 				if( noteParam < 8 ) tremoloType = noteParam;
@@ -539,9 +534,7 @@ public class Channel {
 			Sample sam = instrument.samples[ instrument.keyToSample[ noteKey < 97 ? noteKey : 0 ] ];
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
-			fineTune = ( byte ) sam.fineTune;
-			relNote = sam.relNote;
-			if( period > 0 && sam.looped() ) sample = sam;
+			if( period > 0 && sam.looped() ) sample = sam; /* Amiga trigger.*/
 			volEnvTick = panEnvTick = 0;
 			fadeOutVol = 32768;
 			keyOn = true;
@@ -575,7 +568,14 @@ public class Channel {
 			if( noteKey > 96 ) {
 				keyOn = false;
 			} else {
-				int key = noteKey + relNote;
+				boolean isPorta = ( noteVol & 0xF0 ) == 0xF0 ||
+					noteEffect == 0x03 || noteEffect == 0x05 ||
+					noteEffect == 0x87 || noteEffect == 0x8C;
+				if( !isPorta ) sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
+				byte fineTune = ( byte ) sample.fineTune;
+				if( noteEffect == 0x75 || noteEffect == 0xF2 ) /* Set FineTune. */
+					fineTune = ( byte ) ( ( noteParam & 0xF ) << 4 );
+				int key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;
 				if( key > 120 ) key = 120;
 				if( module.linearPeriods ) {
@@ -590,11 +590,7 @@ public class Channel {
 					portaPeriod = y >> ( tone / 768 );
 					portaPeriod = module.c2Rate * portaPeriod / sample.c2Rate;
 				}
-				boolean isPorta = ( noteVol & 0xF0 ) == 0xF0 ||
-					noteEffect == 0x03 || noteEffect == 0x05 ||
-					noteEffect == 0x87 || noteEffect == 0x8C;
 				if( !isPorta ) {
-					sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
 					period = portaPeriod;
 					sampleIdx = sampleFra = 0;
 					if( vibratoType < 4 ) vibratoPhase = 0;
