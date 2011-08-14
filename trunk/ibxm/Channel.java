@@ -52,7 +52,7 @@ public class Channel {
 	private Sample sample;
 	private boolean keyOn;
 	private int noteKey, noteIns, noteVol, noteEffect, noteParam;
-	private int volume, panning, fineTune;
+	private int volume, panning, fineTune, relNote;
 	private int sampleIdx, sampleFra, step, ampl, pann;
 	private int fadeOutVol, volEnvTick, panEnvTick;
 	private int period, portaPeriod, retrigCount, fxCount, autoVibratoCount;
@@ -540,6 +540,7 @@ public class Channel {
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
 			fineTune = ( byte ) sam.fineTune;
+			relNote = sam.relNote;
 			if( period > 0 && sam.looped() ) sample = sam;
 			volEnvTick = panEnvTick = 0;
 			fadeOutVol = 32768;
@@ -574,7 +575,7 @@ public class Channel {
 			if( noteKey > 96 ) {
 				keyOn = false;
 			} else {
-				int key = noteKey + sample.relNote;
+				int key = noteKey + relNote;
 				if( key < 1 ) key = 1;
 				if( key > 120 ) key = 120;
 				if( module.linearPeriods ) {
