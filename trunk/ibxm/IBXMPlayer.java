@@ -2,6 +2,7 @@
 package ibxm;
 
 import java.awt.BorderLayout;
+import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.dnd.DropTarget;
@@ -14,6 +15,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
 import java.util.List;
 import java.util.Vector;
 import javax.sound.sampled.AudioFormat;
@@ -60,6 +62,8 @@ public class IBXMPlayer extends JFrame {
 
 	public IBXMPlayer() {
 		super( "IBXM " + IBXM.VERSION );
+		URL icon = IBXMPlayer.class.getResource( "ibxm.png" );
+		setIconImage( Toolkit.getDefaultToolkit().createImage( icon ) );
 		JPanel controlPanel = new JPanel();
 		controlPanel.setLayout( new BorderLayout( 5, 5 ) );
 		songLabel = new JLabel( "No song loaded.", JLabel.CENTER );
