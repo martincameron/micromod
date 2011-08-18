@@ -162,6 +162,7 @@ public class IBXMPlayer extends JFrame {
 		} );
 		interpolationGroup.add( lineMenuItem );
 		interpolationGroup.setSelected( lineMenuItem.getModel(), true );
+		setInterpolation( Channel.LINEAR );
 		optionsMenu.add( lineMenuItem );
 		JRadioButtonMenuItem sincMenuItem = new JRadioButtonMenuItem( "Sinc interpolation" );
 		sincMenuItem.addActionListener( new ActionListener() {
@@ -203,7 +204,7 @@ public class IBXMPlayer extends JFrame {
 		seekSlider.setMinimum( 0 );
 		seekSlider.setMaximum( duration );
 		seekSlider.setValue( 0 );
-		songLabel.setText( module.songName );
+		songLabel.setText( module.songName.trim() );
 		Vector<String> vector = new Vector<String>();
 		Instrument[] instruments = module.instruments;
 		for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
@@ -293,7 +294,7 @@ public class IBXMPlayer extends JFrame {
 
 	private synchronized void setInterpolation( int interpolation ) {
 		this.interpolation = interpolation;
-		ibxm.setInterpolation( interpolation );
+		if( ibxm != null ) ibxm.setInterpolation( interpolation );
 	}
 
 	public static void main( String[] args ) {
