@@ -5,26 +5,32 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2011 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a60pre(20110814b) (c)2011 mumart@gmail.com";
+	public static final String VERSION = "a60pre(20110818a) (c)2011 mumart@gmail.com";
+
+	private static final int OVERSAMPLE = 2;
 
 	private Module module;
 	private int[] rampBuffer;
 	private Channel[] channels;
-	private int interpolation;
+	private int interpolation, filtL, filtR;
 	private int sampleRate, tickLen, rampLen, rampRate;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, plCount, plChannel;
 	private GlobalVol globalVol;
 	private Note note;
 
-	public IBXM( Module module, int sampleRate, int interpolation ) {
+	/*
+		Initialise the replay to play the
+		specified Module at the specified sampling rate.
+	*/
+	public IBXM( Module module, int sampleRate ) {
 		this.module = module;
 		this.sampleRate = sampleRate;
-		this.interpolation = interpolation;
-		if( sampleRate < 16000 )
+		interpolation = Channel.LINEAR;
+		if( sampleRate * OVERSAMPLE < 16000 )
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
 		rampLen = 256;
-		while( rampLen * 1024 > sampleRate ) rampLen /= 2;
+		while( rampLen * 1024 > sampleRate * OVERSAMPLE ) rampLen /= 2;
 		rampBuffer = new int[ rampLen * 2 ];
 		rampRate = 256 / rampLen;
 		channels = new Channel[ module.numChannels ];
@@ -33,14 +39,25 @@ public class IBXM {
 		setSequencePos( 0 );
 	}
 
+	/* Return the sampling rate of playback. */
 	public int getSampleRate() {
 		return sampleRate;
 	}
 
-	public int getMixBufferLength() {
-		return ( sampleRate * 5 / 32 ) + ( rampLen * 2 );
+	/*
+		Set the resampling quality to one of
+		Channel.NEAREST, Channel.LINEAR, or Channel.SINC.
+	*/
+	public void setInterpolation( int interpolation ) {
+		this.interpolation = interpolation;
 	}
 
+	/* Returns the minimum size of the buffer required by getAudio(). */
+	public int getMixBufferLength() {
+		return ( sampleRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
+	}
+
+	/* Set the playback to begin at the specified pattern position. */
 	public void setSequencePos( int pos ) {
 		if( pos >= module.sequenceLength ) pos = 0;
 		breakSeqPos = pos;
@@ -51,17 +68,19 @@ public class IBXM {
 		setTempo( module.defaultTempo > 0 ? module.defaultTempo : 125 );
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
-			channels[ idx ] = new Channel( module, idx, sampleRate, globalVol );
+			channels[ idx ] = new Channel( module, idx, sampleRate * OVERSAMPLE, globalVol );
 		for( int idx = 0, end = rampLen * 2; idx < end; idx++ ) rampBuffer[ idx ] = 0;
+		filtL = filtR = 0;
 		tick();
 	}
 
+	/* Returns the song duration in samples at the current sampling rate. */
 	public int calculateSongDuration() {
 		int duration = 0;
 		setSequencePos( 0 );
 		boolean songEnd = false;
 		while( !songEnd ) {
-			duration += tickLen;
+			duration += tickLen / OVERSAMPLE;
 			songEnd = tick();
 		}
 		setSequencePos( 0 );
@@ -78,7 +97,7 @@ public class IBXM {
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen );
-			currentPos += tickLen;
+			currentPos += tickLen / OVERSAMPLE;
 			tick();
 		}
 		return currentPos;
@@ -103,12 +122,12 @@ public class IBXM {
 		}
 		volumeRamp( outputBuffer );
 		tick();
-		return tickLen;
+		return downsample( outputBuffer, tickLen );
 	}
 
 	private void setTempo( int tempo ) {
 		// Make sure tick length is even to simplify 2x oversampling.
-		tickLen = ( ( sampleRate * 5 ) / ( tempo * 2 ) ) & -2;
+		tickLen = ( ( sampleRate * OVERSAMPLE * 5 ) / ( tempo * 2 ) ) & -2;
 	}
 
 	private void volumeRamp( int[] mixBuffer ) {
@@ -123,6 +142,24 @@ public class IBXM {
 			mixBuffer[ offset++ ] = s1 + s2 >> 8;
 		}
 		System.arraycopy( mixBuffer, tickLen << 1, rampBuffer, 0, offset );
+	}
+
+	private int downsample( int[] buf, int count ) {
+		// 2:1 downsampling with simple but effective anti-aliasing.
+		// Count is the number of stereo samples to process, and must be even.
+		int fl = filtL, fr = filtR;
+		int inIdx = 0, outIdx = 0;
+		while( outIdx < count ) {	
+			int outL = fl + ( buf[ inIdx++ ] >> 1 );
+			int outR = fr + ( buf[ inIdx++ ] >> 1 );
+			fl = buf[ inIdx++ ] >> 2;
+			fr = buf[ inIdx++ ] >> 2;
+			buf[ outIdx++ ] = outL + fl;
+			buf[ outIdx++ ] = outR + fr;
+		}
+		filtL = fl;
+		filtR = fr;
+		return count >> 1;
 	}
 
 	private boolean tick() {

@@ -2,6 +2,8 @@
 package ibxm;
 
 public class Channel {
+	public static final int NEAREST = 0, LINEAR = 1, SINC = 2;
+
 	private static final int[] periodTable = {
 		// Periods for keys -11 to 1 with 8 finetune values.
 		54784, 54390, 53999, 53610, 53224, 52841, 52461, 52084, 
@@ -81,13 +83,13 @@ public class Channel {
 		int lAmpl = ampl * ( 255 - pann ) >> 8;
 		int rAmpl = ampl * pann >> 8;
 		switch( interpolation ) {
-			default:
+			case NEAREST:
 				sample.resampleNearest( sampleIdx, sampleFra, step, lAmpl, rAmpl, outBuf, offset, length );
 				break;
-			case 1:
+			case LINEAR: default:
 				sample.resampleLinear( sampleIdx, sampleFra, step, lAmpl, rAmpl, outBuf, offset, length );
 				break;
-			case 2:
+			case SINC:
 				sample.resampleSinc( sampleIdx, sampleFra, step, lAmpl, rAmpl, outBuf, offset, length );
 				break;
 		}
