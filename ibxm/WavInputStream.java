@@ -92,15 +92,15 @@ public class WavInputStream extends InputStream {
 			String modFileName = args[ 0 ];
 			String wavFileName = modFileName + ".wav";
 			int sampleRate = 48000;
-			int interpolation = 0;
+			int interpolation = Channel.LINEAR;
 			for( int idx = 1; idx < args.length; idx++ ) {
 				String arg = args[ idx ];
 				if( arg.startsWith( "rate=" ) ) {
 					sampleRate = Integer.parseInt( arg.substring( 5 ) );
-				} else if( "int=linear".equals( arg ) ) {
-					interpolation = 1;
+				} else if( "int=none".equals( arg ) ) {
+					interpolation = Channel.NEAREST;
 				} else if( "int=sinc".equals( arg ) ) {
-					interpolation = 2;
+					interpolation = Channel.SINC;
 				} else {
 					wavFileName = arg;
 				}
@@ -118,7 +118,8 @@ public class WavInputStream extends InputStream {
 			in.close();
 			// Write WAV file to output.
 			java.io.OutputStream out = new java.io.FileOutputStream( wavFileName );
-			IBXM ibxm = new IBXM( new Module( buf ), sampleRate, interpolation );
+			IBXM ibxm = new IBXM( new Module( buf ), sampleRate );
+			ibxm.setInterpolation( interpolation );
 			in = new WavInputStream( ibxm );
 			buf = new byte[ ibxm.getMixBufferLength() * 4 ];
 			int remain = ( ( WavInputStream ) in ).getWavFileLength();
@@ -131,7 +132,7 @@ public class WavInputStream extends InputStream {
 			out.close();
 		} else {
 			System.err.println( "Mod to Wav converter." );
-			System.err.println( "Usage: java " + WavInputStream.class.getName() + " input.mod [output.wav] [rate=16000-96000] [int=linear|sinc]" );
+			System.err.println( "Usage: java " + WavInputStream.class.getName() + " input.mod [output.wav] [rate=16000-96000] [int=none|sinc]" );
 		}
 	}
 }
