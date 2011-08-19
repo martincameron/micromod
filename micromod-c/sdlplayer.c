@@ -8,7 +8,7 @@
 #include "micromod.h"
 
 /*
-	Simple command line test player for micromod/v using SDL.
+	Simple command line test player for micromod using SDL.
 */
 
 #define SAMPLING_FREQ  48000  /* 48khz. */
@@ -80,7 +80,7 @@ static void load_module( char *file_name ) {
 		fprintf( stderr, "Module file type not recognised.\n");
 		exit( EXIT_FAILURE );
 	}
-	printf( "Module Data Length: %i bytes.\n", length );
+	printf( "Module Data Length: %i bytes.\n", ( int ) length );
 	free( module );
 
 	module = malloc( length );
@@ -95,7 +95,7 @@ static void load_module( char *file_name ) {
 	}
 	read = fread( module, 1, length, file );
 	if( read != length ) {
-		fprintf( stderr, "Module file is truncated. %i bytes missing.\n", length - read );
+		fprintf( stderr, "Module file is truncated. %i bytes missing.\n", ( int ) ( length - read ) );
 	}
 	error = fclose( file );
 	if( error != 0 ) {
@@ -135,9 +135,10 @@ int main( int argc, char **argv ) {
 	
 	/* Calculate song length. */
 	samples_remaining = micromod_calculate_song_duration();
-	printf( "Song Duration: %i seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
+	printf( "Song Duration: %i seconds.\n", ( int ) ( samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) ) );
 
 	/* Initialise SDL_AudioSpec Structure. */
+	memset( &audiospec, 0, sizeof( SDL_AudioSpec ) );
 	audiospec.freq = SAMPLING_FREQ;
 	audiospec.format = AUDIO_S16SYS;
 	audiospec.channels = NUM_CHANNELS;
