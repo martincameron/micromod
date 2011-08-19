@@ -1,10 +1,10 @@
 
-package mumart.micromod.replay;
+package micromod;
 
 import java.io.InputStream;
 
 /*
-	An InputStream that produces 16-bit WAV audio data from a Replay.
+	An InputStream that produces 16-bit WAV audio data from a Micromod instance.
 	J2ME: java.microedition.media.Manager.createPlayer( wavInputStream, "audio/x-wav" ).start();
 */
 public class WavInputStream extends InputStream {
@@ -22,17 +22,17 @@ public class WavInputStream extends InputStream {
 		0x00, 0x00, 0x00, 0x00, /* Audio data size */
 	};
 
-	private Replay replay;
+	private Micromod micromod;
 	private int[] mixBuf;
 	private byte[] outBuf;
-	private int outIdx, outLen;
+	private int duration, outIdx, outLen;
 
-	public WavInputStream( Replay replay ) {
-		this.replay = replay;
-		mixBuf = new int[ replay.get_mix_buffer_length() ];
+	public WavInputStream( Micromod micromod ) {
+		this.micromod = micromod;
+		mixBuf = new int[ micromod.getMixBufferLength() ];
 		outBuf = new byte[ mixBuf.length * 4 ];
-		int duration = replay.calculate_song_duration();
-		int samplingRate = replay.get_sampling_rate();
+		duration = micromod.calculateSongDuration();
+		int samplingRate = micromod.getSampleRate();
 		System.arraycopy( header, 0, outBuf, 0, header.length );
 		writeInt32( outBuf, 4, duration * 4 + 36 );
 		writeInt32( outBuf, 24, samplingRate );
@@ -40,6 +40,10 @@ public class WavInputStream extends InputStream {
 		writeInt32( outBuf, 40, duration * 4 );
 		outIdx = 0;
 		outLen = 44;
+	}
+
+	public int getWavFileLength() {
+		return duration * 4 + header.length;
 	}
 
 	public int read() {
@@ -64,7 +68,7 @@ public class WavInputStream extends InputStream {
 	}
 
 	private void getAudio() {
-		int mEnd = replay.get_audio( mixBuf ) * 2;
+		int mEnd = micromod.getAudio( mixBuf ) * 2;
 		for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
 			int ampl = mixBuf[ mIdx ];
 			outBuf[ oIdx++ ] = ( byte ) ampl;
@@ -81,24 +85,42 @@ public class WavInputStream extends InputStream {
 		buf[ idx + 3 ] = ( byte ) ( value >> 24 );
 	}
 
-	/* Simple Mod to Wav converter for testing. */
+	/* Simple Mod to Wav converter. */
 	public static void main( String[] args ) throws java.io.IOException {
-		if( args.length == 2 ) {
-			// Load data into array.
-			java.io.File modFile = new java.io.File( args[ 0 ] );
+		if( args.length > 0 ) {
+			// Parse arguments.
+			String modFileName = args[ 0 ];
+			String wavFileName = modFileName + ".wav";
+			int sampleRate = 48000;
+			boolean interpolation = false;
+			for( int idx = 1; idx < args.length; idx++ ) {
+				String arg = args[ idx ];
+				if( arg.startsWith( "rate=" ) ) {
+					sampleRate = Integer.parseInt( arg.substring( 5 ) );
+				} else if( "int=linear".equals( arg ) ) {
+					interpolation = true;
+				} else {
+					wavFileName = arg;
+				}
+			}
+			// Load module data into array.
+			java.io.File modFile = new java.io.File( modFileName );
 			byte[] buf = new byte[ ( int ) modFile.length() ];
 			InputStream in = new java.io.FileInputStream( modFile );
 			int idx = 0;
 			while( idx < buf.length ) {
-				idx += in.read( buf, idx, buf.length - idx );
+				int len = in.read( buf, idx, buf.length - idx );
+				if( len < 0 ) throw new java.io.IOException( "Unexpected end of file." );
+				idx += len;
 			}
 			in.close();
 			// Write WAV file to output.
-			java.io.OutputStream out = new java.io.FileOutputStream( args[ 1 ] );
-			Replay replay = Player.init_replay( buf, 48000, 2 );
-			in = new WavInputStream( replay );
-			buf = new byte[ replay.get_mix_buffer_length() * 4 ];
-			int remain = replay.calculate_song_duration() * 4 + header.length;
+			java.io.OutputStream out = new java.io.FileOutputStream( wavFileName );
+			Micromod micromod = new Micromod( new Module( buf ), sampleRate );
+			micromod.setInterpolation( interpolation );
+			in = new WavInputStream( micromod );
+			buf = new byte[ micromod.getMixBufferLength() * 4 ];
+			int remain = ( ( WavInputStream ) in ).getWavFileLength();
 			while( remain > 0 ) {
 				int count = remain > buf.length ? buf.length : remain;
 				count = in.read( buf, 0, count );
@@ -107,7 +129,8 @@ public class WavInputStream extends InputStream {
 			}		
 			out.close();
 		} else {
-			System.err.println( "Usage: input.mod output.wav" );
+			System.err.println( "Mod to Wav converter." );
+			System.err.println( "Usage: java " + WavInputStream.class.getName() + " input.mod [output.wav] [rate=16000-96000] [int=linear]" );
 		}
 	}
 }
