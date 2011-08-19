@@ -1,60 +1,50 @@
 
-package ibxm;
+package micromod;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2011 mumart@gmail.com
+	Java ProTracker Replay (c)2011 mumart@gmail.com
 */
-public class IBXM {
-	public static final String VERSION = "a60 (c)2011 mumart@gmail.com";
+public class Micromod {
+	public static final String VERSION = "20110819a (c)2011 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
 	private Module module;
-	private int[] rampBuffer;
+	private int[] rampBuf;
 	private Channel[] channels;
-	private int interpolation, filtL, filtR;
-	private int sampleRate, tickLen, rampLen, rampRate;
+	private int samplingRate, filtL, filtR;
+	private int tickLen, rampLen, rampRate;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, plCount, plChannel;
-	private GlobalVol globalVol;
-	private Note note;
+	private boolean interpolation;
 
-	/*
-		Initialise the replay to play the
-		specified Module at the specified sampling rate.
-	*/
-	public IBXM( Module module, int sampleRate ) {
+	/* Play the specified Module at the specified sampling rate. */
+	public Micromod( Module module, int samplingRate ) {
 		this.module = module;
-		this.sampleRate = sampleRate;
-		interpolation = Channel.LINEAR;
-		if( sampleRate * OVERSAMPLE < 16000 )
+		this.samplingRate = samplingRate;
+		if( samplingRate * OVERSAMPLE < 16000 )
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
 		rampLen = 256;
-		while( rampLen * 1024 > sampleRate * OVERSAMPLE ) rampLen /= 2;
-		rampBuffer = new int[ rampLen * 2 ];
+		while( rampLen * 1024 > samplingRate * OVERSAMPLE ) rampLen /= 2;
+		rampBuf = new int[ rampLen * 2 ];
 		rampRate = 256 / rampLen;
 		channels = new Channel[ module.numChannels ];
-		globalVol = new GlobalVol();
-		note = new Note();
 		setSequencePos( 0 );
 	}
 
 	/* Return the sampling rate of playback. */
 	public int getSampleRate() {
-		return sampleRate;
+		return samplingRate;
 	}
 
-	/*
-		Set the resampling quality to one of
-		Channel.NEAREST, Channel.LINEAR, or Channel.SINC.
-	*/
-	public void setInterpolation( int interpolation ) {
+	/* Enable or disable the linear interpolation filter. */
+	public void setInterpolation( boolean interpolation ) {
 		this.interpolation = interpolation;
 	}
 
-	/* Returns the minimum size of the buffer required by getAudio(). */
+	/* Return the maximum length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
-		return ( sampleRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
+		return ( samplingRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
 	}
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */
@@ -63,13 +53,12 @@ public class IBXM {
 		breakSeqPos = pos;
 		nextRow = 0;
 		tick = 1;
-		globalVol.volume = module.defaultGVol;
-		speed = module.defaultSpeed > 0 ? module.defaultSpeed : 6;
-		setTempo( module.defaultTempo > 0 ? module.defaultTempo : 125 );
+		speed = 6;
+		setTempo( 125 );
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
-			channels[ idx ] = new Channel( module, idx, sampleRate * OVERSAMPLE, globalVol );
-		for( int idx = 0, end = rampLen * 2; idx < end; idx++ ) rampBuffer[ idx ] = 0;
+			channels[ idx ] = new Channel( module, idx, samplingRate * OVERSAMPLE );
+		for( int idx = 0, end = rampLen * 2; idx < end; idx++ ) rampBuf[ idx ] = 0;
 		filtL = filtR = 0;
 		tick();
 	}
@@ -105,43 +94,43 @@ public class IBXM {
 
 	/*
 		Generate audio.
-		The number of samples placed into output_buf is returned.
-		The output buffer length must be at least that returned by get_mix_buffer_length().
+		The number of samples placed into outputBuf is returned.
+		The output buffer length must be at least that returned by getMixBufferLength().
 		A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels.
 	*/
-	public int getAudio( int[] outputBuffer ) {
+	public int getAudio( int[] outputBuf ) {
 		// Clear output buffer.
 		int outIdx = 0;
 		int outEp1 = tickLen + rampLen << 1;
-		while( outIdx < outEp1 ) outputBuffer[ outIdx++ ] = 0;
+		while( outIdx < outEp1 ) outputBuf[ outIdx++ ] = 0;
 		// Resample.
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuffer, 0, tickLen + rampLen, interpolation );
+			chan.resample( outputBuf, 0, tickLen + rampLen, interpolation );
 			chan.updateSampleIdx( tickLen );
 		}
-		volumeRamp( outputBuffer );
+		volumeRamp( outputBuf );
 		tick();
-		return downsample( outputBuffer, tickLen );
+		return downsample( outputBuf, tickLen );
 	}
 
 	private void setTempo( int tempo ) {
-		// Make sure tick length is even to simplify 2x oversampling.
-		tickLen = ( ( sampleRate * OVERSAMPLE * 5 ) / ( tempo * 2 ) ) & -2;
+		// Make sure tick length is even to simplify downsampling.
+		tickLen = ( ( samplingRate * OVERSAMPLE * 5 ) / ( tempo * 2 ) ) & -2;
 	}
 
-	private void volumeRamp( int[] mixBuffer ) {
+	private void volumeRamp( int[] mixBuf ) {
 		int a1, a2, s1, s2, offset = 0;
 		for( a1 = 0; a1 < 256; a1 += rampRate ) {
 			a2 = 256 - a1;
-			s1 =  mixBuffer[ offset ] * a1;
-			s2 = rampBuffer[ offset ] * a2;
-			mixBuffer[ offset++ ] = s1 + s2 >> 8;
-			s1 =  mixBuffer[ offset ] * a1;
-			s2 = rampBuffer[ offset ] * a2;
-			mixBuffer[ offset++ ] = s1 + s2 >> 8;
+			s1 =  mixBuf[ offset ] * a1;
+			s2 = rampBuf[ offset ] * a2;
+			mixBuf[ offset++ ] = s1 + s2 >> 8;
+			s1 =  mixBuf[ offset ] * a1;
+			s2 = rampBuf[ offset ] * a2;
+			mixBuf[ offset++ ] = s1 + s2 >> 8;
 		}
-		System.arraycopy( mixBuffer, tickLen << 1, rampBuffer, 0, offset );
+		System.arraycopy( mixBuf, tickLen << 1, rampBuf, 0, offset );
 	}
 
 	private int downsample( int[] buf, int count ) {
@@ -177,68 +166,59 @@ public class IBXM {
 		boolean songEnd = false;
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) breakSeqPos = nextRow = 0;
-			while( module.sequence[ breakSeqPos ] >= module.numPatterns ) {
-				breakSeqPos++;
-				if( breakSeqPos >= module.sequenceLength ) breakSeqPos = nextRow = 0;
-			}
 			if( breakSeqPos <= seqPos ) songEnd = true;
 			seqPos = breakSeqPos;
 			for( int idx = 0; idx < module.numChannels; idx++ ) channels[ idx ].plRow = 0;
 			breakSeqPos = -1;
 		}
-		Pattern pattern = module.patterns[ module.sequence[ seqPos ] ];
 		row = nextRow;
-		if( row >= pattern.numRows ) row = 0;
 		nextRow = row + 1;
-		if( nextRow >= pattern.numRows ) {
+		if( nextRow >= 64 ) {
 			breakSeqPos = seqPos + 1;
 			nextRow = 0;
 		}
-		int noteIdx = row * module.numChannels;
+		int patOffset = ( module.sequence[ seqPos ] * 64 + row ) * module.numChannels * 4;
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
-			pattern.getNote( noteIdx + chanIdx, note );
-			if( note.effect == 0xE ) {
-				note.effect = 0x70 | ( note.param >> 4 );
-				note.param &= 0xF;
+			int key = ( module.patterns[ patOffset ] & 0xF ) << 8;
+			key = key | module.patterns[ patOffset + 1 ] & 0xFF;
+			int ins = ( module.patterns[ patOffset + 2 ] & 0xF0 ) >> 4;
+			ins = ins | module.patterns[ patOffset ] & 0x10;
+			int effect = module.patterns[ patOffset + 2 ] & 0x0F;
+			int param  = module.patterns[ patOffset + 3 ] & 0xFF;
+			patOffset += 4;
+			if( effect == 0xE ) {
+				effect = 0x10 | ( param >> 4 );
+				param &= 0xF;
 			}
-			if( note.effect == 0x93 ) {
-				note.effect = 0xF0 | ( note.param >> 4 );
-				note.param &= 0xF;
-			}
-			if( note.effect == 0 && note.param > 0 ) note.effect = 0x8A;
-			channel.row( note );
-			switch( note.effect ) {
-				case 0x81: /* Set Speed. */
-					if( note.param > 0 ) tick = speed = note.param;
-					break;
-				case 0xB: case 0x82: /* Pattern Jump.*/
+			if( effect == 0 && param > 0 ) effect = 0xE;
+			channel.row( key, ins, effect, param );
+			switch( effect ) {
+				case 0xB: /* Pattern Jump.*/
 					if( plCount < 0 ) {
-						breakSeqPos = note.param;
+						breakSeqPos = param;
 						nextRow = 0;
 					}
 					break;
-				case 0xD: case 0x83: /* Pattern Break.*/
+				case 0xD: /* Pattern Break.*/
 					if( plCount < 0 ) {
 						breakSeqPos = seqPos + 1;
-						nextRow = ( note.param >> 4 ) * 10 + ( note.param & 0xF );
+						nextRow = ( param >> 4 ) * 10 + ( param & 0xF );
+						if( nextRow >= 64 ) nextRow = 0;
 					}
 					break;
-				case 0xF: /* Set Speed/Tempo.*/
-					if( note.param > 0 ) {
-						if( note.param < 32 ) tick = speed = note.param;
-						else setTempo( note.param );
+				case 0xF: /* Set Speed.*/
+					if( param > 0 ) {
+						if( param < 32 ) tick = speed = param;
+						else setTempo( param );
 					}
 					break;
-				case 0x94: /* Set Tempo.*/
-					if( note.param > 32 ) setTempo( note.param );
-					break;
-				case 0x76: case 0xFB : /* Pattern Loop.*/
-					if( note.param == 0 ) /* Set loop marker on this channel. */
+				case 0x16: /* Pattern Loop.*/
+					if( param == 0 ) /* Set loop marker on this channel. */
 						channel.plRow = row;
 					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
-							plCount = note.param;
+							plCount = param;
 							plChannel = chanIdx;
 						}
 						if( plChannel == chanIdx ) { /* Next Loop.*/
@@ -253,8 +233,8 @@ public class IBXM {
 						}
 					}
 					break;
-				case 0x7E: case 0xFE: /* Pattern Delay.*/
-					tick = speed + speed * note.param;
+				case 0x1E: /* Pattern Delay.*/
+					tick = speed + speed * param;
 					break;
 			}
 		}
