@@ -87,52 +87,48 @@ public class WavInputStream extends InputStream {
 
 	/* Simple Mod to Wav converter. */
 	public static void main( String[] args ) throws java.io.IOException {
-		if( args.length > 0 ) {
-			// Parse arguments.
-			String modFileName = args[ 0 ];
-			String wavFileName = modFileName + ".wav";
-			int sampleRate = 48000;
-			int interpolation = Channel.LINEAR;
-			for( int idx = 1; idx < args.length; idx++ ) {
-				String arg = args[ idx ];
-				if( arg.startsWith( "rate=" ) ) {
-					sampleRate = Integer.parseInt( arg.substring( 5 ) );
-				} else if( "int=none".equals( arg ) ) {
-					interpolation = Channel.NEAREST;
-				} else if( "int=sinc".equals( arg ) ) {
-					interpolation = Channel.SINC;
-				} else {
-					wavFileName = arg;
-				}
-			}
-			// Load module data into array.
-			java.io.File modFile = new java.io.File( modFileName );
-			byte[] buf = new byte[ ( int ) modFile.length() ];
-			InputStream in = new java.io.FileInputStream( modFile );
-			int idx = 0;
-			while( idx < buf.length ) {
-				int len = in.read( buf, idx, buf.length - idx );
-				if( len < 0 ) throw new java.io.IOException( "Unexpected end of file." );
-				idx += len;
-			}
-			in.close();
-			// Write WAV file to output.
-			java.io.OutputStream out = new java.io.FileOutputStream( wavFileName );
-			IBXM ibxm = new IBXM( new Module( buf ), sampleRate );
-			ibxm.setInterpolation( interpolation );
-			in = new WavInputStream( ibxm );
-			buf = new byte[ ibxm.getMixBufferLength() * 4 ];
-			int remain = ( ( WavInputStream ) in ).getWavFileLength();
-			while( remain > 0 ) {
-				int count = remain > buf.length ? buf.length : remain;
-				count = in.read( buf, 0, count );
-				out.write( buf, 0, count );
-				remain -= count;
-			}		
-			out.close();
+		// Parse arguments.
+		java.io.File modFile = null, wavFile = null;
+		int interpolation = Channel.LINEAR;
+		if( args.length == 3 && "int=nearest".equals( args[ 0 ] ) ) {
+			interpolation = Channel.NEAREST;
+			modFile = new java.io.File( args[ 1 ] );
+			wavFile = new java.io.File( args[ 2 ] );
+		} else if( args.length == 3 && "int=sinc".equals( args[ 0 ] ) ) {
+			interpolation = Channel.SINC;
+			modFile = new java.io.File( args[ 1 ] );
+			wavFile = new java.io.File( args[ 2 ] );
+		} else if( args.length == 2 ) {
+			modFile = new java.io.File( args[ 0 ] );
+			wavFile = new java.io.File( args[ 1 ] );
 		} else {
-			System.err.println( "Mod to Wav converter." );
-			System.err.println( "Usage: java " + WavInputStream.class.getName() + " input.mod [output.wav] [rate=16000-96000] [int=none|sinc]" );
+			System.err.println( "Mod to Wav converter for IBXM " + IBXM.VERSION );
+			System.err.println( "Usage: java " + WavInputStream.class.getName() + " [int=nearest|sinc] modfile wavfile" );
+			System.exit( 1 );
 		}
+		// Load module data into array.
+		byte[] buf = new byte[ ( int ) modFile.length() ];
+		InputStream in = new java.io.FileInputStream( modFile );
+		int idx = 0;
+		while( idx < buf.length ) {
+			int len = in.read( buf, idx, buf.length - idx );
+			if( len < 0 ) throw new java.io.IOException( "Unexpected end of file." );
+			idx += len;
+		}
+		in.close();
+		// Write WAV file to output.
+		java.io.OutputStream out = new java.io.FileOutputStream( wavFile );
+		IBXM ibxm = new IBXM( new Module( buf ), 48000 );
+		ibxm.setInterpolation( interpolation );
+		in = new WavInputStream( ibxm );
+		buf = new byte[ ibxm.getMixBufferLength() * 4 ];
+		int remain = ( ( WavInputStream ) in ).getWavFileLength();
+		while( remain > 0 ) {
+			int count = remain > buf.length ? buf.length : remain;
+			count = in.read( buf, 0, count );
+			out.write( buf, 0, count );
+			remain -= count;
+		}		
+		out.close();
 	}
 }
