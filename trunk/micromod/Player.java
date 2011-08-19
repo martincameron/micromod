@@ -44,8 +44,8 @@ public class Player {
 		System.out.println( "Micromod " + Micromod.VERSION );
 		System.out.println( "Song name: " + module.songName );
 		for( int idx = 1; idx < module.instruments.length; idx++ ) {
-			String name = module.instruments[ idx ].name.trim();
-			if( name.length() > 0 )
+			String name = module.instruments[ idx ].name;
+			if( name.trim().length() > 0 )
 				System.out.println( String.format( "%1$3d ", idx ) + name );
 		}
 		int duration = micromod.calculateSongDuration();

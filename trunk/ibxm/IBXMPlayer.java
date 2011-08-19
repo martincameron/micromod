@@ -2,6 +2,7 @@
 package ibxm;
 
 import java.awt.BorderLayout;
+import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -56,8 +57,7 @@ public class IBXMPlayer extends JFrame {
 	private Module module;
 	private IBXM ibxm;
 	private boolean playing;
-	private int interpolation, sliderPos, samplePos, mixPos, mixLen, duration;
-	private int[] mixBuffer;
+	private int interpolation, sliderPos, samplePos, duration;
 	private Thread playThread;
 
 	public IBXMPlayer() {
@@ -80,6 +80,7 @@ public class IBXMPlayer extends JFrame {
 		seekSlider = new JSlider( JSlider.HORIZONTAL, 0, 0, 0 );
 		controlPanel.add( seekSlider, BorderLayout.CENTER );
 		instrumentList = new JList();
+		instrumentList.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
 		instrumentList.setOpaque( false );
 		JScrollPane instrumentPane = new JScrollPane( instrumentList );
 		instrumentPane.setBorder( BorderFactory.createTitledBorder( "Instruments" ) );
@@ -202,7 +203,6 @@ public class IBXMPlayer extends JFrame {
 		module = new Module( moduleData );
 		ibxm = new IBXM( module, SAMPLE_RATE );
 		ibxm.setInterpolation( interpolation );
-		mixBuffer = new int[ ibxm.getMixBufferLength() ];
 		duration = ibxm.calculateSongDuration();
 		samplePos = sliderPos = 0;
 		seekSlider.setMinimum( 0 );
@@ -212,41 +212,11 @@ public class IBXMPlayer extends JFrame {
 		Vector<String> vector = new Vector<String>();
 		Instrument[] instruments = module.instruments;
 		for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
-			String name = instruments[ idx ].name.trim();
-			if( name.length() > 0 ) vector.add( String.format( "%03d: %s", idx, name ) );
+			String name = instruments[ idx ].name;
+			if( name.trim().length() > 0 )
+				vector.add( String.format( "%03d: %s", idx, name ) );
 		}
 		instrumentList.setListData( vector );
-	}
-
-	/*
-		Get up to the specified number of big-endian stereo samples (4 bytes each)
-		of audio into the specified buffer.
-	*/
-	private synchronized void getAudio( byte[] output, int offset, int count ) {
-		int[] mixBuf = mixBuffer;
-		while( count > 0 ) {
-			if( mixPos >= mixLen ) {
-				// More audio required from Replay.
-				mixPos = 0;
-				mixLen = ibxm.getAudio( mixBuf );
-				samplePos += mixLen;
-			}
-			// Calculate maximum number of samples to copy.
-			int len = mixLen - mixPos;
-			if( len > count ) len = count;
-			// Clip and copy samples to output.
-			int end = offset + len * 4;
-			int mixIdx = mixPos * 2;
-			while( offset < end ) {
-				int sam = mixBuf[ mixIdx++ ];
-				if( sam > 32767 ) sam = 32767;
-				if( sam < -32768 ) sam = -32768;
-				output[ offset++ ] = ( byte ) ( sam >> 8 );
-				output[ offset++ ] = ( byte )  sam;
-			}
-			mixPos += len;
-			count -= len;
-		}
 	}
 
 	private synchronized void play() {
@@ -254,26 +224,35 @@ public class IBXMPlayer extends JFrame {
 			playing = true;
 			playThread = new Thread( new Runnable() {
 				public void run() {
-					int bufLen = SAMPLE_RATE / 4;
-					byte[] outBuf = new byte[ bufLen * 4 ];
+					int[] mixBuf = new int[ ibxm.getMixBufferLength() ];
+					byte[] outBuf = new byte[ mixBuf.length * 4 ];
+					AudioFormat audioFormat = null;
 					SourceDataLine audioLine = null;
 					try {
-						AudioFormat audioFormat = new AudioFormat( SAMPLE_RATE, 16, 2, true, true );
+						audioFormat = new AudioFormat( SAMPLE_RATE, 16, 2, true, true );
 						audioLine = AudioSystem.getSourceDataLine( audioFormat );
 						audioLine.open();
 						audioLine.start();
 						while( playing ) {
-							getAudio( outBuf, 0, bufLen );
-							audioLine.write( outBuf, 0, bufLen * 4 );
+							int count = ibxm.getAudio( mixBuf );
+							int outIdx = 0;
+							for( int mixIdx = 0, mixEnd = count * 2; mixIdx < mixEnd; mixIdx++ ) {
+								int sam = mixBuf[ mixIdx ];
+								if( sam > 32767 ) sam = 32767;
+								if( sam < -32768 ) sam = -32768;
+								outBuf[ outIdx++ ] = ( byte ) ( sam >> 8 );
+								outBuf[ outIdx++ ] = ( byte )  sam;
+							}
+							audioLine.write( outBuf, 0, outIdx );
+							samplePos += count;
 						}
 						audioLine.drain();
 					} catch( Exception e ) {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
 					} finally {
-						if( audioLine != null && audioLine.isOpen() )
-							audioLine.close();
-					}
+						if( audioLine != null && audioLine.isOpen() ) audioLine.close();
+					}	
 				}
 			} );
 			playThread.start();
@@ -305,7 +284,7 @@ public class IBXMPlayer extends JFrame {
 		SwingUtilities.invokeLater( new Runnable() {
 			public void run() {
 				try {
-					UIManager.setLookAndFeel( "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel" );
+					UIManager.setLookAndFeel( UIManager.getSystemLookAndFeelClassName() );
 				} catch( Exception e ) { 
 					System.out.println( e );
 				}
