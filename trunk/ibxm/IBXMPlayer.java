@@ -234,7 +234,7 @@ public class IBXMPlayer extends JFrame {
 						audioLine.open();
 						audioLine.start();
 						while( playing ) {
-							int count = ibxm.getAudio( mixBuf );
+							int count = getAudio( mixBuf );
 							int outIdx = 0;
 							for( int mixIdx = 0, mixEnd = count * 2; mixIdx < mixEnd; mixIdx++ ) {
 								int sam = mixBuf[ mixIdx ];
@@ -278,6 +278,10 @@ public class IBXMPlayer extends JFrame {
 	private synchronized void setInterpolation( int interpolation ) {
 		this.interpolation = interpolation;
 		if( ibxm != null ) ibxm.setInterpolation( interpolation );
+	}
+
+	private synchronized int getAudio( int[] mixBuf ) {
+		return ibxm.getAudio( mixBuf );
 	}
 
 	public static void main( String[] args ) {
