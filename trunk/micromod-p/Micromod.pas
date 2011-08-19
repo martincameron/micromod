@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2010 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2011 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20100708';
+Const MICROMOD_VERSION : String = '20110819';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -337,8 +337,9 @@ Begin
 		If ( Instruments[ Ins ].LoopLength > 0 ) And ( Channel.Instrument > 0 ) Then
 			Channel.Instrument := Ins;
 	End;
+	If Channel.Note.Effect = $15 Then Channel.FineTune := Channel.Note.Param;
 	If Channel.Note.Key > 0 Then Begin
-		Period := ( Channel.Note.Key * FineTuning[ Channel.FineTune ] ) Shr 11;
+		Period := ( Channel.Note.Key * FineTuning[ Channel.FineTune And $F ] ) Shr 11;
 		Channel.PortaPeriod := ( Period Shr 1 ) + ( Period And 1 );
 		If ( Channel.Note.Effect <> $3 ) And ( Channel.Note.Effect <> $5 ) Then Begin
 			Channel.Instrument := Channel.Assigned;
@@ -467,9 +468,6 @@ Begin
 				Period := Channel.Period + Param;
 				If Period > 65535 Then Period := 65535;
 				Channel.Period := Period;
-			End;
-		$15 : Begin { Set Finetune }
-				Channel.FineTune := Param;
 			End;
 		$16 : Begin { Pattern Loop }
 				If Param = 0 Then Channel.PLRow := Row;

@@ -1,5 +1,5 @@
 
-Program PlayMod;
+Program W32ModPlayer;
 
 {$APPTYPE Console}
 
@@ -206,8 +206,13 @@ End;
 
 Begin
 	{ Initialize Replay. }
-	LoadModule( ParamStr( 1 ) );
-	PrintModuleInfo;
-	PlayModule;	
+	If ParamCount > 0 Then Begin
+		LoadModule( ParamStr( 1 ) );
+		PrintModuleInfo;
+		PlayModule;	
+	End Else Begin
+		WriteLn( 'Micromod ProTracker replay in Pascal.' );
+		WriteLn( 'Please specify a module file to play.' );
+	End;
 End.
 
