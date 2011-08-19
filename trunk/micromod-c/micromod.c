@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20100708 (c)2010 mumart@gmail.com */
+/* fast protracker replay version 20110819 (c)2011 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define MAX_INSTRUMENTS 32
@@ -174,8 +174,9 @@ static void trigger( struct channel *channel ) {
 		if( instruments[ ins ].loop_length > 0 && channel->instrument > 0 )
 			channel->instrument = ins;
 	}
+	if( channel->note.effect == 0x15 ) channel->fine_tune = channel->note.param;
 	if( channel->note.key > 0 ) {
-		period = ( channel->note.key * fine_tuning[ channel->fine_tune ] ) >> 11;
+		period = ( channel->note.key * fine_tuning[ channel->fine_tune & 0xF ] ) >> 11;
 		channel->porta_period = ( period >> 1 ) + ( period & 1 );
 		if( channel->note.effect != 0x3 && channel->note.effect != 0x5 ) {
 			channel->instrument = channel->assigned;
@@ -248,9 +249,6 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0x14: /* Set Vibrato Waveform.*/
 			if( param < 8 ) chan->vibrato_type = param;
-			break;
-		case 0x15: /* Set Finetune.*/
-			chan->fine_tune = param;
 			break;
 		case 0x16: /* Pattern Loop.*/
 			if( param == 0 ) /* Set loop marker on this channel. */
