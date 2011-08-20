@@ -89,19 +89,11 @@ public class IBXMPlayer extends JFrame {
 				try {
 					dropTargetDropEvent.acceptDrop( dropTargetDropEvent.getDropAction() );
 					Transferable transferable = dropTargetDropEvent.getTransferable();
-					DataFlavor[] dataFlavors = transferable.getTransferDataFlavors();
-					DataFlavor textFlavor = DataFlavor.selectBestTextFlavor( dataFlavors );
-					java.io.Reader reader = textFlavor.getReaderForText( transferable );
-					StringBuilder stringBuilder = new StringBuilder();
-					char[] chars = new char[ 256 ];
-					int count = reader.read( chars, 0, chars.length );
-					while( count > 0 ) {
-						stringBuilder.append( chars, 0, count );
-						count = reader.read( chars, 0, chars.length );
-					}
-					URI uri = new URI( stringBuilder.toString().trim() );
+					DataFlavor dataFlavor = DataFlavor.javaFileListFlavor;
+					List fileList = ( List ) transferable.getTransferData( dataFlavor );
+					File file = ( File ) fileList.get( 0 );
 					try {
-						loadModule( new File( uri ) );
+						loadModule( file );
 					} catch( Exception e ) {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
@@ -244,7 +236,6 @@ public class IBXMPlayer extends JFrame {
 								outBuf[ outIdx++ ] = ( byte )  sam;
 							}
 							audioLine.write( outBuf, 0, outIdx );
-							samplePos += count;
 						}
 						audioLine.drain();
 					} catch( Exception e ) {
@@ -281,7 +272,9 @@ public class IBXMPlayer extends JFrame {
 	}
 
 	private synchronized int getAudio( int[] mixBuf ) {
-		return ibxm.getAudio( mixBuf );
+		int count = ibxm.getAudio( mixBuf );
+		samplePos += count;
+		return count;
 	}
 
 	public static void main( String[] args ) {
