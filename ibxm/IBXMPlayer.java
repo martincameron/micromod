@@ -13,6 +13,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -35,6 +36,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JSlider;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
@@ -52,11 +54,11 @@ public class IBXMPlayer extends JFrame {
 	private JButton playButton;
 	private JList instrumentList;
 	private Timer updateTimer;
-	private JFileChooser fileChooser;
+	private JFileChooser loadFileChooser, saveFileChooser;
 
 	private Module module;
 	private IBXM ibxm;
-	private boolean playing;
+	private volatile boolean playing;
 	private int interpolation, sliderPos, samplePos, duration;
 	private Thread playThread;
 
@@ -119,19 +121,21 @@ public class IBXMPlayer extends JFrame {
 				timeLabel.setText( mins + ( secs < 10 ? ":0" : ":" ) + secs );
 			}
 		} );
-		fileChooser = new JFileChooser();
-		FileNameExtensionFilter fileFilter = new FileNameExtensionFilter(
-			"Module files", "mod", "ft", "s3m", "xm" );
-		fileChooser.setFileFilter( fileFilter );
+		loadFileChooser = new JFileChooser();
+		loadFileChooser.setFileFilter( new FileNameExtensionFilter(
+			"Module files", "mod", "ft", "s3m", "xm" ) );
+		saveFileChooser = new JFileChooser();
+		saveFileChooser.setFileFilter( new FileNameExtensionFilter(
+			"Wave files", "wav" ) );
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu( "File" );
 		JMenuItem loadMenuItem = new JMenuItem( "Load module." );
 		loadMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				int result = fileChooser.showOpenDialog( IBXMPlayer.this );
+				int result = loadFileChooser.showOpenDialog( IBXMPlayer.this );
 				if( result == JFileChooser.APPROVE_OPTION ) {
 					try {
-						loadModule( fileChooser.getSelectedFile() );
+						loadModule( loadFileChooser.getSelectedFile() );
 					} catch( Exception e ) {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
@@ -140,6 +144,28 @@ public class IBXMPlayer extends JFrame {
 			}
 		} );
 		fileMenu.add( loadMenuItem );
+		JMenuItem saveWavMenuItem = new JMenuItem( "Save module as wave file." );
+		saveWavMenuItem.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				if( module != null ) {
+					saveFileChooser.setSelectedFile( new File( module.songName.trim() + ".wav" ) );
+					int result = saveFileChooser.showSaveDialog( IBXMPlayer.this );
+					if( result == JFileChooser.APPROVE_OPTION ) {
+						try {
+							saveWav( saveFileChooser.getSelectedFile() );
+							JOptionPane.showMessageDialog( IBXMPlayer.this,
+								"Module saved successfully.", "Success",
+								JOptionPane.INFORMATION_MESSAGE );
+						} catch( Exception e ) {
+							JOptionPane.showMessageDialog( IBXMPlayer.this,
+								e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
+						}
+					}
+				}
+			}
+		} );
+		fileMenu.add( new JSeparator() );
+		fileMenu.add( saveWavMenuItem );
 		menuBar.add( fileMenu );
 		JMenu optionsMenu = new JMenu( "Options" );
 		ButtonGroup interpolationGroup = new ButtonGroup();
@@ -229,11 +255,11 @@ public class IBXMPlayer extends JFrame {
 							int count = getAudio( mixBuf );
 							int outIdx = 0;
 							for( int mixIdx = 0, mixEnd = count * 2; mixIdx < mixEnd; mixIdx++ ) {
-								int sam = mixBuf[ mixIdx ];
-								if( sam > 32767 ) sam = 32767;
-								if( sam < -32768 ) sam = -32768;
-								outBuf[ outIdx++ ] = ( byte ) ( sam >> 8 );
-								outBuf[ outIdx++ ] = ( byte )  sam;
+								int ampl = mixBuf[ mixIdx ];
+								if( ampl > 32767 ) ampl = 32767;
+								if( ampl < -32768 ) ampl = -32768;
+								outBuf[ outIdx++ ] = ( byte ) ( ampl >> 8 );
+								outBuf[ outIdx++ ] = ( byte ) ampl;
 							}
 							audioLine.write( outBuf, 0, outIdx );
 						}
@@ -275,6 +301,26 @@ public class IBXMPlayer extends JFrame {
 		int count = ibxm.getAudio( mixBuf );
 		samplePos += count;
 		return count;
+	}
+
+	private synchronized void saveWav( File wavFile ) throws IOException {
+		stop();
+		WavInputStream wavInputStream = new WavInputStream( ibxm );
+		FileOutputStream fileOutputStream = null;
+		try {
+			fileOutputStream = new FileOutputStream( wavFile );
+			byte[] buf = new byte[ ibxm.getMixBufferLength() * 4 ];
+			int remain = wavInputStream.getWavFileLength();
+			while( remain > 0 ) {
+				int count = remain > buf.length ? buf.length : remain;
+				count = wavInputStream.read( buf, 0, count );
+				fileOutputStream.write( buf, 0, count );
+				remain -= count;
+			}
+		} finally {
+			if( fileOutputStream != null ) fileOutputStream.close();
+			seek( 0 );
+		}
 	}
 
 	public static void main( String[] args ) {

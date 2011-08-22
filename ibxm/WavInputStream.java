@@ -46,6 +46,7 @@ public class WavInputStream extends InputStream {
 		return duration * 4 + header.length;
 	}
 
+	@Override
 	public int read() {
 		int out = outBuf[ outIdx++ ];
 		if( outIdx >= outLen ) {
@@ -54,6 +55,7 @@ public class WavInputStream extends InputStream {
 		return out;
 	}
 
+	@Override
 	public int read( byte[] buf, int off, int len ) {
 		int remain = outLen - outIdx;
 		if( len > remain ) {
@@ -71,6 +73,8 @@ public class WavInputStream extends InputStream {
 		int mEnd = ibxm.getAudio( mixBuf ) * 2;
 		for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
 			int ampl = mixBuf[ mIdx ];
+			if( ampl > 32767 ) ampl = 32767;
+			if( ampl < -32768 ) ampl = -32768;
 			outBuf[ oIdx++ ] = ( byte ) ampl;
 			outBuf[ oIdx++ ] = ( byte ) ( ampl >> 8 );
 		}
