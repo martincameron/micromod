@@ -22,55 +22,88 @@ public class WavInputStream extends InputStream {
 		0x00, 0x00, 0x00, 0x00, /* Audio data size */
 	};
 
+	private static final short[] fadeTable = calculateFadeTable();
+
 	private IBXM ibxm;
 	private int[] mixBuf;
 	private byte[] outBuf;
-	private int duration, outIdx, outLen;
+	private int outIdx, outLen, remain, fadeLen;
 
 	public WavInputStream( IBXM ibxm ) {
+		this( ibxm, ibxm.calculateSongDuration(), false );
+	}
+
+	/*
+		Duration is specified in samples at the sampling rate of the IBXM instance.
+		if fadeOut is true, an 8-second fade-out will be applied at the end of the stream.
+	*/
+	public WavInputStream( IBXM ibxm, int duration, boolean fadeOut ) {
 		this.ibxm = ibxm;
 		mixBuf = new int[ ibxm.getMixBufferLength() ];
 		outBuf = new byte[ mixBuf.length * 4 ];
-		duration = ibxm.calculateSongDuration();
+		int dataLen = duration * 4;
 		int samplingRate = ibxm.getSampleRate();
 		System.arraycopy( header, 0, outBuf, 0, header.length );
-		writeInt32( outBuf, 4, duration * 4 + 36 );
+		writeInt32( outBuf, 4, dataLen + 36 );
 		writeInt32( outBuf, 24, samplingRate );
 		writeInt32( outBuf, 28, samplingRate * 4 );
-		writeInt32( outBuf, 40, duration * 4 );
+		writeInt32( outBuf, 40, dataLen );
 		outIdx = 0;
-		outLen = 44;
+		outLen = header.length;
+		remain = header.length + dataLen;
+		if( fadeOut ) {
+			fadeLen = samplingRate * 32;
+		}
 	}
 
-	public int getWavFileLength() {
-		return duration * 4 + header.length;
+	/* Get the number of bytes available before read() returns end-of-file. */
+	public int getBytesRemaining() {
+		return remain;
 	}
 
 	@Override
 	public int read() {
-		int out = outBuf[ outIdx++ ];
-		if( outIdx >= outLen ) {
-			getAudio();
+		int out = -1;
+		if( remain > 0 ) {
+			out = outBuf[ outIdx++ ];
+			if( outIdx >= outLen ) {
+				getAudio();
+			}
+			remain--;
 		}
 		return out;
 	}
 
 	@Override
 	public int read( byte[] buf, int off, int len ) {
-		int remain = outLen - outIdx;
-		if( len > remain ) {
-			len = remain;
+		int count = -1;
+		if( remain > 0 ) {
+			count = remain;
+			if( count > len ) {
+				count = len;
+			}
+			int outRem = outLen - outIdx;
+			if( count > outRem ) {
+				count = outRem;
+			}
+			System.arraycopy( outBuf, outIdx, buf, off, count );
+			outIdx += count;
+			if( outIdx >= outLen ) {
+				getAudio();
+			}
+			remain -= count;
 		}
-		System.arraycopy( outBuf, outIdx, buf, off, len );
-		outIdx += len;
-		if( outIdx >= outLen ) {
-			getAudio();
-		}
-		return len;
+		return count;
 	}
 
 	private void getAudio() {
 		int mEnd = ibxm.getAudio( mixBuf ) * 2;
+		if( remain < fadeLen ) {
+			int gain = fadeTable[ ( fadeLen - remain ) * fadeTable.length / fadeLen ];
+			for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
+				mixBuf[ mIdx ] = mixBuf[ mIdx ] * gain >> 15;
+			}
+		}
 		for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
 			int ampl = mixBuf[ mIdx ];
 			if( ampl > 32767 ) ampl = 32767;
@@ -80,6 +113,20 @@ public class WavInputStream extends InputStream {
 		}
 		outIdx = 0;
 		outLen = mEnd * 2;
+	}
+
+	private static short[] calculateFadeTable() {
+		short[] table = new short[ 64 ];
+		int dx = 32768 / table.length;
+		int  x = 32768 - dx;
+		table[ 0 ] = 32767;
+		for( int idx = 1; idx < table.length; idx++ ) {
+			// y = x^3
+			int y = ( ( ( x * x ) >> 15 ) * x ) >> 15;
+			table[ idx ] = ( short ) y;
+			x -= dx;
+		}
+		return table;
 	}
 
 	private static void writeInt32( byte[] buf, int idx, int value ) {
@@ -126,7 +173,7 @@ public class WavInputStream extends InputStream {
 		ibxm.setInterpolation( interpolation );
 		in = new WavInputStream( ibxm );
 		buf = new byte[ ibxm.getMixBufferLength() * 4 ];
-		int remain = ( ( WavInputStream ) in ).getWavFileLength();
+		int remain = ( ( WavInputStream ) in ).getBytesRemaining();
 		while( remain > 0 ) {
 			int count = remain > buf.length ? buf.length : remain;
 			count = in.read( buf, 0, count );
