@@ -164,7 +164,7 @@ public class IBXMPlayer extends JFrame {
 				}
 			}
 		} );
-		fileMenu.add( new JSeparator() );
+		fileMenu.addSeparator();
 		fileMenu.add( saveWavMenuItem );
 		menuBar.add( fileMenu );
 		JMenu optionsMenu = new JMenu( "Options" );
@@ -310,7 +310,7 @@ public class IBXMPlayer extends JFrame {
 		try {
 			fileOutputStream = new FileOutputStream( wavFile );
 			byte[] buf = new byte[ ibxm.getMixBufferLength() * 4 ];
-			int remain = wavInputStream.getWavFileLength();
+			int remain = wavInputStream.getBytesRemaining();
 			while( remain > 0 ) {
 				int count = remain > buf.length ? buf.length : remain;
 				count = wavInputStream.read( buf, 0, count );
