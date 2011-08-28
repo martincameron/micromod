@@ -20,9 +20,9 @@ public class Module {
 	public Module() {}
 	
 	public Module( byte[] moduleData ) {
-		if( ascii( moduleData, 0, 17 ).equals( "Extended Module: " ) ) {
+		if( isoLatin1( moduleData, 0, 17 ).equals( "Extended Module: " ) ) {
 			loadXM( moduleData );
-		} else if( ascii( moduleData, 44, 4 ).equals( "SCRM" ) ) {
+		} else if( isoLatin1( moduleData, 44, 4 ).equals( "SCRM" ) ) {
 			loadS3M( moduleData );
 		} else {
 			loadMOD( moduleData );
@@ -30,7 +30,7 @@ public class Module {
 	}
 
 	private void loadMOD( byte[] moduleData ) {
-		songName = ascii( moduleData, 0, 20 );
+		songName = isoLatin1( moduleData, 0, 20 );
 		sequenceLength = moduleData[ 950 ] & 0x7F;
 		restartPos = moduleData[ 951 ] & 0x7F;
 		if( restartPos >= sequenceLength ) restartPos = 0;
@@ -114,7 +114,7 @@ public class Module {
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
 			Instrument instrument = instruments[ instIdx ] = new Instrument();
 			Sample sample = instrument.samples[ 0 ];
-			instrument.name = ascii( moduleData, instIdx * 30 - 10, 22 );
+			instrument.name = isoLatin1( moduleData, instIdx * 30 - 10, 22 );
 			int sampleLength = ushortbe( moduleData, instIdx * 30 + 12 ) * 2;
 			int fineTune = ( moduleData[ instIdx * 30 + 14 ] & 0xF ) << 4;
 			sample.fineTune = ( fineTune < 128 ) ? fineTune : fineTune - 256;
@@ -140,7 +140,7 @@ public class Module {
 	}
 
 	private void loadS3M( byte[] moduleData ) {
-		songName = ascii( moduleData, 0, 28 );
+		songName = codePage850( moduleData, 0, 28 );
 		sequenceLength = ushortle( moduleData, 32 );
 		numInstruments = ushortle( moduleData, 34 );
 		numPatterns = ushortle( moduleData, 36 );
@@ -174,7 +174,7 @@ public class Module {
 			Sample sample = instrument.samples[ 0 ];
 			int instOffset = ushortle( moduleData, moduleDataIdx ) << 4;
 			moduleDataIdx += 2;
-			instrument.name = ascii( moduleData, instOffset + 48, 28 );
+			instrument.name = codePage850( moduleData, instOffset + 48, 28 );
 			if( moduleData[ instOffset ] != 1 ) continue;
 			if( ushortle( moduleData, instOffset + 76 ) != 0x4353 ) continue;
 			int sampleOffset = ( moduleData[ instOffset + 13 ] & 0xFF ) << 20;
@@ -286,8 +286,8 @@ public class Module {
 	private void loadXM( byte[] moduleData ) {
 		if( ushortle( moduleData, 58 ) != 0x0104 )
 			throw new IllegalArgumentException( "XM format version must be 0x0104!" );
-		songName = ascii( moduleData, 17, 20 );
-		boolean deltaEnv = ascii( moduleData, 38, 20 ).startsWith( "DigiBooster Pro" );
+		songName = codePage850( moduleData, 17, 20 );
+		boolean deltaEnv = isoLatin1( moduleData, 38, 20 ).startsWith( "DigiBooster Pro" );
 		int dataOffset = 60 + intle( moduleData, 60 );
 		sequenceLength = ushortle( moduleData, 64 );
 		restartPos = ushortle( moduleData, 66 );
@@ -341,7 +341,7 @@ public class Module {
 		instruments[ 0 ] = new Instrument();
 		for( int insIdx = 1; insIdx <= numInstruments; insIdx++ ) {
 			Instrument instrument = instruments[ insIdx ] = new Instrument();
-			instrument.name = ascii( moduleData, dataOffset + 4, 22 );
+			instrument.name = codePage850( moduleData, dataOffset + 4, 22 );
 			int numSamples = instrument.numSamples = ushortle( moduleData, dataOffset + 27 );
 			if( numSamples > 0 ) {
 				instrument.samples = new Sample[ numSamples ];
@@ -405,7 +405,7 @@ public class Module {
 				boolean sixteenBit = ( moduleData[ sampleHeaderOffset + 14 ] & 0x10 ) > 0;
 				sample.panning = moduleData[ sampleHeaderOffset + 15 ] & 0xFF;
 				sample.relNote = moduleData[ sampleHeaderOffset + 16 ];
-				sample.name = ascii( moduleData, sampleHeaderOffset + 18, 22 );
+				sample.name = codePage850( moduleData, sampleHeaderOffset + 18, 22 );
 				sampleHeaderOffset += 40;
 				int sampleDataLength = sampleDataBytes;
 				if( sixteenBit ) {
@@ -455,7 +455,7 @@ public class Module {
 		return value;
 	}
 
-	private static String ascii( byte[] buf, int offset, int len ) {
+	private static String isoLatin1( byte[] buf, int offset, int len ) {
 		char[] str = new char[ len ];
 		for( int idx = 0; idx < len; idx++ ) {
 			int c = buf[ offset + idx ] & 0xFF;
@@ -463,7 +463,18 @@ public class Module {
 		}
 		return new String( str );
 	}
-	
+
+	private static String codePage850( byte[] buf, int offset, int len ) {
+		try {
+			char[] str = new String( buf, offset, len, "Cp850" ).toCharArray();
+			for( int idx = 0; idx < str.length; idx++ )
+				str[ idx ] = str[ idx ] < 32 ? 32 : str[ idx ];
+			return new String( str );
+		} catch( java.io.UnsupportedEncodingException e ) {
+			return isoLatin1( buf, offset, len );
+		}
+	}
+
 	public void toStringBuffer( StringBuffer out ) {
 		out.append( "Song Name: " + songName + '\n'
 			+ "Num Channels: " + numChannels + '\n'
