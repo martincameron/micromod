@@ -41,17 +41,18 @@ static void downsample( short *input, short *output, long count ) {
 
 static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	long count;
-	/* Notify the main thread if song has finished. */	
-	if( samples_remaining <= 0 ) SDL_SemPost( semaphore );
-	
 	/* Get audio from replay. */
 	count = len * OVERSAMPLE / 4;
-	if( samples_remaining < count ) count = samples_remaining;
-	memset( mix_buffer, 0, BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE * sizeof( short ) );
+	if( samples_remaining < count ) {
+		memset( stream, 0, len );
+		count = samples_remaining;
+	}
+	memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
 	micromod_get_audio( mix_buffer, count );
-	downsample( mix_buffer, ( short * ) stream, BUFFER_SAMPLES * OVERSAMPLE );
-	
+	downsample( mix_buffer, ( short * ) stream, count );
 	samples_remaining -= count;
+	/* Notify the main thread if song has finished. */	
+	if( samples_remaining <= 0 ) SDL_SemPost( semaphore );
 }
 
 static void load_module( char *file_name ) {
