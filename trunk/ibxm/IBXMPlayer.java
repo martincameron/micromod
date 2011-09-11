@@ -3,6 +3,7 @@ package ibxm;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -11,6 +12,8 @@ import java.awt.dnd.DropTargetAdapter;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -26,6 +29,7 @@ import javax.sound.sampled.SourceDataLine;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -38,6 +42,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSlider;
+import javax.swing.JTextField;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -55,6 +60,8 @@ public class IBXMPlayer extends JFrame {
 	private JList instrumentList;
 	private Timer updateTimer;
 	private JFileChooser loadFileChooser, saveFileChooser;
+	private JCheckBox fadeOutCheckBox;
+	private JTextField fadeOutTextField;
 
 	private Module module;
 	private IBXM ibxm;
@@ -127,6 +134,35 @@ public class IBXMPlayer extends JFrame {
 		saveFileChooser = new JFileChooser();
 		saveFileChooser.setFileFilter( new FileNameExtensionFilter(
 			"Wave files", "wav" ) );
+		JPanel saveAccessory = new JPanel();
+		fadeOutTextField = new JTextField( "0", 4 );
+		fadeOutTextField.setEnabled( false );
+		fadeOutTextField.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				KeyboardFocusManager.getCurrentKeyboardFocusManager().focusNextComponent();
+			}
+		} );
+		fadeOutTextField.addFocusListener( new FocusListener() {
+			public void focusGained( FocusEvent focusEvent ) {}
+			public void focusLost( FocusEvent focusEvent ) {
+				try {
+					Integer.parseInt( fadeOutTextField.getText() );
+				} catch( Exception exception ) {
+					fadeOutTextField.setText( String.valueOf( duration / SAMPLE_RATE ) );
+				}
+			}
+		} );
+		fadeOutCheckBox = new JCheckBox( "Fade out after" );
+		fadeOutCheckBox.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				fadeOutTextField.setText( String.valueOf( duration / SAMPLE_RATE ) );
+				fadeOutTextField.setEnabled( fadeOutCheckBox.isSelected() );
+			}
+		} );
+		saveAccessory.add( fadeOutCheckBox );
+		saveAccessory.add( fadeOutTextField );
+		saveAccessory.add( new JLabel( "seconds." ) );
+		saveFileChooser.setAccessory( saveAccessory );
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu( "File" );
 		JMenuItem loadMenuItem = new JMenuItem( "Load module." );
@@ -148,11 +184,20 @@ public class IBXMPlayer extends JFrame {
 		saveWavMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
 				if( module != null ) {
+					fadeOutCheckBox.setSelected( false );
+					fadeOutTextField.setText( String.valueOf( duration / SAMPLE_RATE ) );
 					saveFileChooser.setSelectedFile( new File( module.songName.trim() + ".wav" ) );
 					int result = saveFileChooser.showSaveDialog( IBXMPlayer.this );
 					if( result == JFileChooser.APPROVE_OPTION ) {
 						try {
-							saveWav( saveFileChooser.getSelectedFile() );
+							boolean fade = fadeOutCheckBox.isSelected();
+							int time = duration;
+							if( fade ) try {
+								time = ( Integer.parseInt( fadeOutTextField.getText() ) + 8 ) * SAMPLE_RATE;
+							} catch( Exception e ) {
+								fade = false;
+							}
+							saveWav( saveFileChooser.getSelectedFile(), time, fade );
 							JOptionPane.showMessageDialog( IBXMPlayer.this,
 								"Module saved successfully.", "Success",
 								JOptionPane.INFORMATION_MESSAGE );
@@ -303,9 +348,9 @@ public class IBXMPlayer extends JFrame {
 		return count;
 	}
 
-	private synchronized void saveWav( File wavFile ) throws IOException {
+	private synchronized void saveWav( File wavFile, int time, boolean fade ) throws IOException {
 		stop();
-		WavInputStream wavInputStream = new WavInputStream( ibxm );
+		WavInputStream wavInputStream = new WavInputStream( ibxm, time, fade );
 		FileOutputStream fileOutputStream = null;
 		try {
 			fileOutputStream = new FileOutputStream( wavFile );
