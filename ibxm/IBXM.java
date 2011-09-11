@@ -5,7 +5,7 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2011 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a60 (c)2011 mumart@gmail.com";
+	public static final String VERSION = "a61 (c)2011 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
