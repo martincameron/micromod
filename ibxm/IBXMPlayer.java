@@ -358,6 +358,7 @@ public class IBXMPlayer extends JFrame {
 
 	private synchronized void saveWav( File wavFile, int time, boolean fade ) throws IOException {
 		stop();
+		seek( 0 );
 		WavInputStream wavInputStream = new WavInputStream( ibxm, time, fade );
 		FileOutputStream fileOutputStream = null;
 		try {
