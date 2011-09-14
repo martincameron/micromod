@@ -209,8 +209,16 @@ public class IBXMPlayer extends JFrame {
 				}
 			}
 		} );
-		fileMenu.addSeparator();
 		fileMenu.add( saveWavMenuItem );
+		fileMenu.addSeparator();
+		JMenuItem exitMenuItem = new JMenuItem( "Exit" );
+		exitMenuItem.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				stop();
+				dispose();
+			}
+		} );
+		fileMenu.add( exitMenuItem );
 		menuBar.add( fileMenu );
 		JMenu optionsMenu = new JMenu( "Options" );
 		ButtonGroup interpolationGroup = new ButtonGroup();
@@ -253,7 +261,7 @@ public class IBXMPlayer extends JFrame {
 	}
 
 
-	public synchronized void loadModule( File modFile ) throws IOException {		
+	private synchronized void loadModule( File modFile ) throws IOException {		
 		byte[] moduleData = new byte[ ( int ) modFile.length() ];
 		FileInputStream inputStream = new FileInputStream( modFile );
 		int offset = 0;
