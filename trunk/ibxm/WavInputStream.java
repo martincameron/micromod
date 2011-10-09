@@ -40,7 +40,7 @@ public class WavInputStream extends InputStream {
 	public WavInputStream( IBXM ibxm, int duration, boolean fadeOut ) {
 		this.ibxm = ibxm;
 		mixBuf = new int[ ibxm.getMixBufferLength() ];
-		outBuf = new byte[ mixBuf.length * 4 ];
+		outBuf = new byte[ mixBuf.length * 2 ];
 		int dataLen = duration * 4;
 		int samplingRate = ibxm.getSampleRate();
 		System.arraycopy( header, 0, outBuf, 0, header.length );
@@ -172,7 +172,7 @@ public class WavInputStream extends InputStream {
 		IBXM ibxm = new IBXM( new Module( buf ), 48000 );
 		ibxm.setInterpolation( interpolation );
 		in = new WavInputStream( ibxm );
-		buf = new byte[ ibxm.getMixBufferLength() * 4 ];
+		buf = new byte[ ibxm.getSampleRate() * 4 ];
 		int remain = ( ( WavInputStream ) in ).getBytesRemaining();
 		while( remain > 0 ) {
 			int count = remain > buf.length ? buf.length : remain;
