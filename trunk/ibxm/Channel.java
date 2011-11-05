@@ -70,12 +70,13 @@ public class Channel {
 	
 	public Channel( Module module, int id, int sampleRate, GlobalVol globalVol ) {
 		this.module = module;
-		this.id = randomSeed = id;
+		this.id = id;
 		this.sampleRate = sampleRate;
 		this.globalVol = globalVol;
 		panning = module.defaultPanning[ id ];
 		instrument = new Instrument();
 		sample = instrument.samples[ 0 ];
+		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 
 	public void resample( int[] outBuf, int offset, int length, int interpolation ) {
@@ -452,8 +453,8 @@ public class Channel {
 				amplitude = ( phase & 0x20 ) > 0 ? 255 : -255;
 				break;
 			case 3: case 8: /* Random. */
-				amplitude = randomSeed - 255;
-				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FF;
+				amplitude = ( randomSeed >> 20 ) - 255;
+				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FFFFFFF;
 				break;
 		}
 		return amplitude;
