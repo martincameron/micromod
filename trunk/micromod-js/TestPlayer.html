@@ -1,0 +1,48 @@
+<html>
+	<head>
+		<title>Micromod for JavaScript</title>
+	</head>
+	<body>
+		<script type="text/javascript" src="AudioPlayer.js"></script>
+		<script type="text/javascript" src="SineSource.js"></script>
+		<script type="text/javascript" src="Micromod.js"></script>
+		<script type="text/javascript">
+			var player = new AudioPlayer( new SineSource( 48000 ) );
+			function play() {
+				player.play();
+			}
+			function stop() {
+				player.stop();
+			}
+			function load( file ) {
+				stop();
+				var reader = new FileReader();
+				reader.onloadend = function( event ) {
+					var module = new Module( new Int8Array( reader.result ) );
+					var micromod = new Micromod( module, 48000 );
+					micromod.setInterpolation(true);
+					player = new AudioPlayer( micromod );
+					document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
+				};
+				reader.readAsArrayBuffer( file );
+			}
+		</script>
+		<p>
+			<h3>Micromod for JavaScript!</h3>
+		</p>
+		<p>
+			Needs a bit of work. Only works in Firefox for now.
+		</p>
+		<p>
+			Please direct any comments, questions, complaints :) to mumart@gmail.com
+		</p>
+		<p>
+			<div id="songName">No song loaded.</div>
+		</p>
+		<p>
+			<input type="file" id="input" onchange="load( this.files[ 0 ] )"></input>
+			<button onclick="play()">Play</button>
+			<button onclick="stop()">Stop</button>
+		</p>
+	</body>
+</html>
