@@ -1,18 +1,17 @@
 
 function SineSource( sampleRate ) {
+	var freq = 2 * Math.PI * 440 / sampleRate;
+	var phase = 0;
+
 	this.getSamplingRate = function() {
 		return sampleRate;
 	}
 
-	this.getMaxBufferSize = function() {
-		return 1024;
-	}
-
-	this.getAudio = function( buffer ) {
-		for( idx = 0; idx < 1024; idx += 2 ) {
-			buffer[ idx ] = Math.sin( Math.PI * idx / 256 );
-			buffer[ idx + 1 ] = Math.sin( Math.PI * idx / 512 );
+	this.getAudio = function( buffer, count ) {
+		for( idx = 0, end = count * 2; idx < end; idx += 2, phase++ ) {
+			var x = phase * freq;
+			buffer[ idx ] = Math.sin( x );
+			buffer[ idx + 1 ] = Math.sin( x * 0.5 );
 		}
-		return 1024;
 	}
 }
