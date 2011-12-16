@@ -1,17 +1,21 @@
 
-function AudioPlayer( audioSource ) {
-	var buffer = new Float32Array( audioSource.getMaxBufferSize() );
+function AudioPlayer( audioSource, bufferTime ) {
+	if( !bufferTime ) {
+		bufferTime = 300;
+	}
+	var rate = audioSource.getSamplingRate();
 	var audio = new Audio();
-	audio.mozSetup( 2, audioSource.getSamplingRate() );
+	audio.mozSetup( 2, rate );
+	var buffer = new Float32Array( rate * 2 * bufferTime / 1000 );
 	var bufferIndex = 0;
-	var bufferCount = 0;
 	var playing = false;
-	var interval;
+	var interval, date;
 
 	this.play = function() {
 		if( !playing ) {
-			interval = setInterval( this.writeAudio, 100 );
+			date = new Date();
 			playing = true;
+			interval = setInterval( this.writeAudio, bufferTime / 2 );
 		}
 	}
 
@@ -23,13 +27,19 @@ function AudioPlayer( audioSource ) {
 	}
 
 	this.writeAudio = function() {
-		if( bufferIndex < bufferCount ) {
-			bufferIndex += audio.mozWriteAudio( buffer.subarray( bufferIndex, bufferCount ) );
-		}
-		while( bufferIndex >= bufferCount ) {
-			// Write as many whole chunks as possible.
-			bufferCount = audioSource.getAudio( buffer );
-			bufferIndex = audio.mozWriteAudio( buffer.subarray( 0, bufferCount ) );
+		var time = date.getTime();
+		date = new Date();
+		if( ( date.getTime() - time ) < bufferTime ) {
+			// Only write audio if the interval is sufficient to prevent stuttering.
+			if( bufferIndex < buffer.length ) {
+				// Finish writing current buffer.
+				bufferIndex += audio.mozWriteAudio( buffer.subarray( bufferIndex ) );
+			}
+			while( bufferIndex >= buffer.length ) {
+				// Refill buffer and write as many as possible.
+				audioSource.getAudio( buffer, buffer.length >> 1 );
+				bufferIndex = audio.mozWriteAudio( buffer );
+			}
 		}
 	}
 }
