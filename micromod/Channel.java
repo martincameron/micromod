@@ -7,6 +7,16 @@ public class Channel {
 		FP_ONE = 1 << FP_SHIFT,
 		FP_MASK = FP_ONE - 1;
 
+	private static final short[] keyToPeriod = { 1814,
+	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
+		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
+		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
+		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
+		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
+		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
+		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28
+	};
+
 	private static final short[] fineTuning = {
 		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
 		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
@@ -248,9 +258,9 @@ public class Channel {
 			if( assignedIns.loopLength > 0 && instrument > 0 ) instrument = assigned;
 		}
 		if( noteEffect == 0x15 ) fineTune = noteParam;
-		if( noteKey > 0 ) {
-			int key = ( noteKey * fineTuning[ fineTune & 0xF ] ) >> 11;
-			portaPeriod = ( key >> 1 ) + ( key & 1 );
+		if( noteKey > 0 && noteKey <= 72 ) {
+			int per = ( keyToPeriod[ noteKey ] * fineTuning[ fineTune & 0xF ] ) >> 11;
+			portaPeriod = ( per >> 1 ) + ( per & 1 );
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;
 				period = portaPeriod;

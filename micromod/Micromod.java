@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2011 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20110819a (c)2011 mumart@gmail.com";
+	public static final String VERSION = "20111227 (c)2011 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
@@ -180,11 +180,9 @@ public class Micromod {
 		int patOffset = ( module.sequence[ seqPos ] * 64 + row ) * module.numChannels * 4;
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
-			int key = ( module.patterns[ patOffset ] & 0xF ) << 8;
-			key = key | module.patterns[ patOffset + 1 ] & 0xFF;
-			int ins = ( module.patterns[ patOffset + 2 ] & 0xF0 ) >> 4;
-			ins = ins | module.patterns[ patOffset ] & 0x10;
-			int effect = module.patterns[ patOffset + 2 ] & 0x0F;
+			int key = module.patterns[ patOffset ] & 0xFF;
+			int ins = module.patterns[ patOffset + 1 ] & 0xFF;
+			int effect = module.patterns[ patOffset + 2 ] & 0xFF;
 			int param  = module.patterns[ patOffset + 3 ] & 0xFF;
 			patOffset += 4;
 			if( effect == 0xE ) {

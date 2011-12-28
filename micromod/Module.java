@@ -10,6 +10,11 @@ public class Module {
 	public byte[] patterns, sequence;
 	public Instrument[] instruments;
 
+	private static final short[] keyToPeriod = {
+		/*     C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
+		1814, 1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907
+	};
+
 	public Module() {
 		songName = "Blank";
 		numChannels = 4;
@@ -59,7 +64,34 @@ public class Module {
 		}
 		int numNotes = numPatterns * 64 * numChannels;
 		patterns = new byte[ numNotes * 4 ];
-		System.arraycopy( module, 1084, patterns, 0, numNotes * 4 );
+		for( int patIdx = 0; patIdx < patterns.length; patIdx += 4 ) {
+			int period = ( module[ 1084 + patIdx ] & 0xF ) << 8;
+			period = period | ( module[ 1084 + patIdx + 1 ] & 0xFF );
+			if( period < 28 ) {
+				patterns[ patIdx ] = 0;
+			} else {
+				/* Convert period to key. */
+				int key = 0, oct = 0;
+				while( period < 907 ) {
+					period *= 2;
+					oct++;
+				}
+				while( key < 12 ) {
+					int d1 = keyToPeriod[ key ] - period;
+					int d2 = period - keyToPeriod[ key + 1 ];
+					if( d2 >= 0 ) {
+						if( d2 < d1 ) key++;
+						break;
+					}
+					key++;
+				}
+				patterns[ patIdx ] = ( byte ) ( oct * 12 + key );
+			}
+			int ins = ( module[ 1084 + patIdx + 2 ] & 0xF0 ) >> 4;
+			patterns[ patIdx + 1 ] = ( byte ) ( ins | ( module[ 1084 + patIdx ] & 0x10 ) );
+			patterns[ patIdx + 2 ] = ( byte ) ( module[ 1084 + patIdx + 2 ] & 0xF );
+			patterns[ patIdx + 3 ] = module[ 1084 + patIdx + 3 ];
+		}
 		numInstruments = 31;
 		instruments = new Instrument[ numInstruments + 1 ];
 		instruments[ 0 ] = new Instrument();
