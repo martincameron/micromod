@@ -303,7 +303,7 @@ function Channel( module, id, sampleRate ) {
 	var tremoloType = 0, tremoloPhase = 0, tremoloSpeed = 0, tremoloDepth = 0;
 	var tremoloAdd = 0, vibratoAdd = 0, arpeggioAdd = 0;
 	var c2Rate = 0, randomSeed = 0;
-	var randomSeed = id;
+	var randomSeed = ( id + 1 ) * 0xABCDEF;
 	switch( id & 0x3 ) {
 		case 0: case 3: panning =  51; break;
 		case 1: case 2: panning = 204; break;
@@ -569,8 +569,8 @@ function Channel( module, id, sampleRate ) {
 				amplitude = ( phase & 0x20 ) > 0 ? 255 : -255;
 				break;
 			case 3: /* Random. */
-				amplitude = randomSeed - 255;
-				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FF;
+				amplitude = ( randomSeed >> 20 ) - 255;
+				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FFFFFFF;
 				break;
 		}
 		return amplitude;
