@@ -46,12 +46,13 @@ public class Channel {
 	
 	public Channel( Module module, int id, int sampleRate ) {
 		this.module = module;
-		this.id = randomSeed = id;
+		this.id = id;
 		this.sampleRate = sampleRate;
 		switch( id & 0x3 ) {
 			case 0: case 3: panning =  51; break;
 			case 1: case 2: panning = 204; break;
 		}
+		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 	
 	public void resample( int[] outBuf, int offset, int length, boolean interpolate ) {
@@ -313,8 +314,8 @@ public class Channel {
 				amplitude = ( phase & 0x20 ) > 0 ? 255 : -255;
 				break;
 			case 3: /* Random. */
-				amplitude = randomSeed - 255;
-				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FF;
+				amplitude = ( randomSeed >> 20 ) - 255;
+				randomSeed = ( randomSeed * 65 + 17 ) & 0x1FFFFFFF;
 				break;
 		}
 		return amplitude;
