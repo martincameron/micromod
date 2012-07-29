@@ -2,10 +2,10 @@
 package ibxm;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2011 mumart@gmail.com
+	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2012 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a62 (c)2011 mumart@gmail.com";
+	public static final String VERSION = "a62 (c)2012 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
