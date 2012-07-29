@@ -62,6 +62,11 @@ public class WavInputStream extends InputStream {
 	}
 
 	@Override
+	public int available() {
+		return outLen - outIdx;
+	}
+
+	@Override
 	public int read() {
 		int out = -1;
 		if( remain > 0 ) {
