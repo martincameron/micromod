@@ -5,7 +5,7 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2011 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a61 (c)2011 mumart@gmail.com";
+	public static final String VERSION = "a62 (c)2011 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
@@ -55,6 +55,16 @@ public class IBXM {
 	/* Returns the minimum size of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
 		return ( sampleRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
+	}
+
+	/* Get the current row position. */
+	public int getRow() {
+		return row;
+	}
+
+	/* Get the current pattern position in the sequence. */
+	public int getSequencePos() {
+		return seqPos;
 	}
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */
