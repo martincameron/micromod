@@ -1,11 +1,11 @@
 
 /*
-	JavaScript ProTracker Replay (c)2011 mumart@gmail.com
+	JavaScript ProTracker Replay (c)2012 mumart@gmail.com
 */
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20111227 (c)2011 mumart@gmail.com";
+		return "20120730 (c)2012 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -16,6 +16,16 @@ function Micromod( module, samplingRate ) {
 	/* Enable or disable the linear interpolation filter. */
 	this.setInterpolation = function( interp ) {
 		interpolation = interp;
+	}
+
+	/* Get the current row position. */
+	this.getRow = function() {
+		return row;
+	}
+
+	/* Get the current pattern position in the sequence. */
+	this.getSequencePos = function() {
+		return seqPos;
 	}
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */

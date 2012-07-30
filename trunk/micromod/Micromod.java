@@ -2,10 +2,10 @@
 package micromod;
 
 /*
-	Java ProTracker Replay (c)2011 mumart@gmail.com
+	Java ProTracker Replay (c)2012 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20111227 (c)2011 mumart@gmail.com";
+	public static final String VERSION = "20120730 (c)2012 mumart@gmail.com";
 
 	private static final int OVERSAMPLE = 2;
 
@@ -45,6 +45,16 @@ public class Micromod {
 	/* Return the maximum length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
 		return ( samplingRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
+	}
+
+	/* Get the current row position. */
+	public int getRow() {
+		return row;
+	}
+
+	/* Get the current pattern position in the sequence. */
+	public int getSequencePos() {
+		return seqPos;
 	}
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */
