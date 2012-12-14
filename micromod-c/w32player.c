@@ -24,7 +24,7 @@ static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static short wave_buffers[ NUM_BUFFERS ][ BUFFER_SAMPLES * NUM_CHANNELS ];
 static long filt_l, filt_r;
 
-static void STDCALL wave_out_proc( HDRVR hdrvr, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2 ) {
+static void STDCALL wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
 	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
 	if( uMsg == WOM_DONE ) ReleaseSemaphore( semaphore, 1, NULL );
 	/*if( uMsg == WOM_CLOSE ) printf( "Device closed.\n" );*/
@@ -164,7 +164,7 @@ int main( int argc, char **argv ) {
 	semaphore = CreateSemaphore( NULL, NUM_BUFFERS, NUM_BUFFERS, "" );
 
 	/* Open Audio Device. */
-	check_mmsys_error( waveOutOpen( &h_wave_out, WAVE_MAPPER, &wave_format, ( DWORD ) wave_out_proc, 0, CALLBACK_FUNCTION ) );
+	check_mmsys_error( waveOutOpen( &h_wave_out, WAVE_MAPPER, &wave_format, (DWORD_PTR) wave_out_proc, 0, CALLBACK_FUNCTION ) );
 
 	/* Play through once. */
 	current_buffer = 0;
