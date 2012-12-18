@@ -21,7 +21,7 @@ Var Semaphore : THandle;
 Var MixBuffer : Array Of SmallInt;
 Var MixIndex, MixLength, LFilter, RFilter : LongInt;
 
-Procedure WaveOutProc( hdrvr: HDRVR; uMsg: UINT; dwUser: DWORD; dw1, dw2: DWORD ) StdCall;
+Procedure WaveOutProc( hWaveOut: HWAVEOUT; uMsg: UINT; dwInstance, dwParam1, dwParam2: DWORD_PTR ) StdCall;
 Begin
 	//if uMsg = WOM_OPEN then Writeln( 'Device open.' );
 	If uMsg = WOM_DONE Then
@@ -33,11 +33,12 @@ End;
 
 Procedure CheckMMError( ReturnCode : MMRESULT );
 Var
-	ErrorText : String[ 64 ];
+	ErrorText : Array of AnsiChar;
 Begin
 	If ReturnCode <> MMSYSERR_NOERROR Then Begin
-		WaveOutGetErrorText( ReturnCode, @ErrorText, Length( ErrorText ) );
-		WriteLn( ErrorText );
+		SetLength( ErrorText, 64 );
+		WaveOutGetErrorTextA( ReturnCode, PChar( ErrorText ), Length( ErrorText ) );
+		WriteLn( PChar( ErrorText ) );
 		Halt( EXIT_FAILURE );
 	End;
 End;
@@ -163,7 +164,7 @@ Begin
     Semaphore := CreateSemaphore( Nil, NUM_BUFFERS, NUM_BUFFERS, '' );
 
 	{ Open Audio Device. }
-	Err := WaveOutOpen( @WaveOutHandle, WAVE_MAPPER, @WaveFormat, LongWord( @WaveOutProc ), 0, CALLBACK_FUNCTION );
+	Err := WaveOutOpen( @WaveOutHandle, WAVE_MAPPER, @WaveFormat, DWORD_PTR( @WaveOutProc ), 0, CALLBACK_FUNCTION );
 	CheckMMError( Err );
 
 	{ Calculate Duration. }
@@ -191,9 +192,9 @@ Begin
 		
 		{ Submit buffer to audio system. }
 		PWaveHeader := @WaveHeaders[ CurrentBuffer ];
-		CheckMMError( WaveOutUnprepareHeader( WaveOutHandle, PWaveHeader, SizeOf( WAVEHDR ) ) );
-		CheckMMError( WaveOutPrepareHeader( WaveOutHandle, PWaveHeader, SizeOf( WAVEHDR ) ) );
-		CheckMMError( WaveOutWrite( WaveOutHandle, PWaveHeader, SizeOf( WAVEHDR ) ) );
+		CheckMMError( WaveOutUnprepareHeader( WaveOutHandle, PWaveHeader, SizeOf( TWaveHdr ) ) );
+		CheckMMError( WaveOutPrepareHeader( WaveOutHandle, PWaveHeader, SizeOf( TWaveHdr ) ) );
+		CheckMMError( WaveOutWrite( WaveOutHandle, PWaveHeader, SizeOf( TWaveHdr ) ) );
 		
 		{ Next buffer. }
 		CurrentBuffer := CurrentBuffer + 1;
