@@ -8,7 +8,7 @@
 #include "micromod.h"
 
 /*
-	Simple command-line test player for micromod/v using the Windows MMAPI.
+	Simple command-line test player for micromod using the Windows MMAPI.
 	Written because SDL on Windows redirects standard output to a file.
 */
 
@@ -16,7 +16,7 @@
 #define OVERSAMPLE     2      /* 2x oversampling. */
 #define NUM_CHANNELS   2      /* Stereo. */
 #define BUFFER_SAMPLES 16384  /* 64k per buffer. */
-#define NUM_BUFFERS    8      /* 4 buffers (256k). */
+#define NUM_BUFFERS    8      /* 8 buffers (512k). */
 
 static HANDLE semaphore;
 static WAVEHDR wave_headers[ NUM_BUFFERS ];
@@ -34,7 +34,7 @@ static void check_mmsys_error( int error ) {
 	TCHAR string[ 64 ];
 	if( error != MMSYSERR_NOERROR ) {
 		waveOutGetErrorText( error, &string[ 0 ], 64 );
-		fprintf( stderr, "%s", &string );
+		fprintf( stderr, "%s\n", &string );
 		exit( EXIT_FAILURE );
 	}
 }
