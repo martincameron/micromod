@@ -109,7 +109,7 @@ Begin
 			MixLength := MixLength Div OVERSAMPLE;
 			MixIndex := 0;
 			{ Notify main thread if song has finished. }
-			SamplesRemaining -= MixLength;
+			SamplesRemaining := SamplesRemaining - MixLength;
 			If SamplesRemaining <= 0 Then SDL_SemPost( Semaphore );
 		End;
 		OutOffset := OutOffset + Count;
