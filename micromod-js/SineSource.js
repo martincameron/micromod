@@ -1,10 +1,13 @@
 
-function SineSource( sampleRate ) {
-	var freq = 2 * Math.PI * 440 / sampleRate;
-	var phase = 0;
-
+function SineSource() {
 	this.getSamplingRate = function() {
-		return sampleRate;
+		return rate;
+	}
+	
+	this.setSamplingRate = function( samplingRate ) {
+		rate = samplingRate;
+		freq = 2 * Math.PI * 440 / rate;
+		phase = 0;
 	}
 
 	this.getAudio = function( buffer, count ) {
@@ -14,4 +17,7 @@ function SineSource( sampleRate ) {
 			buffer[ idx + 1 ] = Math.sin( x * 0.5 );
 		}
 	}
+
+	var rate = 0, freq = 0, phase = 0;
+	this.setSamplingRate( 48000 );
 }
