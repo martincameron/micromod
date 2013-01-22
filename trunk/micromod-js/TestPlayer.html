@@ -1,13 +1,15 @@
+<!DOCTYPE html>
 <html>
 	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 		<title>Micromod for JavaScript</title>
 	</head>
 	<body>
-		<script type="text/javascript" src="AudioPlayer.js"></script>
 		<script type="text/javascript" src="SineSource.js"></script>
+		<script type="text/javascript" src="AudioPlayer.js"></script>
 		<script type="text/javascript" src="Micromod.js"></script>
 		<script type="text/javascript">
-			var player = new AudioPlayer( new SineSource( 48000 ) );
+			var player = createAudioPlayer( new SineSource() );
 			function play() {
 				player.play();
 			}
@@ -17,9 +19,8 @@
 			function setModule( moduleData ) {
 				stop();
 				var module = new Module( moduleData );
-				var micromod = new Micromod( module, 48000 );
-				micromod.setInterpolation( true );
-				player = new AudioPlayer( micromod );
+				var micromod = new Micromod( module );
+				player = createAudioPlayer( micromod );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
 			}
 			function loadFile( file ) {
@@ -41,9 +42,6 @@
 		</script>
 		<p>
 			<h3>Micromod for JavaScript!</h3>
-		</p>
-		<p>
-			Needs a bit of work. Only works in Firefox for now.
 		</p>
 		<p>
 			Please direct any comments, questions, complaints :) to mumart@gmail.com
