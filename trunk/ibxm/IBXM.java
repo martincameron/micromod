@@ -2,37 +2,34 @@
 package ibxm;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2012 mumart@gmail.com
+	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2013 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a62 (c)2012 mumart@gmail.com";
-
-	private static final int OVERSAMPLE = 2;
+	public static final String VERSION = "a63 (c)2013 mumart@gmail.com";
 
 	private Module module;
-	private int[] rampBuffer;
+	private int[] rampBuf;
 	private Channel[] channels;
+	private boolean oversample;
 	private int interpolation, filtL, filtR;
-	private int sampleRate, tickLen, rampLen, rampRate;
+	private int sampleRate, tickLen, logRampLen;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, plCount, plChannel;
 	private GlobalVol globalVol;
 	private Note note;
 
-	/*
-		Initialise the replay to play the
-		specified Module at the specified sampling rate.
-	*/
-	public IBXM( Module module, int sampleRate ) {
+	/* Play the specified Module at the specified sampling rate. */
+	public IBXM( Module module, int samplingRate ) {
 		this.module = module;
-		this.sampleRate = sampleRate;
-		interpolation = Channel.LINEAR;
-		if( sampleRate * OVERSAMPLE < 16000 )
+		if( samplingRate < 8000 )
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
-		rampLen = 256;
-		while( rampLen * 1024 > sampleRate * OVERSAMPLE ) rampLen /= 2;
-		rampBuffer = new int[ rampLen * 2 ];
-		rampRate = 256 / rampLen;
+		interpolation = Channel.LINEAR;
+		oversample = samplingRate < 64000;
+		sampleRate = oversample ? samplingRate << 1 : samplingRate;
+		logRampLen = 8;
+		while( ( 1024 << logRampLen ) > sampleRate )
+			logRampLen = logRampLen - 1; 
+		rampBuf = new int[ 2 << logRampLen ];
 		channels = new Channel[ module.numChannels ];
 		globalVol = new GlobalVol();
 		note = new Note();
@@ -41,7 +38,7 @@ public class IBXM {
 
 	/* Return the sampling rate of playback. */
 	public int getSampleRate() {
-		return sampleRate;
+		return oversample ? ( sampleRate >> 1 ) : sampleRate;
 	}
 
 	/*
@@ -54,7 +51,7 @@ public class IBXM {
 
 	/* Returns the minimum size of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
-		return ( sampleRate * OVERSAMPLE * 5 / 32 ) + ( rampLen * 2 );
+		return ( sampleRate * 5 / 32 ) + ( 2 << logRampLen );
 	}
 
 	/* Get the current row position. */
@@ -78,8 +75,9 @@ public class IBXM {
 		setTempo( module.defaultTempo > 0 ? module.defaultTempo : 125 );
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
-			channels[ idx ] = new Channel( module, idx, sampleRate * OVERSAMPLE, globalVol );
-		for( int idx = 0, end = rampLen * 2; idx < end; idx++ ) rampBuffer[ idx ] = 0;
+			channels[ idx ] = new Channel( module, idx, sampleRate, globalVol );
+		for( int idx = 0, end = 2 << logRampLen; idx < end; idx++ )
+			rampBuf[ idx ] = 0;
 		filtL = filtR = 0;
 		tick();
 	}
@@ -90,11 +88,11 @@ public class IBXM {
 		setSequencePos( 0 );
 		boolean songEnd = false;
 		while( !songEnd ) {
-			duration += tickLen / OVERSAMPLE;
+			duration += tickLen;
 			songEnd = tick();
 		}
 		setSequencePos( 0 );
-		return duration;	
+		return oversample ? ( duration >> 1 ) : duration;	
 	}
 
 	/*
@@ -102,15 +100,16 @@ public class IBXM {
 		The actual sample position reached is returned.
 	*/
 	public int seek( int samplePos ) {
+		samplePos = oversample ? ( samplePos << 1 ) : samplePos;
 		setSequencePos( 0 );
 		int currentPos = 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen );
-			currentPos += tickLen / OVERSAMPLE;
+			currentPos += tickLen;
 			tick();
 		}
-		return currentPos;
+		return oversample ? ( currentPos >> 1 ) : currentPos;
 	}
 
 	/*
@@ -119,39 +118,36 @@ public class IBXM {
 		The output buffer length must be at least that returned by get_mix_buffer_length().
 		A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels.
 	*/
-	public int getAudio( int[] outputBuffer ) {
+	public int getAudio( int[] outputBuf ) {
+		int outLen = tickLen + ( 1 << logRampLen );
 		// Clear output buffer.
-		int outIdx = 0;
-		int outEp1 = tickLen + rampLen << 1;
-		while( outIdx < outEp1 ) outputBuffer[ outIdx++ ] = 0;
+		for( int idx = 0, end = outLen << 1; idx < end; idx++ )
+			outputBuf[ idx ] = 0;
 		// Resample.
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuffer, 0, tickLen + rampLen, interpolation );
+			chan.resample( outputBuf, 0, outLen, interpolation );
 			chan.updateSampleIdx( tickLen );
 		}
-		volumeRamp( outputBuffer );
+		volumeRamp( outputBuf );
 		tick();
-		return downsample( outputBuffer, tickLen );
+		return downsample( outputBuf, tickLen );
 	}
 
 	private void setTempo( int tempo ) {
 		// Make sure tick length is even to simplify 2x oversampling.
-		tickLen = ( ( sampleRate * OVERSAMPLE * 5 ) / ( tempo * 2 ) ) & -2;
+		tickLen = ( ( sampleRate * 5 ) / ( tempo * 2 ) ) & -2;
 	}
 
-	private void volumeRamp( int[] mixBuffer ) {
-		int a1, a2, s1, s2, offset = 0;
-		for( a1 = 0; a1 < 256; a1 += rampRate ) {
-			a2 = 256 - a1;
-			s1 =  mixBuffer[ offset ] * a1;
-			s2 = rampBuffer[ offset ] * a2;
-			mixBuffer[ offset++ ] = s1 + s2 >> 8;
-			s1 =  mixBuffer[ offset ] * a1;
-			s2 = rampBuffer[ offset ] * a2;
-			mixBuffer[ offset++ ] = s1 + s2 >> 8;
+	private void volumeRamp( int[] mixBuf ) {
+		int rampBufLen = 2 << logRampLen;
+		for( int idx = 0; idx < rampBufLen; idx += 2 ) {
+			int a1 = ( idx * 128 ) >> logRampLen;
+			int a2 = 256 - a1;
+			mixBuf[ idx     ] = ( mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2 ) >> 8;
+			mixBuf[ idx + 1 ] = ( mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2 ) >> 8;
 		}
-		System.arraycopy( mixBuffer, tickLen << 1, rampBuffer, 0, offset );
+		System.arraycopy( mixBuf, tickLen << 1, rampBuf, 0, rampBufLen );
 	}
 
 	private int downsample( int[] buf, int count ) {
