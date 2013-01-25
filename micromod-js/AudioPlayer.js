@@ -1,17 +1,17 @@
 
-function createAudioPlayer( audioSource ) {
+function createAudioPlayer() {
 	if( typeof( webkitAudioContext ) === "function" ) {
-		return new WebkitAudioPlayer( audioSource );
+		return new WebkitAudioPlayer();
 	} else {
-		return new FirefoxAudioPlayer( audioSource );
+		return new FirefoxAudioPlayer();
 	}
 }
 
-function WebkitAudioPlayer( audioSource ) {
+function WebkitAudioPlayer() {
 	var audioContext = new webkitAudioContext();
 	var scriptProcessor = audioContext.createJavaScriptNode( 4096, 0, 2 );
 	var buffer = new Float32Array( scriptProcessor.bufferSize * 2 );
-	audioSource.setSamplingRate( audioContext.sampleRate );
+	var audioSource = new SineSource( audioContext.sampleRate );
 	scriptProcessor.onaudioprocess = function( event ) {
 		var lOut = event.outputBuffer.getChannelData( 0 );
 		var rOut = event.outputBuffer.getChannelData( 1 );
@@ -21,6 +21,12 @@ function WebkitAudioPlayer( audioSource ) {
 			rOut[ outIdx ] = buffer[ bufIdx + 1 ];
 		}
 	}
+	this.getSamplingRate = function() {
+		return audioContext.sampleRate;
+	}
+	this.setAudioSource = function( audioSrc ) {
+		audioSource = audioSrc;
+	}
 	this.play = function() {
 		scriptProcessor.connect( audioContext.destination );
 	}
@@ -29,14 +35,20 @@ function WebkitAudioPlayer( audioSource ) {
 	}
 }
 
-function FirefoxAudioPlayer( audioSource ) {
+function FirefoxAudioPlayer() {
 	// 44100hz seems to sound best in Firefox.
-	audioSource.setSamplingRate( 44100 );
-	var samplingRate = audioSource.getSamplingRate();
-	var buffer = new Float32Array( samplingRate / 2 /* 250ms */ );
+	var samplingRate = 44100;
+	var buffer = new Float32Array( samplingRate >> 1 /* 250ms */ );
 	var bufferIndex = buffer.length, intervalId = null;
+	var audioSource = new SineSource( samplingRate );
 	var audio = new Audio();
 	audio.mozSetup( 2, samplingRate );
+	this.getSamplingRate = function() {
+		return samplingRate;
+	}
+	this.setAudioSource = function( audioSrc ) {
+		audioSource = audioSrc;
+	}
 	this.play = function() {
 		if( intervalId == null ) {
 			var oldTime = new Date().getTime();
@@ -65,4 +77,21 @@ function FirefoxAudioPlayer( audioSource ) {
 			intervalId = null;
 		}
 	}
+}
+
+function SineSource( samplingRate ) {
+	// Simple AudioSource for testing.
+	this.getSamplingRate = function() {
+		return rate;
+	}
+	this.getAudio = function( buffer, count ) {
+		for( idx = 0, end = count * 2; idx < end; idx += 2, phase++ ) {
+			var x = phase * freq;
+			buffer[ idx ] = Math.sin( x );
+			buffer[ idx + 1 ] = Math.sin( x * 0.5 );
+		}
+	}
+	var rate = samplingRate;
+	var freq = 2 * Math.PI * 440 / rate;
+	var phase = 0;
 }
