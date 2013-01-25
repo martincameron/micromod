@@ -5,11 +5,10 @@
 		<title>Micromod for JavaScript</title>
 	</head>
 	<body>
-		<script type="text/javascript" src="SineSource.js"></script>
 		<script type="text/javascript" src="AudioPlayer.js"></script>
 		<script type="text/javascript" src="Micromod.js"></script>
 		<script type="text/javascript">
-			var player = createAudioPlayer( new SineSource() );
+			var player = createAudioPlayer();
 			function play() {
 				player.play();
 			}
@@ -19,8 +18,8 @@
 			function setModule( moduleData ) {
 				stop();
 				var module = new Module( moduleData );
-				var micromod = new Micromod( module );
-				player = createAudioPlayer( micromod );
+				var micromod = new Micromod( module, player.getSamplingRate() );
+				player.setAudioSource( micromod );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
 			}
 			function loadFile( file ) {

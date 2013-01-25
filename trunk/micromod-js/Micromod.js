@@ -2,31 +2,15 @@
 /*
 	JavaScript ProTracker Replay (c)2013 mumart@gmail.com
 */
-function Micromod( module ) {
+function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130124 (c)2013 mumart@gmail.com";
+		return "20130125 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
 		return oversample ? ( samplingRate >> 1 ) : samplingRate;
-	}
-	
-	/* Set the sampling rate of playback and reset. */
-	this.setSamplingRate = function( sampleRate ) {
-		if( sampleRate < 8000 ) {
-			throw "Unsupported sampling rate!";
-		}
-		oversample = sampleRate < 64000;
-		samplingRate = oversample ? ( sampleRate << 1 ) : sampleRate;
-		logRampLen = 8;
-		while( ( 1024 << logRampLen ) > samplingRate )
-			logRampLen = logRampLen - 1; 
-		rampBuf = new Int32Array( 2 << logRampLen );
-		// Max samples per tick is samplingRate * 2.5 / 32.
-		mixBuf = new Int32Array( ( ( samplingRate * 5 ) >> 5 ) + ( 2 << logRampLen ) );
-		this.setSequencePos( 0 );
 	}
 
 	/* Enable or disable the linear interpolation filter. */
@@ -275,14 +259,24 @@ function Micromod( module ) {
 		return songEnd;
 	}
 
-	var oversample = false, interpolation = false;
-	var filtL = 0, filtR = 0, tickLen = 0;
+	if( samplingRate < 8000 ) {
+		throw "Unsupported sampling rate!";
+	}
+	var oversample = samplingRate < 64000;
+	samplingRate = oversample ? ( samplingRate << 1 ) : samplingRate;
+	var interpolation = false, filtL = 0, filtR = 0;
+	var logRampLen = 8;
+	while( ( 1024 << logRampLen ) > samplingRate ) {
+		logRampLen = logRampLen - 1; 
+	}
+	var rampBuf = new Int32Array( 2 << logRampLen );
+	// Max samples per tick is samplingRate * 2.5 / 32.
+	var mixBuf = new Int32Array( ( ( samplingRate * 5 ) >> 5 ) + ( 2 << logRampLen ) );
+	var mixIdx = 0, mixLen = 0, tickLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, plCount = 0, plChannel = 0;
-	var rampBuf = null, logRampLen = 0;
-	var mixBuf = null, mixIdx = 0, mixLen = 0;
 	var channels = new Array( module.numChannels );
-	this.setSamplingRate( 48000 );
+	this.setSequencePos( 0 );
 }
 
 function Channel( module, id, sampleRate ) {
