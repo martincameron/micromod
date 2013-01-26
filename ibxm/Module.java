@@ -13,8 +13,8 @@ public class Module {
 	public Instrument[] instruments = { new Instrument(), new Instrument() };
 
 	private static final int[] keyToPeriod = {
-			29020, 27392, 25855, 24403, 23034, 21741, 20521,
-			19369, 18282, 17256, 16287, 15373, 14510, 13696
+		29020, 27392, 25855, 24403, 23034, 21741, 20521,
+		19369, 18282, 17256, 16287, 15373, 14510, 13696
 	};
 
 	public Module() {}
