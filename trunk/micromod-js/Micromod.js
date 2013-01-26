@@ -5,12 +5,24 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130125 (c)2013 mumart@gmail.com";
+		return "20130126 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
 		return oversample ? ( samplingRate >> 1 ) : samplingRate;
+	}
+
+	/* Set the sampling rate of playback. */
+	this.setSamplingRate = function( rate ) {
+	   // Use with Module.c2Rate to adjust the tempo of playback.
+	   // To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
+	   if( rate < 8000 || rate > 256000 ) {
+		throw "Unsupported sampling rate!";
+	   }
+	   oversample = rate < 128000;
+	   samplingRate = rate << ( oversample ? 1 : 0 );
+	   rampRate = ( 256 / ( samplingRate >> 11 ) ) | 0;
 	}
 
 	/* Enable or disable the linear interpolation filter. */
@@ -45,7 +57,7 @@ function Micromod( module, samplingRate ) {
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			channels[ idx ] = new Channel( module, idx, samplingRate );
 		}
-		for( var idx = 0, end = 2 << logRampLen; idx < end; idx++ ) {
+		for( var idx = 0; idx < 256; idx++ ) {
 			rampBuf[ idx ] = 0;
 		}
 		filtL = filtR = 0;
@@ -90,15 +102,14 @@ function Micromod( module, samplingRate ) {
 		while( outIdx < count ) {
 			if( mixIdx >= mixLen ) {
 				// Calculate next tick.
-				var rampLen = 1 << logRampLen;
-				for( var idx = 0, end = ( tickLen + rampLen ) << 1; idx < end; idx++ ) {
+				for( var idx = 0, end = ( tickLen + 128 ) << 1; idx < end; idx++ ) {
 					// Clear mix buffer.
 					mixBuf[ idx ] = 0;
 				}
 				for( var idx = 0; idx < module.numChannels; idx++ ) {
 					// Resample and mix each channel.
 					var chan = channels[ idx ];
-					chan.resample( mixBuf, 0, tickLen + rampLen, interpolation );
+					chan.resample( mixBuf, 0, tickLen + 128, interpolation );
 					chan.updateSampleIdx( tickLen );
 				}
 				volumeRamp( mixBuf );
@@ -126,14 +137,12 @@ function Micromod( module, samplingRate ) {
 	}
 
 	var volumeRamp = function( mixBuf ) {
-		var rampBufLen = 2 << logRampLen;
-		for( var idx = 0; idx < rampBufLen; idx += 2 ) {
-			var a1 = ( idx * 128 ) >> logRampLen;
+		for( var idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
 			var a2 = 256 - a1;
 			mixBuf[ idx     ] = ( mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2 ) >> 8;
 			mixBuf[ idx + 1 ] = ( mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2 ) >> 8;
 		}
-		rampBuf.set( mixBuf.subarray( tickLen << 1, ( tickLen << 1 ) + rampBufLen ) );
+		rampBuf.set( mixBuf.subarray( tickLen << 1, ( tickLen + 128 ) << 1 ) );
 	}
 
 	var downsample = function( buf, count ) {
@@ -259,23 +268,15 @@ function Micromod( module, samplingRate ) {
 		return songEnd;
 	}
 
-	if( samplingRate < 8000 ) {
-		throw "Unsupported sampling rate!";
-	}
-	var oversample = samplingRate < 64000;
-	samplingRate = oversample ? ( samplingRate << 1 ) : samplingRate;
-	var interpolation = false, filtL = 0, filtR = 0;
-	var logRampLen = 8;
-	while( ( 1024 << logRampLen ) > samplingRate ) {
-		logRampLen = logRampLen - 1; 
-	}
-	var rampBuf = new Int32Array( 2 << logRampLen );
-	// Max samples per tick is samplingRate * 2.5 / 32.
-	var mixBuf = new Int32Array( ( ( samplingRate * 5 ) >> 5 ) + ( 2 << logRampLen ) );
+	var interpolation = false, oversample = false;
+	var filtL = 0, filtR = 0, rampRate = 0;
+	var rampBuf = new Int32Array( 256 );
+	var mixBuf = new Int32Array( ( ( 256000 * 5 ) >> 5 ) + 256 );
 	var mixIdx = 0, mixLen = 0, tickLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, plCount = 0, plChannel = 0;
 	var channels = new Array( module.numChannels );
+	this.setSamplingRate( samplingRate );
 	this.setSequencePos( 0 );
 }
 
