@@ -40,10 +40,8 @@ function Micromod( module, samplingRate ) {
 		return seqPos;
 	}
 
-	/*
-		Set the pattern in the sequence to play.
-		The tempo is reset to the default.
-	*/
+	/* Set the pattern in the sequence to play.
+	   The tempo is reset to the default. */
 	this.setSequencePos = function( pos ) {
 		if( pos >= module.sequenceLength ) {
 			pos = 0;
@@ -78,10 +76,8 @@ function Micromod( module, samplingRate ) {
 		return oversample ? ( duration >> 1 ) : duration;
 	}
 
-	/*
-		Seek to approximately the specified sample position.
-		The actual sample position reached is returned.
-	*/
+	/* Seek to approximately the specified sample position.
+	   The actual sample position reached is returned. */
 	this.seek = function( samplePos ) {
 		samplePos = oversample ? ( samplePos << 1 ) : samplePos;
 		this.setSequencePos( 0 );
