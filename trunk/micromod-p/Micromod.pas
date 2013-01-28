@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2011 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2013 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20110819';
+Const MICROMOD_VERSION : String = '20130128';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -14,6 +14,13 @@ Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
 Function MicromodCalculateFileLength( Const Header1084Bytes : Array Of ShortInt ) : LongInt;
 { Initialise the replay to play the specified module. }
 Function MicromodInit( Const Module : Array Of ShortInt; SamplingRate : LongInt; Interpolation : Boolean ) : LongInt;
+{ Set the sampling rate of playback.
+  Returns True if the value is in range.
+  Use with MicromodSetC2Rate() to adjust the playback tempo.
+  For example, to play at half-speed multiply both the SamplingRate and C2Rate by 2. }
+Function MicromodSetSamplingRate( SamplingRate : LongInt ) : Boolean;
+{ Enable or disable the linear interpolation filter. }
+Procedure MicromodSetInterpolation( Interpolation : Boolean );
 { Returns the song name. }
 Function MicromodGetSongName : AnsiString;
 { Returns the specified instrument name. }
@@ -22,13 +29,24 @@ Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : AnsiString;
 Function MicromodCalculateSongDuration : LongInt;
 { Get a tick of audio.
   Returns the number of stereo sample pairs produced.
-  OutputBuffer should be at least SamplingRate/5 in length. }
+  OutputBuffer should be at least SamplingRate / 5 in length. }
 Function MicromodGetAudio( Var OutputBuffer : Array Of SmallInt ) : LongInt;
 { Quickly seek to approximately SamplePos.
   Returns the actual sample position reached. }
 Function MicromodSeek( SamplePos : LongInt ) : LongInt;
+{ Get the current row int the pattern being played. }
+Function MicromodGetRow : LongInt;
+{ Get the current pattern in the sequence. }
+Function MicromodGetSequencePos : LongInt;
 { Set the replay to play the specified pattern in the sequence.}
 Procedure MicromodSetSequencePos( SequencePos : LongInt );
+{ Get the current value of the C2Rate. }
+Function MicromodGetC2Rate() : LongInt;
+{ Set the value of the C2Rate.
+  Returns True if the value is in range.
+  This affects the frequency at which notes are played.
+  The default is 8287hz for PAL/Amiga modules, or 8363hz for NTSC/PC modules. }
+Function MicromodSetC2Rate( Rate : LongInt ) : Boolean;
 
 Implementation
 
@@ -86,8 +104,7 @@ Var Sequence, Patterns : Array Of Byte;
 Var Interpolate : Boolean;
 Var RampBuffer : Array Of SmallInt;
 Var NumChannels, SequenceLength, RestartPos : LongInt;
-Var SampleRate, C2Rate, Gain : LongInt;
-Var TickLength, RampLength, RampRate : LongInt;
+Var SampleRate, C2Rate, Gain, TickLength, RampRate : LongInt;
 Var Pattern, BreakPattern, Row, NextRow, Tick : LongInt;
 Var Speed, PLCount, PLChannel : LongInt;
 
@@ -124,22 +141,18 @@ Var
 	InstIndex, Volume : LongInt;
 	Instrument : TInstrument;
 Begin
-	If SamplingRate < 16000 Then Begin
-		MicromodInit := MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED;
-		Exit;
-	End;
 	NumChannels := CalculateNumChannels( Module );
 	If NumChannels = 0 Then Begin
 		MicromodInit := MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED;
 		Exit;
 	End;
 	SetLength( Channels, NumChannels );
-	SampleRate := SamplingRate;
-	Interpolate := Interpolation;
-	RampLength := 256;
-	While ( RampLength * 1024 ) > SampleRate Do RampLength := RampLength Div 2;
-	SetLength( RampBuffer, RampLength * 2 );
-	RampRate := 256 Div RampLength;
+	If Not MicromodSetSamplingRate( SamplingRate ) Then Begin
+		MicromodInit := MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED;
+		Exit;
+	End;
+	MicromodSetInterpolation( Interpolation );
+	SetLength( RampBuffer, 256 );
 	If( NumChannels > 4 ) Then Begin
 		C2Rate := 8363;
 		Gain := 1;
@@ -193,6 +206,21 @@ Begin
 	End;
 	MicromodSetSequencePos( 0 );
 	MicromodInit := 0;
+End;
+
+Function MicromodSetSamplingRate( SamplingRate : LongInt ) : Boolean;
+Begin
+	MicromodSetSamplingRate := False;
+	If ( SamplingRate >= 8000 ) And ( SamplingRate <= 256000 ) Then Begin
+		SampleRate := SamplingRate;
+		RampRate := 256 * 2048 Div SamplingRate;
+		MicromodSetSamplingRate := True;
+	End;
+End;
+
+Procedure MicromodSetInterpolation( Interpolation : Boolean );
+Begin
+	Interpolate := Interpolation;
 End;
 
 Function MicromodGetSongName : AnsiString;
@@ -306,23 +334,19 @@ End;
 
 Procedure VolumeRamp( Var Buffer : Array Of SmallInt );
 Var
-	A1, A2, S1, S2, Offset : LongInt;
+	Offset, A1, A2 : LongInt;
 Begin
 	Offset := 0;
 	A1 := 0;
 	While A1 < 256 Do Begin
 		A2 := 256 - A1;
-		S1 :=     Buffer[ Offset ] * A1;
-		S2 := RampBuffer[ Offset ] * A2;
-		Buffer[ Offset ] := ( S1 + S2 ) Div 256;
+		Buffer[ Offset ] := ( Buffer[ Offset ] * A1 + RampBuffer[ Offset ] * A2 ) Div 256;
 		Offset := Offset + 1;
-		S1 :=     Buffer[ Offset ] * A1;
-		S2 := RampBuffer[ Offset ] * A2;
-		Buffer[ Offset ] := ( S1 + S2 ) Div 256;
+		Buffer[ Offset ] := ( Buffer[ Offset ] * A1 + RampBuffer[ Offset ] * A2 ) Div 256;
 		Offset := Offset + 1;
 		A1 := A1 + RampRate;
 	End;
-	Move( Buffer[ TickLength * 2 ], RampBuffer[ 0 ], RampLength * 2 * SizeOf( SmallInt ) );
+	Move( Buffer[ TickLength * 2 ], RampBuffer[ 0 ], 256 * SizeOf( SmallInt ) );
 End;
 
 Procedure Trigger( Var Channel : TChannel );
@@ -657,9 +681,9 @@ Var
 Begin
 	MicromodGetAudio := 0;
 	If NumChannels > 0 Then Begin;
-		FillChar( OutputBuffer[ 0 ], ( TickLength + RampLength ) * 2 * SizeOf( SmallInt ), 0 );
+		FillChar( OutputBuffer[ 0 ], ( TickLength + 128 ) * 2 * SizeOf( SmallInt ), 0 );
 		For Chan := 0 To NumChannels - 1 Do Begin
-			Resample( Channels[ Chan ], OutputBuffer, TickLength + RampLength );
+			Resample( Channels[ Chan ], OutputBuffer, TickLength + 128 );
 			UpdateSampleIndex( Channels[ Chan ], TickLength );
 		End;
 		VolumeRamp( OutputBuffer );
@@ -703,6 +727,16 @@ Begin
 	MicromodCalculateSongDuration := Duration;
 End;
 
+Function MicromodGetRow : LongInt;
+Begin
+	MicromodGetRow := Row;
+End;
+
+Function MicromodGetSequencePos : LongInt;
+Begin
+	MicromodGetSequencePos := Pattern;
+End;
+
 Procedure MicromodSetSequencePos( SequencePos : LongInt );
 Var
 	Chan : LongInt;
@@ -726,8 +760,22 @@ Begin
 			3 : Channels[ Chan ].Panning := 51;
 		End;
 	End;
-	FillChar( RampBuffer[ 0 ], RampLength * 2 * SizeOf( SmallInt ), 0 );
+	FillChar( RampBuffer[ 0 ], 256 * SizeOf( SmallInt ), 0 );
 	SequenceTick();
+End;
+
+Function MicromodGetC2Rate() : LongInt;
+Begin
+	MicromodGetC2Rate := C2Rate;
+End;
+
+Function MicromodSetC2Rate( Rate : LongInt ) : Boolean;
+Begin
+	MicromodSetC2Rate := False;
+	If ( Rate > 0 ) And ( Rate < 65536 ) Then Begin
+		C2Rate := Rate;
+		MicromodSetC2Rate := True;
+	End;
 End;
 
 Function MicromodCalculateFileLength( Const Header1084Bytes : Array Of ShortInt ) : LongInt;
