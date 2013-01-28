@@ -11,7 +11,7 @@ Uses SysUtils, SDL, Micromod;
 
 Const SAMPLING_FREQ  : LongInt = 48000; { 48khz. }
 Const NUM_CHANNELS   : LongInt = 2;     { Stereo. }
-Const BUFFER_SAMPLES : LongInt = 16384; { 64k buffer. }
+Const BUFFER_SAMPLES : LongInt = 65536; { 256k buffer. }
 Const OVERSAMPLE     : LongInt = 2;     { Determined by Oversample() }
 
 Const EXIT_FAILURE   : Integer = 1;
