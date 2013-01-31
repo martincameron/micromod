@@ -300,7 +300,6 @@ function Channel( module, id, sampleRate ) {
 	var vibratoType = 0, vibratoPhase = 0, vibratoSpeed = 0, vibratoDepth = 0;
 	var tremoloType = 0, tremoloPhase = 0, tremoloSpeed = 0, tremoloDepth = 0;
 	var tremoloAdd = 0, vibratoAdd = 0, arpeggioAdd = 0;
-	var c2Rate = 0, randomSeed = 0;
 	var randomSeed = ( id + 1 ) * 0xABCDEF;
 	switch( id & 0x3 ) {
 		case 0: case 3: panning =  51; break;
