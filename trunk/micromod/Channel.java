@@ -41,9 +41,9 @@ public class Channel {
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
 	private int tremoloType, tremoloPhase, tremoloSpeed, tremoloDepth;
 	private int tremoloAdd, vibratoAdd, arpeggioAdd;
-	private int id, c2Rate, sampleRate, gain, randomSeed;
+	private int id, sampleRate, randomSeed;
 	public int plRow;
-	
+
 	public Channel( Module module, int id, int sampleRate ) {
 		this.module = module;
 		this.id = id;

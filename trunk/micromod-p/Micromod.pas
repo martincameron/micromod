@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20130128';
+Const MICROMOD_VERSION : String = '20130131';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -104,7 +104,7 @@ Var Sequence, Patterns : Array Of Byte;
 Var Interpolate : Boolean;
 Var RampBuffer : Array Of SmallInt;
 Var NumChannels, SequenceLength, RestartPos : LongInt;
-Var SampleRate, C2Rate, Gain, TickLength, RampRate : LongInt;
+Var SampleRate, TickLength, C2Rate, Gain : LongInt;
 Var Pattern, BreakPattern, Row, NextRow, Tick : LongInt;
 Var Speed, PLCount, PLChannel : LongInt;
 
@@ -152,7 +152,7 @@ Begin
 		Exit;
 	End;
 	MicromodSetInterpolation( Interpolation );
-	SetLength( RampBuffer, 256 );
+	SetLength( RampBuffer, 128 );
 	If( NumChannels > 4 ) Then Begin
 		C2Rate := 8363;
 		Gain := 1;
@@ -211,9 +211,8 @@ End;
 Function MicromodSetSamplingRate( SamplingRate : LongInt ) : Boolean;
 Begin
 	MicromodSetSamplingRate := False;
-	If ( SamplingRate >= 8000 ) And ( SamplingRate <= 256000 ) Then Begin
+	If ( SamplingRate >= 8000 ) And ( SamplingRate <= 128000 ) Then Begin
 		SampleRate := SamplingRate;
-		RampRate := 256 * 2048 Div SamplingRate;
 		MicromodSetSamplingRate := True;
 	End;
 End;
@@ -240,8 +239,7 @@ End;
 
 Procedure SetTempo( Tempo : LongInt );
 Begin
-	{ Ensure TickLength is even to simplify downsampling. }
-	TickLength := ( ( ( SampleRate Shl 1 ) + ( SampleRate Shr 1 ) ) Div Tempo ) And -2;
+	TickLength := ( SampleRate * 5 ) Div ( Tempo * 2 );
 End;
 
 Procedure Resample( Const Channel : TChannel; Var OutputBuffer : Array Of SmallInt; Length : LongInt );
@@ -254,39 +252,32 @@ Var
 Begin
 	Ins := Channel.Instrument;
 	SampleData := Instruments[ Ins ].SampleData;
-
 	Ampl := Channel.Ampl;
 	If Ampl <= 0 then Exit;
 	RAmpl := Ampl * Channel.Panning;
 	LAmpl := Ampl * ( 255 - Channel.Panning );
-	
 	SampleIdx := Channel.SampleIndex;
 	SampleFra := Channel.SampleFrac;
 	Step := Channel.Step;
 	LoopLen := Instruments[ Ins ].LoopLength;
 	LoopEp1 := Instruments[ Ins ].LoopStart + LoopLen;
-	
 	OutputIndex := 0;
 	OutputLength := Length * 2;
-	
 	If Interpolate Then Begin
 		While OutputIndex < OutputLength Do Begin
 			If SampleIdx >= LoopEp1 Then Begin
 				If LoopLen <= 1 Then Break;
 				While SampleIdx >= LoopEp1 Do SampleIdx := SampleIdx - LoopLen;
 			End;
-			
 			C := SampleData[ SampleIdx ] * 256;
 			M := SampleData[ SampleIdx + 1 ] * 256 - C;
 			Y := ( ( M * SampleFra ) Div FP_ONE ) + C;
 			L := Y * LAmpl Div 65536;
 			R := Y * RAmpl Div 65536;
-			
 			OutputBuffer[ OutputIndex ] := OutputBuffer[ OutputIndex ] + L;
 			OutputIndex := OutputIndex + 1;
 			OutputBuffer[ OutputIndex ] := OutputBuffer[ OutputIndex ] + R;
 			OutputIndex := OutputIndex + 1;
-			
 			SampleFra := SampleFra + Step;
 			SampleIdx := SampleIdx + ( SampleFra Shr FP_SHIFT );
 			SampleFra := SampleFra And FP_MASK;
@@ -297,16 +288,13 @@ Begin
 				If LoopLen <= 1 Then Break;
 				While SampleIdx >= LoopEp1 Do SampleIdx := SampleIdx - LoopLen;
 			End;
-			
 			Y := SampleData[ SampleIdx ];
 			L := Y * LAmpl Div 256;
 			R := Y * RAmpl Div 256;
-			
 			OutputBuffer[ OutputIndex ] := OutputBuffer[ OutputIndex ] + L;
 			OutputIndex := OutputIndex + 1;
 			OutputBuffer[ OutputIndex ] := OutputBuffer[ OutputIndex ] + R;
 			OutputIndex := OutputIndex + 1;
-			
 			SampleFra := SampleFra + Step;
 			SampleIdx := SampleIdx + ( SampleFra Shr FP_SHIFT );
 			SampleFra := SampleFra And FP_MASK;
@@ -334,9 +322,10 @@ End;
 
 Procedure VolumeRamp( Var Buffer : Array Of SmallInt );
 Var
-	Offset, A1, A2 : LongInt;
+	Offset, RampRate, A1, A2 : LongInt;
 Begin
 	Offset := 0;
+	RampRate := 256 * 2048 Div SampleRate;
 	A1 := 0;
 	While A1 < 256 Do Begin
 		A2 := 256 - A1;
@@ -346,7 +335,7 @@ Begin
 		Offset := Offset + 1;
 		A1 := A1 + RampRate;
 	End;
-	Move( Buffer[ TickLength * 2 ], RampBuffer[ 0 ], 256 * SizeOf( SmallInt ) );
+	Move( Buffer[ TickLength * 2 ], RampBuffer[ 0 ], 128 * SizeOf( SmallInt ) );
 End;
 
 Procedure Trigger( Var Channel : TChannel );
@@ -760,7 +749,7 @@ Begin
 			3 : Channels[ Chan ].Panning := 51;
 		End;
 	End;
-	FillChar( RampBuffer[ 0 ], 256 * SizeOf( SmallInt ), 0 );
+	FillChar( RampBuffer[ 0 ], 128 * SizeOf( SmallInt ), 0 );
 	SequenceTick();
 End;
 
