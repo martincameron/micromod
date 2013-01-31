@@ -5,24 +5,22 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130126 (c)2013 mumart@gmail.com";
+		return "20130131 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
-		return oversample ? ( samplingRate >> 1 ) : samplingRate;
+		return samplingRate;
 	}
 
 	/* Set the sampling rate of playback. */
 	this.setSamplingRate = function( rate ) {
-	   // Use with Module.c2Rate to adjust the tempo of playback.
-	   // To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
-	   if( rate < 8000 || rate > 256000 ) {
-		throw "Unsupported sampling rate!";
-	   }
-	   oversample = rate < 128000;
-	   samplingRate = rate << ( oversample ? 1 : 0 );
-	   rampRate = ( 256 / ( samplingRate >> 11 ) ) | 0;
+		// Use with Module.c2Rate to adjust the tempo of playback.
+		// To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
+		if( rate < 8000 || rate > 128000 ) {
+			throw "Unsupported sampling rate!";
+		}
+		samplingRate = rate;
 	}
 
 	/* Enable or disable the linear interpolation filter. */
@@ -53,12 +51,11 @@ function Micromod( module, samplingRate ) {
 		setTempo( 125 );
 		plCount = plChannel = -1;
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
-			channels[ idx ] = new Channel( module, idx, samplingRate );
+			channels[ idx ] = new Channel( module, idx, samplingRate * 2 );
 		}
-		for( var idx = 0; idx < 256; idx++ ) {
+		for( var idx = 0; idx < 128; idx++ ) {
 			rampBuf[ idx ] = 0;
 		}
-		filtL = filtR = 0;
 		mixIdx = mixLen = 0;
 		seqTick();
 	}
@@ -73,23 +70,22 @@ function Micromod( module, samplingRate ) {
 			songEnd = seqTick();
 		}
 		this.setSequencePos( 0 );
-		return oversample ? ( duration >> 1 ) : duration;
+		return duration;
 	}
 
 	/* Seek to approximately the specified sample position.
 	   The actual sample position reached is returned. */
 	this.seek = function( samplePos ) {
-		samplePos = oversample ? ( samplePos << 1 ) : samplePos;
 		this.setSequencePos( 0 );
 		var currentPos = 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen );
+				channels[ idx ].updateSampleIdx( tickLen * 2 );
 			}
 			currentPos += tickLen;
 			seqTick();
 		}
-		return oversample ? ( currentPos >> 1 ) : currentPos;
+		return currentPos;
 	}
 
 	/* Write count floating-point stereo samples into outputBuf. */
@@ -98,18 +94,19 @@ function Micromod( module, samplingRate ) {
 		while( outIdx < count ) {
 			if( mixIdx >= mixLen ) {
 				// Calculate next tick.
-				for( var idx = 0, end = ( tickLen + 128 ) << 1; idx < end; idx++ ) {
+				for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
 					// Clear mix buffer.
 					mixBuf[ idx ] = 0;
 				}
 				for( var idx = 0; idx < module.numChannels; idx++ ) {
 					// Resample and mix each channel.
 					var chan = channels[ idx ];
-					chan.resample( mixBuf, 0, tickLen + 128, interpolation );
-					chan.updateSampleIdx( tickLen );
+					chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, interpolation );
+					chan.updateSampleIdx( tickLen * 2 );
 				}
+				downsample( mixBuf, tickLen + 64 );
 				volumeRamp( mixBuf );
-				mixLen = oversample ? downsample( mixBuf, tickLen ) : tickLen;
+				mixLen = tickLen;
 				mixIdx = 0;
 				// Update the sequencer.
 				seqTick();
@@ -128,35 +125,27 @@ function Micromod( module, samplingRate ) {
 	}
 
 	var setTempo = function( tempo ) {
-		// Make sure tick length is even to simplify downsampling.
-		tickLen = ( ( samplingRate * 5 ) / ( tempo * 2 ) ) & -2;
+		tickLen = ( samplingRate * 5 ) / ( tempo * 2 );
 	}
 
 	var volumeRamp = function( mixBuf ) {
+		var rampRate = ( 256 * 2048 / samplingRate ) | 0;
 		for( var idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
 			var a2 = 256 - a1;
 			mixBuf[ idx     ] = ( mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2 ) >> 8;
 			mixBuf[ idx + 1 ] = ( mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2 ) >> 8;
 		}
-		rampBuf.set( mixBuf.subarray( tickLen << 1, ( tickLen + 128 ) << 1 ) );
+		rampBuf.set( mixBuf.subarray( tickLen * 2, ( tickLen + 64 ) * 2 ) );
 	}
 
 	var downsample = function( buf, count ) {
 		// 2:1 downsampling with simple but effective anti-aliasing.
-		// Count is the number of stereo samples to process, and must be even.
-		var fl = filtL, fr = filtR;
-		var inIdx = 0, outIdx = 0;
-		while( outIdx < count ) {	
-			var outL = fl + ( buf[ inIdx++ ] >> 1 );
-			var outR = fr + ( buf[ inIdx++ ] >> 1 );
-			fl = buf[ inIdx++ ] >> 2;
-			fr = buf[ inIdx++ ] >> 2;
-			buf[ outIdx++ ] = outL + fl;
-			buf[ outIdx++ ] = outR + fr;
+		// Buf must contain count * 2 + 1 stereo samples.
+		var outLen = count * 2;
+		for( inIdx = 0, outIdx = 0; outIdx < outLen; inIdx += 4, outIdx += 2 ) {
+			buf[ outIdx     ] = ( buf[ inIdx     ] >> 2 ) + ( buf[ inIdx + 2 ] >> 1 ) + ( buf[ inIdx + 4 ] >> 2 );
+			buf[ outIdx + 1 ] = ( buf[ inIdx + 1 ] >> 2 ) + ( buf[ inIdx + 3 ] >> 1 ) + ( buf[ inIdx + 5 ] >> 2 );
 		}
-		filtL = fl;
-		filtR = fr;
-		return count >> 1;
 	}
 
 	var seqTick = function() {
@@ -264,10 +253,9 @@ function Micromod( module, samplingRate ) {
 		return songEnd;
 	}
 
-	var interpolation = false, oversample = false;
-	var filtL = 0, filtR = 0, rampRate = 0;
-	var rampBuf = new Int32Array( 256 );
-	var mixBuf = new Int32Array( ( ( 256000 * 5 ) >> 5 ) + 256 );
+	var interpolation = false;
+	var rampBuf = new Int32Array( 128 );
+	var mixBuf = new Int32Array( ( ( 128000 * 5 ) >> 5 ) + 130 );
 	var mixIdx = 0, mixLen = 0, tickLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, plCount = 0, plChannel = 0;
