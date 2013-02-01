@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130131 (c)2013 mumart@gmail.com";
+		return "20130201 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -51,7 +51,7 @@ function Micromod( module, samplingRate ) {
 		setTempo( 125 );
 		plCount = plChannel = -1;
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
-			channels[ idx ] = new Channel( module, idx, samplingRate * 2 );
+			channels[ idx ] = new Channel( module, idx );
 		}
 		for( var idx = 0; idx < 128; idx++ ) {
 			rampBuf[ idx ] = 0;
@@ -80,7 +80,7 @@ function Micromod( module, samplingRate ) {
 		var currentPos = 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
 			}
 			currentPos += tickLen;
 			seqTick();
@@ -101,8 +101,8 @@ function Micromod( module, samplingRate ) {
 				for( var idx = 0; idx < module.numChannels; idx++ ) {
 					// Resample and mix each channel.
 					var chan = channels[ idx ];
-					chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, interpolation );
-					chan.updateSampleIdx( tickLen * 2 );
+					chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
+					chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
 				}
 				downsample( mixBuf, tickLen + 64 );
 				volumeRamp( mixBuf );
@@ -255,7 +255,7 @@ function Micromod( module, samplingRate ) {
 
 	var interpolation = false;
 	var rampBuf = new Int32Array( 128 );
-	var mixBuf = new Int32Array( ( ( 128000 * 5 ) >> 5 ) + 130 );
+	var mixBuf = new Int32Array( ( ( 128000 * 10 ) >> 5 ) + 260 );
 	var mixIdx = 0, mixLen = 0, tickLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, plCount = 0, plChannel = 0;
@@ -264,7 +264,7 @@ function Micromod( module, samplingRate ) {
 	this.setSequencePos( 0 );
 }
 
-function Channel( module, id, sampleRate ) {
+function Channel( module, id ) {
 	var FP_SHIFT = 15, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1;
 
 	var keyToPeriod = new Int16Array([ 1814,
@@ -294,7 +294,7 @@ function Channel( module, id, sampleRate ) {
 
 	var noteKey = 0, noteEffect = 0, noteParam = 0;
 	var noteIns = 0, instrument = 0, assigned = 0;
-	var sampleIdx = 0, sampleFra = 0, step = 0;
+	var sampleIdx = 0, sampleFra = 0, freq = 0;
 	var volume = 0, panning = 0, fineTune = 0, ampl = 0;
 	var period = 0, portaPeriod = 0, portaSpeed = 0, fxCount = 0;
 	var vibratoType = 0, vibratoPhase = 0, vibratoSpeed = 0, vibratoDepth = 0;
@@ -307,13 +307,13 @@ function Channel( module, id, sampleRate ) {
 	}
 	this.plRow = 0;
 
-	this.resample = function( outBuf, offset, count, interpolate ) {
+	this.resample = function( outBuf, offset, count, sampleRate, interpolate ) {
 		if( ampl <= 0 ) return;
 		var lAmpl = ampl * panning >> 8;
 		var rAmpl = ampl * ( 255 - panning ) >> 8;
 		var samIdx = sampleIdx;
 		var samFra = sampleFra;
-		var stp = step;
+		var step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		var ins = module.instruments[ instrument ];
 		var loopLen = ins.loopLength;
 		var loopEp1 = ins.loopStart + loopLen;
@@ -351,7 +351,8 @@ function Channel( module, id, sampleRate ) {
 		}
 	}
 
-	this.updateSampleIdx = function( count ) {
+	this.updateSampleIdx = function( count, sampleRate ) {
+		var step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * count;
 		sampleIdx += sampleFra >> FP_SHIFT;
 		var ins = module.instruments[ instrument ];
@@ -492,14 +493,12 @@ function Channel( module, id, sampleRate ) {
 		if( per < 7 ) {
 			 per = 6848;
 		}
-		var freq = ( module.c2Rate * 428 / per ) | 0;
+		freq = ( module.c2Rate * 428 / per ) | 0;
 		freq = ( ( freq * arpTuning[ arpeggioAdd ] ) >> 12 ) & 0x7FFFF;
-		step = ( freq * FP_ONE / sampleRate ) | 0;
 		var vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		vol = ( vol * FP_ONE ) >> 6;
-		ampl = ( vol * module.gain ) >> 7;
+		ampl = ( vol * module.gain * FP_ONE ) >> 13;
 	}
 
 	var trigger = function() {

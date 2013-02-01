@@ -54,7 +54,7 @@ public class Channel {
 	private Sample sample;
 	private boolean keyOn;
 	private int noteKey, noteIns, noteVol, noteEffect, noteParam;
-	private int sampleIdx, sampleFra, step, ampl, pann;
+	private int sampleIdx, sampleFra, freq, ampl, pann;
 	private int volume, panning, fadeOutVol, volEnvTick, panEnvTick;
 	private int period, portaPeriod, retrigCount, fxCount, autoVibratoCount;
 	private int portaUpParam, portaDownParam, tonePortaParam, offsetParam;
@@ -65,13 +65,12 @@ public class Channel {
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
 	private int tremoloType, tremoloPhase, tremoloSpeed, tremoloDepth;
 	private int tremoloAdd, vibratoAdd, arpeggioAdd;
-	private int id, sampleRate, randomSeed;
+	private int id, randomSeed;
 	public int plRow;
 	
-	public Channel( Module module, int id, int sampleRate, GlobalVol globalVol ) {
+	public Channel( Module module, int id, GlobalVol globalVol ) {
 		this.module = module;
 		this.id = id;
-		this.sampleRate = sampleRate;
 		this.globalVol = globalVol;
 		panning = module.defaultPanning[ id ];
 		instrument = new Instrument();
@@ -79,10 +78,11 @@ public class Channel {
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 
-	public void resample( int[] outBuf, int offset, int length, int interpolation ) {
+	public void resample( int[] outBuf, int offset, int length, int sampleRate, int interpolation ) {
 		if( ampl <= 0 ) return;
 		int lAmpl = ampl * ( 255 - pann ) >> 8;
 		int rAmpl = ampl * pann >> 8;
+		int step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		switch( interpolation ) {
 			case NEAREST:
 				sample.resampleNearest( sampleIdx, sampleFra, step, lAmpl, rAmpl, outBuf, offset, length );
@@ -96,7 +96,8 @@ public class Channel {
 		}
 	}
 
-	public void updateSampleIdx( int length ) {
+	public void updateSampleIdx( int length, int sampleRate ) {
+		int step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * length;
 		sampleIdx = sample.normaliseSampleIdx( sampleIdx + ( sampleFra >> Sample.FP_SHIFT ) );
 		sampleFra &= Sample.FP_MASK;
@@ -501,16 +502,12 @@ public class Channel {
 			int m = freqTable[ i + 1 ] - c;
 			int x = tone & 0x7;
 			int y = ( ( m * x ) >> 3 ) + c;
-			int freq = y >> ( 9 - tone / 768 );
-			if( freq < 65536 ) step = ( freq << Sample.FP_SHIFT ) / sampleRate;
-			else step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+			freq = y >> ( 9 - tone / 768 );
 		} else {
 			int per = period + vibratoAdd;
 			if( per < 28 ) per = periodTable[ 0 ];
-			int freq = module.c2Rate * 1712 / per;
+			freq = module.c2Rate * 1712 / per;
 			freq = ( freq * arpTuning[ arpeggioAdd ] >> 12 ) & 0x7FFFF;
-			if( freq < 65536 ) step = ( freq << Sample.FP_SHIFT ) / sampleRate;
-			else step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		}
 	}
 
@@ -521,16 +518,16 @@ public class Channel {
 		int vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		vol = vol * module.gain * Sample.FP_ONE >> 13;
-		vol = vol * fadeOutVol >> 15;
-		ampl = vol * globalVol.volume * envVol >> 12;
+		vol = ( vol * module.gain * Sample.FP_ONE ) >> 13;
+		vol = ( vol * fadeOutVol ) >> 15;
+		ampl = ( vol * globalVol.volume * envVol ) >> 12;
 		int envPan = 32;
 		if( instrument.panningEnvelope.enabled )
 			envPan = instrument.panningEnvelope.calculateAmpl( panEnvTick );
 		int panRange = ( panning < 128 ) ? panning : ( 255 - panning );
 		pann = panning + ( panRange * ( envPan - 32 ) >> 5 );
 	}
-	
+
 	private void trigger() {
 		if( noteIns > 0 && noteIns <= module.numInstruments ) {
 			instrument = module.instruments[ noteIns ];
