@@ -35,19 +35,18 @@ public class Channel {
 	private Module module;
 	private int noteKey, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
-	private int sampleIdx, sampleFra, step;
+	private int sampleIdx, sampleFra, freq;
 	private int volume, panning, fineTune, ampl;
 	private int period, portaPeriod, portaSpeed, fxCount;
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
 	private int tremoloType, tremoloPhase, tremoloSpeed, tremoloDepth;
 	private int tremoloAdd, vibratoAdd, arpeggioAdd;
-	private int id, sampleRate, randomSeed;
+	private int id, randomSeed;
 	public int plRow;
 
-	public Channel( Module module, int id, int sampleRate ) {
+	public Channel( Module module, int id ) {
 		this.module = module;
 		this.id = id;
-		this.sampleRate = sampleRate;
 		switch( id & 0x3 ) {
 			case 0: case 3: panning =  51; break;
 			case 1: case 2: panning = 204; break;
@@ -55,13 +54,13 @@ public class Channel {
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 	
-	public void resample( int[] outBuf, int offset, int length, boolean interpolate ) {
+	public void resample( int[] outBuf, int offset, int length, int sampleRate, boolean interpolate ) {
 		if( ampl <= 0 ) return;
 		int lAmpl = ampl * panning >> 8;
 		int rAmpl = ampl * ( 255 - panning ) >> 8;
 		int samIdx = sampleIdx;
 		int samFra = sampleFra;
-		int step = this.step;
+		int step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		Instrument ins = module.instruments[ instrument ];
 		int loopLen = ins.loopLength;
 		int loopEp1 = ins.loopStart + loopLen;
@@ -99,7 +98,8 @@ public class Channel {
 		}
 	}
 
-	public void updateSampleIdx( int length ) {
+	public void updateSampleIdx( int length, int sampleRate ) {
+		int step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * length;
 		sampleIdx += sampleFra >> FP_SHIFT;
 		Instrument ins = module.instruments[ instrument ];
@@ -236,18 +236,14 @@ public class Channel {
 	}
 
 	private void updateFrequency() {
-		int period, freq, volume;
-		period = this.period + vibratoAdd;
+		int period = this.period + vibratoAdd;
 		if( period < 7 ) period = 6848;
 		freq = module.c2Rate * 428 / period;
 		freq = ( freq * arpTuning[ arpeggioAdd ] >> 12 ) & 0x7FFFF;
-		if( freq < 65536 ) step = ( freq << FP_SHIFT ) / sampleRate;
-		else step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-		volume = this.volume + tremoloAdd;
+		int volume = this.volume + tremoloAdd;
 		if( volume > 64 ) volume = 64;
 		if( volume < 0 ) volume = 0;
-		volume = volume * FP_ONE >> 6;
-		ampl = volume * module.gain >> 7;
+		ampl = ( volume * module.gain * FP_ONE ) >> 13;
 	}
 
 	private void trigger() {

@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2013 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20130131 (c)2013 mumart@gmail.com";
+	public static final String VERSION = "20130201 (c)2013 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -31,12 +31,12 @@ public class Micromod {
 
 	/* Set the sampling rate of playback. */
 	public void setSampleRate( int rate ) {
-	   // Use with Module.c2Rate to adjust the tempo of playback.
-	   // To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
-	   if( rate < 8000 || rate > 128000 ) {
-		throw new IllegalArgumentException( "Unsupported sampling rate!" );
-	   }
-	   sampleRate = rate;
+		// Use with Module.c2Rate to adjust the tempo of playback.
+		// To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
+		if( rate < 8000 || rate > 128000 ) {
+			throw new IllegalArgumentException( "Unsupported sampling rate!" );
+		}
+		sampleRate = rate;
 	}
 
 	/* Enable or disable the linear interpolation filter. */
@@ -46,7 +46,7 @@ public class Micromod {
 
 	/* Return the length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
-		return ( 128000 * 5 / 32 ) + 130;
+		return ( 128000 * 10 / 32 ) + 260;
 	}
 
 	/* Get the current row position. */
@@ -69,7 +69,7 @@ public class Micromod {
 		setTempo( 125 );
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
-			channels[ idx ] = new Channel( module, idx, sampleRate * 2 );
+			channels[ idx ] = new Channel( module, idx );
 		for( int idx = 0; idx < 128; idx++ )
 			rampBuf[ idx ] = 0;
 		tick();
@@ -95,7 +95,7 @@ public class Micromod {
 		int currentPos = 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
-				channels[ idx ].updateSampleIdx( tickLen );
+				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
 			currentPos += tickLen;
 			tick();
 		}
@@ -113,8 +113,8 @@ public class Micromod {
 		// Resample.
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, interpolation );
-			chan.updateSampleIdx( tickLen * 2 );
+			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
+			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
 		}
 		downsample( outputBuf, tickLen + 64 );
 		volumeRamp( outputBuf );
@@ -137,8 +137,7 @@ public class Micromod {
 	}
 
 	private void downsample( int[] buf, int count ) {
-		// 2:1 downsampling with simple but effective anti-aliasing.
-		// Buf must contain count * 2 + 1 stereo samples.
+		// 2:1 downsampling with simple but effective anti-aliasing. Buf must contain count * 2 + 1 stereo samples.
 		int outLen = count * 2;
 		for( int inIdx = 0, outIdx = 0; outIdx < outLen; inIdx += 4, outIdx += 2 ) {
 			buf[ outIdx     ] = ( buf[ inIdx     ] >> 2 ) + ( buf[ inIdx + 2 ] >> 1 ) + ( buf[ inIdx + 4 ] >> 2 );
