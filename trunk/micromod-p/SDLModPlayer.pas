@@ -12,13 +12,12 @@ Uses SysUtils, SDL, Micromod;
 Const SAMPLING_FREQ  : LongInt = 48000; { 48khz. }
 Const NUM_CHANNELS   : LongInt = 2;     { Stereo. }
 Const BUFFER_SAMPLES : LongInt = 65536; { 256k buffer. }
-Const OVERSAMPLE     : LongInt = 2;     { Determined by Oversample() }
 
 Const EXIT_FAILURE   : Integer = 1;
 
 Var Semaphore : PSDL_Sem;
 Var MixBuffer : Array Of SmallInt;
-Var SamplesRemaining, MixIndex, MixLength, LFilter, RFilter: LongInt;
+Var SamplesRemaining, MixIndex, MixLength : LongInt;
 
 Procedure LoadModule( FileName : AnsiString );
 	Var ModuleFile : File;
@@ -48,7 +47,7 @@ Begin
 	Close( ModuleFile );
 	If ReadLength + 1084 < FileLength Then
 		WriteLn( 'Module File Has Been Truncated! Should Be ' + IntToStr( FileLength ) );
-	ReturnCode := MicromodInit( ModuleData, SAMPLING_FREQ * OVERSAMPLE, False );
+	ReturnCode := MicromodInit( ModuleData, SAMPLING_FREQ, False );
 	If ReturnCode <> 0 Then Begin
 		WriteLn( 'Unable to initialize replay! ' + IntToStr( ReturnCode ) );
 		Halt( EXIT_FAILURE );
@@ -71,25 +70,6 @@ Begin
 	End;
 End;
 
-{ Downsample Count stereo samples by 2 with antialiasing. }
-Procedure Downsample( Var Buffer : Array Of SmallInt; Count : LongInt );
-Var
-	InIdx, OutIdx, L, R : LongInt;
-Begin
-	InIdx := 0;
-	OutIdx := 0;
-	While OutIdx < Count Do Begin
-		L := LFilter + ( Buffer[ InIdx     ] Div 2 );
-		R := RFilter + ( Buffer[ InIdx + 1 ] Div 2 );
-		LFilter := Buffer[ InIdx + 2 ] Div 4;
-		RFilter := Buffer[ InIdx + 3 ] Div 4;
-		Buffer[ OutIdx     ] := L + LFilter;
-		Buffer[ OutIdx + 1 ] := R + RFilter;
-		InIdx := InIdx + 4;
-		OutIdx := OutIdx + 2;
-	End;
-End;
-
 Procedure GetAudio( UserData : Pointer; OutputBuffer : PUInt8; Length : LongInt ); CDecl;
 Var
 	OutOffset, OutRemain, Count : LongInt;
@@ -105,8 +85,6 @@ Begin
 		If MixIndex >= MixLength Then Begin
 			{ Get more audio from replay. }
 			MixLength := MicromodGetAudio( MixBuffer );
-			Downsample( MixBuffer, MixLength );
-			MixLength := MixLength Div OVERSAMPLE;
 			MixIndex := 0;
 			{ Notify main thread if song has finished. }
 			SamplesRemaining := SamplesRemaining - MixLength;
@@ -121,11 +99,11 @@ Var
 	AudioSpec : TSDL_AudioSpec;
 Begin
 	{ Calculate Duration. }
-	SamplesRemaining := MicromodCalculateSongDuration Div OVERSAMPLE;
+	SamplesRemaining := MicromodCalculateSongDuration;
 	WriteLn( 'Duration: ' + IntToStr( SamplesRemaining Div SAMPLING_FREQ ) + ' Seconds.' );
 
 	{ Initialise Mix Buffer. }
-	SetLength( MixBuffer, SAMPLING_FREQ * OVERSAMPLE Div 5 );
+	SetLength( MixBuffer, SAMPLING_FREQ * 2 Div 5 );
 
 	{ Open Audio Device. }
 	FillChar( AudioSpec, SizeOf( TSDL_AudioSpec ), 0 );

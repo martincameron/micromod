@@ -13,13 +13,12 @@ Const SAMPLING_FREQ  : LongInt = 48000; { 48khz. }
 Const NUM_CHANNELS   : LongInt = 2;     { Stereo. }
 Const BUFFER_SAMPLES : LongInt = 16384; { 64k per buffer. }
 Const NUM_BUFFERS    : LongInt = 8;     { 8 buffers. }
-Const OVERSAMPLE     : LongInt = 2;     { Determined by Oversample() }
 
 Const EXIT_FAILURE   : Integer = 1;
 
 Var Semaphore : THandle;
 Var MixBuffer : Array Of SmallInt;
-Var MixIndex, MixLength, LFilter, RFilter : LongInt;
+Var MixIndex, MixLength : LongInt;
 
 Procedure WaveOutProc( hWaveOut: HWAVEOUT; uMsg: UINT; dwInstance, dwParam1, dwParam2: DWORD_PTR ) StdCall;
 Begin
@@ -71,7 +70,7 @@ Begin
 	Close( ModuleFile );
 	If ReadLength + 1084 < FileLength Then
 		WriteLn( 'Module File Has Been Truncated! Should Be ' + IntToStr( FileLength ) );
-	ReturnCode := MicromodInit( ModuleData, SAMPLING_FREQ * OVERSAMPLE, False );
+	ReturnCode := MicromodInit( ModuleData, SAMPLING_FREQ, False );
 	If ReturnCode <> 0 Then Begin
 		WriteLn( 'Unable to initialize replay! ' + IntToStr( ReturnCode ) );
 		Halt( EXIT_FAILURE );
@@ -94,25 +93,6 @@ Begin
 	End;
 End;
 
-{ Downsample Count stereo samples by 2 with antialiasing. }
-Procedure Downsample( Var Buffer : Array Of SmallInt; Count : LongInt );
-Var
-	InIdx, OutIdx, L, R : LongInt;
-Begin
-	InIdx := 0;
-	OutIdx := 0;
-	While OutIdx < Count Do Begin
-		L := LFilter + ( Buffer[ InIdx     ] Div 2 );
-		R := RFilter + ( Buffer[ InIdx + 1 ] Div 2 );
-		LFilter := Buffer[ InIdx + 2 ] Div 4;
-		RFilter := Buffer[ InIdx + 3 ] Div 4;
-		Buffer[ OutIdx     ] := L + LFilter;
-		Buffer[ OutIdx + 1 ] := R + RFilter;
-		InIdx := InIdx + 4;
-		OutIdx := OutIdx + 2;
-	End;
-End;
-
 Procedure GetAudio( Var OutputBuffer : Array Of SmallInt; Length : LongInt );
 Var
 	OutOffset, OutRemain, Count : LongInt;
@@ -126,8 +106,6 @@ Begin
 		MixIndex := MixIndex + Count;
 		If MixIndex >= MixLength Then Begin
 			MixLength := MicromodGetAudio( MixBuffer );
-			Downsample( MixBuffer, MixLength );
-			MixLength := MixLength Div OVERSAMPLE;
 			MixIndex := 0;
 		End;
 		OutOffset := OutOffset + Count;
@@ -161,18 +139,18 @@ Begin
 	End;
 	
 	{ Initialise Semaphore. }
-    Semaphore := CreateSemaphore( Nil, NUM_BUFFERS, NUM_BUFFERS, '' );
+	Semaphore := CreateSemaphore( Nil, NUM_BUFFERS, NUM_BUFFERS, '' );
 
 	{ Open Audio Device. }
 	Err := WaveOutOpen( @WaveOutHandle, WAVE_MAPPER, @WaveFormat, DWORD_PTR( @WaveOutProc ), 0, CALLBACK_FUNCTION );
 	CheckMMError( Err );
 
 	{ Calculate Duration. }
-	SamplesRemaining := MicromodCalculateSongDuration Div OVERSAMPLE;
+	SamplesRemaining := MicromodCalculateSongDuration;
 	WriteLn( 'Duration: ' + IntToStr( SamplesRemaining Div SAMPLING_FREQ ) + ' Seconds.' );
 
 	{ Initialise Mix Buffer. }
-	SetLength( MixBuffer, SAMPLING_FREQ * OVERSAMPLE Div 5 );
+	SetLength( MixBuffer, SAMPLING_FREQ * 2 Div 5 );
 
 	{ Play Through Once. }
 	CurrentBuffer := 0;
