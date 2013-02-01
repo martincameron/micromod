@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20130131';
+Const MICROMOD_VERSION : String = '20130201';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -29,7 +29,7 @@ Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : AnsiString;
 Function MicromodCalculateSongDuration : LongInt;
 { Get a tick of audio.
   Returns the number of stereo sample pairs produced.
-  OutputBuffer should be at least SamplingRate / 5 in length. }
+  OutputBuffer should be at least SamplingRate * 2 / 5 in length. }
 Function MicromodGetAudio( Var OutputBuffer : Array Of SmallInt ) : LongInt;
 { Quickly seek to approximately SamplePos.
   Returns the actual sample position reached. }
@@ -338,6 +338,22 @@ Begin
 	Move( Buffer[ TickLength * 2 ], RampBuffer[ 0 ], 128 * SizeOf( SmallInt ) );
 End;
 
+{ 2:1 downsampling with simple but effective anti-aliasing. Buffer must contain count * 2 + 1 stereo samples. }
+Procedure Downsample( Var Buffer : Array Of SmallInt; Count : LongInt );
+Var
+	InIdx, OutIdx, OutLen : LongInt;
+Begin
+	InIdx := 0;
+	OutIdx := 0;
+	OutLen := Count * 2;
+	While OutIdx < OutLen Do Begin
+		Buffer[ OutIdx     ] := ( Buffer[ InIdx     ] Div 4 ) + ( Buffer[ InIdx + 2 ] Div 2 ) + ( Buffer[ InIdx + 4 ] Div 4 );
+		Buffer[ OutIdx + 1 ] := ( Buffer[ InIdx + 1 ] Div 4 ) + ( Buffer[ InIdx + 3 ] Div 2 ) + ( Buffer[ InIdx + 5 ] Div 4 );
+		InIdx := InIdx + 4;
+		OutIdx := OutIdx + 2;
+	End;
+End;
+
 Procedure Trigger( Var Channel : TChannel );
 Var
 	Period, Ins : LongInt;
@@ -402,7 +418,7 @@ Begin
 	If Period < 14 Then Period := 14;
 	Freq := C2Rate * 107 Div Period;
 	Freq := ( ( Freq * ArpTuning[ Channel.ArpeggioAdd ] ) Shr 12 ) And $FFFF;
-	Channel.Step := ( Freq Shl FP_SHIFT ) Div ( SampleRate Shr 2 );
+	Channel.Step := ( Freq Shl FP_SHIFT ) Div ( SampleRate Shr 1 );
 	Volume := Channel.Volume + Channel.TremoloAdd;
 	If Volume > 64 Then Volume := 64;
 	If Volume < 0 Then Volume := 0;
@@ -670,11 +686,12 @@ Var
 Begin
 	MicromodGetAudio := 0;
 	If NumChannels > 0 Then Begin;
-		FillChar( OutputBuffer[ 0 ], ( TickLength + 128 ) * 2 * SizeOf( SmallInt ), 0 );
+		FillChar( OutputBuffer[ 0 ], ( TickLength + 65 ) * 4 * SizeOf( SmallInt ), 0 );
 		For Chan := 0 To NumChannels - 1 Do Begin
-			Resample( Channels[ Chan ], OutputBuffer, TickLength + 128 );
-			UpdateSampleIndex( Channels[ Chan ], TickLength );
+			Resample( Channels[ Chan ], OutputBuffer, ( TickLength + 65 ) * 2 );
+			UpdateSampleIndex( Channels[ Chan ], TickLength * 2 );
 		End;
+		Downsample( OutputBuffer, TickLength + 64 );
 		VolumeRamp( OutputBuffer );
 		SequenceTick();
 		MicromodGetAudio := TickLength;
@@ -690,7 +707,7 @@ Begin
 		MicromodSetSequencePos( 0 );
 		While ( SamplePos - CurrentPos ) >= TickLength Do Begin
 			For Chan := 0 To NumChannels - 1 Do
-				UpdateSampleIndex( Channels[ Chan ], TickLength );
+				UpdateSampleIndex( Channels[ Chan ], TickLength * 2 );
 			CurrentPos := CurrentPos + TickLength;
 			SequenceTick();
 		End;
