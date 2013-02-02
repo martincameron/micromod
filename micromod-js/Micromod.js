@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130201 (c)2013 mumart@gmail.com";
+		return "20130202 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -331,7 +331,7 @@ function Channel( module, id ) {
 				var y = ( ( m * samFra ) >> ( FP_SHIFT - 8 ) ) + ( c << 8 );
 				outBuf[ outIdx++ ] += ( y * lAmpl ) >> FP_SHIFT;
 				outBuf[ outIdx++ ] += ( y * rAmpl ) >> FP_SHIFT;
-				samFra += stp;
+				samFra += step;
 				samIdx += samFra >> FP_SHIFT;
 				samFra &= FP_MASK;
 			}
