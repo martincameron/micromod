@@ -128,6 +128,7 @@ public class IBXMPlayer extends JFrame {
 				timeLabel.setText( mins + ( secs < 10 ? ":0" : ":" ) + secs );
 			}
 		} );
+		UIManager.put( "FileChooser.readOnly", Boolean.TRUE );
 		loadFileChooser = new JFileChooser();
 		loadFileChooser.setFileFilter( new FileNameExtensionFilter(
 			"Module files", "mod", "ft", "s3m", "xm" ) );
@@ -261,7 +262,7 @@ public class IBXMPlayer extends JFrame {
 	}
 
 
-	private synchronized void loadModule( File modFile ) throws IOException {		
+	private void loadModule( File modFile ) throws IOException {		
 		byte[] moduleData = new byte[ ( int ) modFile.length() ];
 		FileInputStream inputStream = new FileInputStream( modFile );
 		int offset = 0;
@@ -271,23 +272,27 @@ public class IBXMPlayer extends JFrame {
 			offset += len;
 		}
 		inputStream.close();
-		module = new Module( moduleData );
-		ibxm = new IBXM( module, SAMPLE_RATE );
+		Module module = new Module( moduleData );
+		IBXM ibxm = new IBXM( module, SAMPLE_RATE );
 		ibxm.setInterpolation( interpolation );
 		duration = ibxm.calculateSongDuration();
-		samplePos = sliderPos = 0;
-		seekSlider.setMinimum( 0 );
-		seekSlider.setMaximum( duration );
-		seekSlider.setValue( 0 );
-		songLabel.setText( module.songName.trim() );
-		Vector<String> vector = new Vector<String>();
-		Instrument[] instruments = module.instruments;
-		for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
-			String name = instruments[ idx ].name;
-			if( name.trim().length() > 0 )
-				vector.add( String.format( "%03d: %s", idx, name ) );
+		synchronized( this ) {
+			samplePos = sliderPos = 0;
+			seekSlider.setMinimum( 0 );
+			seekSlider.setMaximum( duration );
+			seekSlider.setValue( 0 );
+			songLabel.setText( module.songName.trim() );
+			Vector<String> vector = new Vector<String>();
+			Instrument[] instruments = module.instruments;
+			for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
+				String name = instruments[ idx ].name;
+				if( name.trim().length() > 0 )
+					vector.add( String.format( "%03d: %s", idx, name ) );
+			}
+			instrumentList.setListData( vector );
+			this.module = module;
+			this.ibxm = ibxm;
 		}
-		instrumentList.setListData( vector );
 	}
 
 	private synchronized void play() {
