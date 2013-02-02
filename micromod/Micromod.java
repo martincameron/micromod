@@ -5,14 +5,14 @@ package micromod;
 	Java ProTracker Replay (c)2013 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20130201 (c)2013 mumart@gmail.com";
+	public static final String VERSION = "20130202 (c)2013 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
 	private Channel[] channels;
-	private int sampleRate, tickLen;
+	private int sampleRate;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
-	private int speed, plCount, plChannel;
+	private int speed, tempo, plCount, plChannel;
 	private boolean interpolation;
 
 	/* Play the specified Module at the specified sampling rate. */
@@ -46,7 +46,7 @@ public class Micromod {
 
 	/* Return the length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
-		return ( 128000 * 10 / 32 ) + 260;
+		return ( calculateTickLen( 32, 128000 ) + 65 ) * 4;
 	}
 
 	/* Get the current row position. */
@@ -66,7 +66,7 @@ public class Micromod {
 		nextRow = 0;
 		tick = 1;
 		speed = 6;
-		setTempo( 125 );
+		tempo = 125;
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
 			channels[ idx ] = new Channel( module, idx );
@@ -81,7 +81,7 @@ public class Micromod {
 		setSequencePos( 0 );
 		boolean songEnd = false;
 		while( !songEnd ) {
-			duration += tickLen;
+			duration += calculateTickLen( tempo, sampleRate );
 			songEnd = tick();
 		}
 		setSequencePos( 0 );
@@ -93,11 +93,13 @@ public class Micromod {
 	public int seek( int samplePos ) {
 		setSequencePos( 0 );
 		int currentPos = 0;
+		int tickLen = calculateTickLen( tempo, sampleRate );
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
 			currentPos += tickLen;
 			tick();
+			tickLen = calculateTickLen( tempo, sampleRate );
 		}
 		return currentPos;
 	}
@@ -107,6 +109,7 @@ public class Micromod {
 	   The output buffer length must be at least that returned by getMixBufferLength().
 	   A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels. */
 	public int getAudio( int[] outputBuf ) {
+		int tickLen = calculateTickLen( tempo, sampleRate );
 		// Clear output buffer.
 		for( int idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ )
 			outputBuf[ idx ] = 0;
@@ -117,16 +120,16 @@ public class Micromod {
 			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
 		}
 		downsample( outputBuf, tickLen + 64 );
-		volumeRamp( outputBuf );
+		volumeRamp( outputBuf, tickLen );
 		tick();
 		return tickLen;
 	}
 
-	private void setTempo( int tempo ) {
-		tickLen = ( sampleRate * 5 ) / ( tempo * 2 );
+	private int calculateTickLen( int tempo, int samplingRate ) {
+		return ( samplingRate * 5 ) / ( tempo * 2 );
 	}
 
-	private void volumeRamp( int[] mixBuf ) {
+	private void volumeRamp( int[] mixBuf, int tickLen ) {
 		int rampRate = 256 * 2048 / sampleRate;
 		for( int idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
 			int a2 = 256 - a1;
@@ -201,8 +204,10 @@ public class Micromod {
 					break;
 				case 0xF: /* Set Speed.*/
 					if( param > 0 ) {
-						if( param < 32 ) tick = speed = param;
-						else setTempo( param );
+						if( param < 32 )
+							tick = speed = param;
+						else
+							tempo = param;
 					}
 					break;
 				case 0x16: /* Pattern Loop.*/

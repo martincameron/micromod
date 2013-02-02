@@ -48,7 +48,7 @@ function Micromod( module, samplingRate ) {
 		nextRow = 0;
 		tick = 1;
 		speed = 6;
-		setTempo( 125 );
+		tempo = 125;
 		plCount = plChannel = -1;
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			channels[ idx ] = new Channel( module, idx );
@@ -66,7 +66,7 @@ function Micromod( module, samplingRate ) {
 		this.setSequencePos( 0 );
 		var songEnd = false;
 		while( !songEnd ) {
-			duration += tickLen;
+			duration += calculateTickLen( tempo, samplingRate );
 			songEnd = seqTick();
 		}
 		this.setSequencePos( 0 );
@@ -78,12 +78,14 @@ function Micromod( module, samplingRate ) {
 	this.seek = function( samplePos ) {
 		this.setSequencePos( 0 );
 		var currentPos = 0;
+		var tickLen = calculateTickLen( tempo, samplingRate );
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
 				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
 			}
 			currentPos += tickLen;
 			seqTick();
+			tickLen = calculateTickLen( tempo, samplingRate );
 		}
 		return currentPos;
 	}
@@ -93,23 +95,8 @@ function Micromod( module, samplingRate ) {
 		var outIdx = 0;
 		while( outIdx < count ) {
 			if( mixIdx >= mixLen ) {
-				// Calculate next tick.
-				for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
-					// Clear mix buffer.
-					mixBuf[ idx ] = 0;
-				}
-				for( var idx = 0; idx < module.numChannels; idx++ ) {
-					// Resample and mix each channel.
-					var chan = channels[ idx ];
-					chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
-					chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
-				}
-				downsample( mixBuf, tickLen + 64 );
-				volumeRamp( mixBuf );
-				mixLen = tickLen;
+				mixLen = mixAudio( mixBuf );
 				mixIdx = 0;
-				// Update the sequencer.
-				seqTick();
 			}
 			var remain = mixLen - mixIdx;
 			if( ( outIdx + remain ) > count ) {
@@ -124,11 +111,31 @@ function Micromod( module, samplingRate ) {
 		}
 	}
 
-	var setTempo = function( tempo ) {
-		tickLen = ( samplingRate * 5 ) / ( tempo * 2 );
+	var mixAudio = function( outputBuf ) {
+		// Generate audio. The number of samples produced is returned.
+		var tickLen = calculateTickLen( tempo, samplingRate );
+		for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
+			// Clear mix buffer.
+			mixBuf[ idx ] = 0;
+		}
+		for( var idx = 0; idx < module.numChannels; idx++ ) {
+			// Resample and mix each channel.
+			var chan = channels[ idx ];
+			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
+			chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
+		}
+		downsample( mixBuf, tickLen + 64 );
+		volumeRamp( mixBuf, tickLen );
+		// Update the sequencer.
+		seqTick();
+		return tickLen;
 	}
 
-	var volumeRamp = function( mixBuf ) {
+	var calculateTickLen = function( tempo, sampleRate ) {
+		return ( ( sampleRate * 5 ) / ( tempo * 2 ) ) | 0;
+	}
+
+	var volumeRamp = function( mixBuf, tickLen ) {
 		var rampRate = ( 256 * 2048 / samplingRate ) | 0;
 		for( var idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
 			var a2 = 256 - a1;
@@ -219,7 +226,7 @@ function Micromod( module, samplingRate ) {
 						if( param < 32 ) {
 							tick = speed = param;
 						} else {
-							setTempo( param );
+							tempo = param;
 						}
 					}
 					break;
@@ -254,11 +261,11 @@ function Micromod( module, samplingRate ) {
 	}
 
 	var interpolation = false;
-	var rampBuf = new Int32Array( 128 );
-	var mixBuf = new Int32Array( ( ( 128000 * 10 ) >> 5 ) + 260 );
-	var mixIdx = 0, mixLen = 0, tickLen = 0;
+	var rampBuf = new Int32Array( 64 * 2 );
+	var mixBuf = new Int32Array( ( calculateTickLen( 32, 128000 ) + 65 ) * 4 );
+	var mixIdx = 0, mixLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
-	var speed = 0, plCount = 0, plChannel = 0;
+	var speed = 0, tempo = 0, plCount = 0, plChannel = 0;
 	var channels = new Array( module.numChannels );
 	this.setSamplingRate( samplingRate );
 	this.setSequencePos( 0 );
