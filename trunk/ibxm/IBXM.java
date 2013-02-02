@@ -5,14 +5,14 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2013 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a65 (c)2013 mumart@gmail.com";
+	public static final String VERSION = "a66 (c)2013 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
 	private Channel[] channels;
-	private int sampleRate, interpolation, tickLen;
+	private int sampleRate, interpolation;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
-	private int speed, plCount, plChannel;
+	private int speed, tempo, plCount, plChannel;
 	private GlobalVol globalVol;
 	private Note note;
 
@@ -51,7 +51,7 @@ public class IBXM {
 
 	/* Returns the length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
-		return ( 128000 * 10 / 32 ) + 260;
+		return ( calculateTickLen( 32, 128000 ) + 65 ) * 4;
 	}
 
 	/* Get the current row position. */
@@ -72,7 +72,7 @@ public class IBXM {
 		tick = 1;
 		globalVol.volume = module.defaultGVol;
 		speed = module.defaultSpeed > 0 ? module.defaultSpeed : 6;
-		setTempo( module.defaultTempo > 0 ? module.defaultTempo : 125 );
+		tempo = module.defaultTempo > 0 ? module.defaultTempo : 125;
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < module.numChannels; idx++ )
 			channels[ idx ] = new Channel( module, idx, globalVol );
@@ -87,7 +87,7 @@ public class IBXM {
 		setSequencePos( 0 );
 		boolean songEnd = false;
 		while( !songEnd ) {
-			duration += tickLen;
+			duration += calculateTickLen( tempo, sampleRate );
 			songEnd = tick();
 		}
 		setSequencePos( 0 );
@@ -99,20 +99,23 @@ public class IBXM {
 	public int seek( int samplePos ) {
 		setSequencePos( 0 );
 		int currentPos = 0;
+		int tickLen = calculateTickLen( tempo, sampleRate );
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
 			currentPos += tickLen;
 			tick();
+			tickLen = calculateTickLen( tempo, sampleRate );
 		}
 		return currentPos;
 	}
 
 	/* Generate audio.
-	   The number of samples placed into output_buf is returned.
-	   The output buffer length must be at least that returned by get_mix_buffer_length().
+	   The number of samples placed into outputBuf is returned.
+	   The output buffer length must be at least that returned by getMixBufferLength().
 	   A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels. */
 	public int getAudio( int[] outputBuf ) {
+		int tickLen = calculateTickLen( tempo, sampleRate );
 		// Clear output buffer.
 		for( int idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ )
 			outputBuf[ idx ] = 0;
@@ -123,16 +126,16 @@ public class IBXM {
 			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
 		}
 		downsample( outputBuf, tickLen + 64 );
-		volumeRamp( outputBuf );
+		volumeRamp( outputBuf, tickLen );
 		tick();
 		return tickLen;
 	}
 
-	private void setTempo( int tempo ) {
-		tickLen = ( sampleRate * 5 ) / ( tempo * 2 );
+	private int calculateTickLen( int tempo, int samplingRate ) {
+		return ( samplingRate * 5 ) / ( tempo * 2 );
 	}
 
-	private void volumeRamp( int[] mixBuf ) {
+	private void volumeRamp( int[] mixBuf, int tickLen ) {
 		int rampRate = 256 * 2048 / sampleRate;
 		for( int idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
 			int a2 = 256 - a1;
@@ -199,7 +202,8 @@ public class IBXM {
 			channel.row( note );
 			switch( note.effect ) {
 				case 0x81: /* Set Speed. */
-					if( note.param > 0 ) tick = speed = note.param;
+					if( note.param > 0 )
+						tick = speed = note.param;
 					break;
 				case 0xB: case 0x82: /* Pattern Jump.*/
 					if( plCount < 0 ) {
@@ -215,12 +219,15 @@ public class IBXM {
 					break;
 				case 0xF: /* Set Speed/Tempo.*/
 					if( note.param > 0 ) {
-						if( note.param < 32 ) tick = speed = note.param;
-						else setTempo( note.param );
+						if( note.param < 32 )
+							tick = speed = note.param;
+						else
+							tempo = note.param;
 					}
 					break;
 				case 0x94: /* Set Tempo.*/
-					if( note.param > 32 ) setTempo( note.param );
+					if( note.param > 32 )
+						tempo = note.param;
 					break;
 				case 0x76: case 0xFB : /* Pattern Loop.*/
 					if( note.param == 0 ) /* Set loop marker on this channel. */

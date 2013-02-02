@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20130201';
+Const MICROMOD_VERSION : String = '20130202';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -103,10 +103,10 @@ Var Instruments : Array Of TInstrument;
 Var Sequence, Patterns : Array Of Byte;
 Var Interpolate : Boolean;
 Var RampBuffer : Array Of SmallInt;
+Var SampleRate, C2Rate, Gain : LongInt;
 Var NumChannels, SequenceLength, RestartPos : LongInt;
-Var SampleRate, TickLength, C2Rate, Gain : LongInt;
 Var Pattern, BreakPattern, Row, NextRow, Tick : LongInt;
-Var Speed, PLCount, PLChannel : LongInt;
+Var Speed, Tempo, PLCount, PLChannel : LongInt;
 
 Function CalculateNumChannels( Const Header : Array Of ShortInt ) : LongInt;
 Var
@@ -237,9 +237,9 @@ Begin
 		MicromodGetInstrumentName := Instruments[ InstrumentIndex ].Name;
 End;
 
-Procedure SetTempo( Tempo : LongInt );
+Function CalculateTickLength( Tempo, SamplingRate : LongInt ) : LongInt;
 Begin
-	TickLength := ( SampleRate * 5 ) Div ( Tempo * 2 );
+	CalculateTickLength := ( SamplingRate * 5 ) Div ( Tempo * 2 );
 End;
 
 Procedure Resample( Const Channel : TChannel; Var OutputBuffer : Array Of SmallInt; Length : LongInt );
@@ -320,7 +320,7 @@ Begin
 	Channel.SampleFrac := SampleFrac And FP_MASK;
 End;
 
-Procedure VolumeRamp( Var Buffer : Array Of SmallInt );
+Procedure VolumeRamp( Var Buffer : Array Of SmallInt; TickLength : LongInt );
 Var
 	Offset, RampRate, A1, A2 : LongInt;
 Begin
@@ -485,7 +485,7 @@ Begin
 						Speed := Param;
 						Tick := Speed;
 					End Else Begin
-						SetTempo( Param );
+						Tempo := Param;
 					End;
 			End;
 		$11 : Begin { Fine Portamento Up }
@@ -682,17 +682,18 @@ End;
 
 Function MicromodGetAudio( Var OutputBuffer : Array Of SmallInt ) : LongInt;
 Var
-	Chan : LongInt;
+	TickLength, Chan : LongInt;
 Begin
 	MicromodGetAudio := 0;
 	If NumChannels > 0 Then Begin;
+		TickLength := CalculateTickLength( Tempo, SampleRate );
 		FillChar( OutputBuffer[ 0 ], ( TickLength + 65 ) * 4 * SizeOf( SmallInt ), 0 );
 		For Chan := 0 To NumChannels - 1 Do Begin
 			Resample( Channels[ Chan ], OutputBuffer, ( TickLength + 65 ) * 2 );
 			UpdateSampleIndex( Channels[ Chan ], TickLength * 2 );
 		End;
 		Downsample( OutputBuffer, TickLength + 64 );
-		VolumeRamp( OutputBuffer );
+		VolumeRamp( OutputBuffer, TickLength );
 		SequenceTick();
 		MicromodGetAudio := TickLength;
 	End;
@@ -700,16 +701,18 @@ End;
 
 Function MicromodSeek( SamplePos : LongInt ) : LongInt;
 Var
-	CurrentPos, Chan : LongInt;
+	CurrentPos, TickLength, Chan : LongInt;
 Begin
 	CurrentPos := 0;
 	If NumChannels > 0 Then Begin;
 		MicromodSetSequencePos( 0 );
+		TickLength := CalculateTickLength( Tempo, SampleRate );
 		While ( SamplePos - CurrentPos ) >= TickLength Do Begin
 			For Chan := 0 To NumChannels - 1 Do
 				UpdateSampleIndex( Channels[ Chan ], TickLength * 2 );
 			CurrentPos := CurrentPos + TickLength;
 			SequenceTick();
+			TickLength := CalculateTickLength( Tempo, SampleRate );
 		End;
 	End;
 	MicromodSeek := CurrentPos;
@@ -725,7 +728,7 @@ Begin
 		MicromodSetSequencePos( 0 );
 		SongEnd := False;
 		While Not SongEnd Do Begin
-			Duration := Duration + TickLength;
+			Duration := Duration + CalculateTickLength( Tempo, SampleRate );
 			SongEnd := SequenceTick();
 		End;
 		MicromodSetSequencePos( 0 );
@@ -753,7 +756,7 @@ Begin
 	NextRow := 0;
 	Tick := 1;
 	Speed := 6;
-	SetTempo( 125 );
+	Tempo := 125;
 	PLCount := -1;
 	PLChannel := -1;
 	For Chan := 0 To NumChannels - 1 Do Begin
