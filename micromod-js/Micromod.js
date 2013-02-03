@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130202 (c)2013 mumart@gmail.com";
+		return "20130203 (c)2013 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -88,6 +88,27 @@ function Micromod( module, samplingRate ) {
 			tickLen = calculateTickLen( tempo, samplingRate );
 		}
 		return currentPos;
+	}
+
+	/* Seek to the specified position and row in the sequence. */
+	this.seekSequencePos = function( sequencePos, sequenceRow ) {
+		this.setSequencePos( 0 );
+		if( sequencePos < 0 || sequencePos >= module.sequenceLength ) {
+			sequencePos = 0;
+		}
+		if( sequenceRow >= 64 ) {
+			sequenceRow = 0;
+		}
+		while( seqPos < sequencePos || row < sequenceRow ) {
+			var tickLen = calculateTickLen( tempo, sampleRate );
+			for( var idx = 0; idx < module.numChannels; idx++ ) {
+				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+			}
+			if( seqTick() ) { // Song end reached.
+				setSequencePos( sequencePos );
+				return;
+			}
+		}
 	}
 
 	/* Write count floating-point stereo samples into outputBuf. */
