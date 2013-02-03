@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2013 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20130202 (c)2013 mumart@gmail.com";
+	public static final String VERSION = "20130203 (c)2013 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -102,6 +102,25 @@ public class Micromod {
 			tickLen = calculateTickLen( tempo, sampleRate );
 		}
 		return currentPos;
+	}
+
+	/* Seek to the specified position and row in the sequence. */
+	public void seekSequencePos( int sequencePos, int sequenceRow ) {
+		setSequencePos( 0 );
+		if( sequencePos < 0 || sequencePos >= module.sequenceLength )
+			sequencePos = 0;
+		if( sequenceRow >= 64 )
+			sequenceRow = 0;
+		while( seqPos < sequencePos || row < sequenceRow ) {
+			int tickLen = calculateTickLen( tempo, sampleRate );
+			for( int idx = 0; idx < module.numChannels; idx++ )
+				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+			if( tick() ) {
+				// Song end reached.
+				setSequencePos( sequencePos );
+				return;
+			}
+		}
 	}
 
 	/* Generate audio.

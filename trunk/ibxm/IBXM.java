@@ -5,7 +5,7 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2013 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a66 (c)2013 mumart@gmail.com";
+	public static final String VERSION = "a67 (c)2013 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -108,6 +108,25 @@ public class IBXM {
 			tickLen = calculateTickLen( tempo, sampleRate );
 		}
 		return currentPos;
+	}
+
+	/* Seek to the specified position and row in the sequence. */
+	public void seekSequencePos( int sequencePos, int sequenceRow ) {
+		setSequencePos( 0 );
+		if( sequencePos < 0 || sequencePos >= module.sequenceLength )
+			sequencePos = 0;
+		if( sequenceRow >= module.patterns[ module.sequence[ sequencePos ] ].numRows )
+			sequenceRow = 0;
+		while( seqPos < sequencePos || row < sequenceRow ) {
+			int tickLen = calculateTickLen( tempo, sampleRate );
+			for( int idx = 0; idx < module.numChannels; idx++ )
+				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+			if( tick() ) {
+				// Song end reached.
+				setSequencePos( sequencePos );
+				return;
+			}
+		}
 	}
 
 	/* Generate audio.
