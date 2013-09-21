@@ -1,10 +1,10 @@
 
-Micromod Protracker Replay (C)2011 mumart@gmail.com
+Micromod Protracker Replay (C)2013 mumart@gmail.com
 
 To build a simple command-line test player:
 
 FreePascal: fpc SDLModPlayer.pas
-Delphi: dcc32 W32ModPlayer.pas
+Delphi XE3: dcc32 -NSsystem;winapi W32ModPlayer.pas
 
 Cheers,
 Martin

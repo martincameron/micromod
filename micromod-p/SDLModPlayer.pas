@@ -19,7 +19,7 @@ Var Semaphore : PSDL_Sem;
 Var MixBuffer : Array Of SmallInt;
 Var SamplesRemaining, MixIndex, MixLength : LongInt;
 
-Procedure LoadModule( FileName : AnsiString );
+Procedure LoadModule( FileName : String );
 	Var ModuleFile : File;
 	Var ModuleData : Array Of ShortInt;
 	Var FileLength, ReadLength, ReturnCode: LongInt;

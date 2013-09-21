@@ -32,17 +32,16 @@ End;
 
 Procedure CheckMMError( ReturnCode : MMRESULT );
 Var
-	ErrorText : Array of AnsiChar;
+	ErrorText : Array[ 0..64 ] Of AnsiChar;
 Begin
 	If ReturnCode <> MMSYSERR_NOERROR Then Begin
-		SetLength( ErrorText, 64 );
-		WaveOutGetErrorTextA( ReturnCode, PChar( ErrorText ), Length( ErrorText ) );
-		WriteLn( PChar( ErrorText ) );
+		WaveOutGetErrorTextA( ReturnCode, PAnsiChar( ErrorText ), Length( ErrorText ) );
+		WriteLn( String( ErrorText ) );
 		Halt( EXIT_FAILURE );
 	End;
 End;
 
-Procedure LoadModule( FileName : AnsiString );
+Procedure LoadModule( FileName : String );
 	Var ModuleFile : File;
 	Var ModuleData : Array Of ShortInt;
 	Var FileLength, ReadLength, ReturnCode: LongInt;
