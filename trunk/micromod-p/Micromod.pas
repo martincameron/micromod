@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20130202';
+Const MICROMOD_VERSION : String = '20130921';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -22,9 +22,9 @@ Function MicromodSetSamplingRate( SamplingRate : LongInt ) : Boolean;
 { Enable or disable the linear interpolation filter. }
 Procedure MicromodSetInterpolation( Interpolation : Boolean );
 { Returns the song name. }
-Function MicromodGetSongName : AnsiString;
+Function MicromodGetSongName : String;
 { Returns the specified instrument name. }
-Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : AnsiString;
+Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : String;
 { Returns the duration of the song in samples. }
 Function MicromodCalculateSongDuration : LongInt;
 { Get a tick of audio.
@@ -81,7 +81,7 @@ Type TNote = Record
 End;
 
 Type TInstrument = Record
-	Name : AnsiString;
+	Name : String;
 	Volume, FineTune : Byte;
 	LoopStart, LoopLength : LongInt;
 	SampleData : TShortIntArray;
@@ -97,7 +97,7 @@ Type TChannel = Record
 	TremoloAdd, VibratoAdd, ArpeggioAdd : ShortInt;
 End;
 
-Var SongName : AnsiString;
+Var SongName : String;
 Var Channels : Array Of TChannel;
 Var Instruments : Array Of TInstrument;
 Var Sequence, Patterns : Array Of Byte;
@@ -136,7 +136,7 @@ End;
 Function MicromodInit( Const Module : Array Of ShortInt; SamplingRate : LongInt; Interpolation : Boolean ) : LongInt;
 Var
 	NumPatterns : LongInt;
-	PatIndex, SeqEntry, PatternDataLength : LongInt;
+	StrIndex, PatIndex, SeqEntry, PatternDataLength : LongInt;
 	SampleOffset, SampleLength, LoopStart, LoopLength : LongInt;
 	InstIndex, Volume : LongInt;
 	Instrument : TInstrument;
@@ -161,7 +161,8 @@ Begin
 		Gain := 2;
 	End;
 	SetLength( SongName, 20 );
-	Move( Module[ 0 ], SongName[ 1 ], 20 );
+	For StrIndex := 1 To 20 Do
+		SongName[ StrIndex ] := Char( Module[ StrIndex - 1 ] And $FF );
 	SequenceLength := Module[ 950 ] And $7F;
 	RestartPos := Module[ 951 ] And $7F;
 	If RestartPos >= SequenceLength Then RestartPos := 0;
@@ -179,7 +180,8 @@ Begin
 	SampleOffset := 1084 + PatternDataLength;
 	For InstIndex := 1 To 31 Do Begin
 		SetLength( Instrument.Name, 22 );
-		Move( Module[ InstIndex * 30 - 10 ], Instrument.Name[ 1 ], 22 );
+		For StrIndex := 1 To 22 Do
+			Instrument.Name[ StrIndex ] := Char( Module[ InstIndex * 30 + StrIndex - 11 ] And $FF );
 		Instrument.FineTune := Module[ InstIndex * 30 + 14 ] And $F;
 		Volume := Module[ InstIndex * 30 + 15 ] And $7F;
 		If Volume > 64 Then Volume := 64;		
@@ -222,14 +224,14 @@ Begin
 	Interpolate := Interpolation;
 End;
 
-Function MicromodGetSongName : AnsiString;
+Function MicromodGetSongName : String;
 Begin
 	MicromodGetSongName := '';
 	If NumChannels = 0 Then Exit;
 	MicromodGetSongName := SongName;
 End;
 
-Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : AnsiString;
+Function MicromodGetInstrumentName( InstrumentIndex : LongInt ) : String;
 Begin
 	MicromodGetInstrumentName := '';
 	If NumChannels = 0 Then Exit;
