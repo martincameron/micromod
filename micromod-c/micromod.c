@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20110819 (c)2011 mumart@gmail.com */
+/* fast protracker replay version 20130921 (c)2013 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define MAX_INSTRUMENTS 32
@@ -411,7 +411,6 @@ static void resample( struct channel *chan, short *buf, long count ) {
 	unsigned long sidx, step, inst, llen, lep1, epos;
 	signed char *sdat;
 	ampl = chan->ampl;
-	if( ampl <= 0 ) return;
 	ramp = ampl * chan->panning;
 	lamp = ampl * ( 255 - chan->panning );
 	sidx = chan->sample_idx;
