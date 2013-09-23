@@ -32,10 +32,10 @@ End;
 
 Procedure CheckMMError( ReturnCode : MMRESULT );
 Var
-	ErrorText : Array[ 0..64 ] Of AnsiChar;
+	ErrorText : Array[ 0..63 ] Of Char;
 Begin
 	If ReturnCode <> MMSYSERR_NOERROR Then Begin
-		WaveOutGetErrorTextA( ReturnCode, PAnsiChar( ErrorText ), Length( ErrorText ) );
+		WaveOutGetErrorText( ReturnCode, @ErrorText, Length( ErrorText ) );
 		WriteLn( String( ErrorText ) );
 		Halt( EXIT_FAILURE );
 	End;
