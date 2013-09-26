@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20130921 (c)2013 mumart@gmail.com */
+/* fast protracker replay version 20130926 (c)2013 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define MAX_INSTRUMENTS 32
@@ -406,11 +406,11 @@ static long sequence_tick() {
 	return song_end;
 }
 
-static void resample( struct channel *chan, short *buf, long count ) {
-	long offset, remain, sample, ampl, lamp, ramp;
-	unsigned long sidx, step, inst, llen, lep1, epos;
+static void resample( struct channel *chan, short *buf, long offset, long count ) {
+	long sample, ampl, lamp, ramp;
+	unsigned long buf_idx, buf_end, sidx, step, inst, llen, lep1, epos;
 	signed char *sdat;
-	ampl = chan->ampl;
+	ampl = buf ? chan->ampl : 0;
 	ramp = ampl * chan->panning;
 	lamp = ampl * ( 255 - chan->panning );
 	sidx = chan->sample_idx;
@@ -419,9 +419,9 @@ static void resample( struct channel *chan, short *buf, long count ) {
 	llen = instruments[ inst ].loop_length;
 	lep1 = instruments[ inst ].loop_start + llen;
 	sdat = instruments[ inst ].sample_data;
-	offset = 0;
-	remain = count;
-	while( remain > 0 ) {
+	buf_idx = offset << 1;
+	buf_end = ( offset + count ) << 1;
+	while( buf_idx < buf_end ) {
 		if( sidx >= lep1 ) {
 			/* Handle loop. */
 			if( llen <= FP_ONE ) {
@@ -433,7 +433,7 @@ static void resample( struct channel *chan, short *buf, long count ) {
 			while( sidx >= lep1 ) sidx -= llen;
 		}
 		/* Calculate sample position at end. */
-		epos = sidx + remain * step;
+		epos = sidx + ( ( buf_end - buf_idx ) >> 1 ) * step;
 		if( ampl <= 0 ) {
 			/* No need to mix. */
 			sidx = epos;
@@ -444,11 +444,10 @@ static void resample( struct channel *chan, short *buf, long count ) {
 		while( sidx < epos ) {
 			/* Most of the cpu time is spent in here. */
 			sample = sdat[ sidx >> FP_SHIFT ];
-			buf[ offset++ ] += sample * lamp >> 8;
-			buf[ offset++ ] += sample * ramp >> 8;
+			buf[ buf_idx++ ] += sample * lamp >> 8;
+			buf[ buf_idx++ ] += sample * ramp >> 8;
 			sidx += step;
 		}
-		remain = count - ( offset >> 1 );
 	}
 	chan->sample_idx = sidx;
 }
@@ -591,7 +590,8 @@ void micromod_set_position( long pos ) {
 
 /*
 	Calculate the specified number of samples of audio.
-	Output buffer must be zeroed.
+	If output pointer is zero, the replay will quickly skip count samples.
+	The output buffer should be cleared with zeroes.
 */
 void micromod_get_audio( short *output_buffer, long count ) {
 	long offset, remain, chan_idx;
@@ -601,7 +601,7 @@ void micromod_get_audio( short *output_buffer, long count ) {
 		remain = tick_len - tick_offset;
 		if( remain > count ) remain = count;
 		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
-			resample( &channels[ chan_idx ], output_buffer + offset * 2, remain );
+			resample( &channels[ chan_idx ], output_buffer, offset, remain );
 		}
 		tick_offset += remain;
 		if( tick_offset == tick_len ) {
