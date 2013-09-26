@@ -1,14 +1,15 @@
 
 function createAudioPlayer() {
-	if( typeof( webkitAudioContext ) === "function" ) {
-		return new WebkitAudioPlayer();
+	if( typeof( AudioContext ) === "function" ) {
+		return new AudioPlayer( new AudioContext() );
+	} else if( typeof( webkitAudioContext ) === "function" ) {
+		return new AudioPlayer( new webkitAudioContext() );
 	} else {
 		return new FirefoxAudioPlayer();
 	}
 }
 
-function WebkitAudioPlayer() {
-	var audioContext = new webkitAudioContext();
+function AudioPlayer( audioContext ) {
 	var scriptProcessor = audioContext.createJavaScriptNode( 4096, 0, 2 );
 	var buffer = new Float32Array( scriptProcessor.bufferSize * 2 );
 	var audioSource = new SineSource( audioContext.sampleRate );
