@@ -149,8 +149,8 @@ static long waveform( long phase, long type ) {
 			amplitude = 255 - ( ( phase & 0x20 ) << 4 );
 			break;
 		case 3: /* Random. */
-			amplitude = random_seed - 255;
-			random_seed = ( random_seed * 65 + 17 ) & 0x1FF;
+			amplitude = ( random_seed >> 20 ) - 255;
+			random_seed = ( random_seed * 65 + 17 ) & 0x1FFFFFFF;
 			break;
 	}
 	return amplitude;
@@ -573,7 +573,7 @@ void micromod_set_position( long pos ) {
 	speed = 6;
 	set_tempo( 125 );
 	pl_count = pl_channel = -1;
-	random_seed = 0;
+	random_seed = 0xABCDEF;
 	for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
 		chan = &channels[ chan_idx ];
 		chan->id = chan_idx;

@@ -15,11 +15,13 @@
 #define OVERSAMPLE     2      /* 2x oversampling. */
 #define NUM_CHANNELS   2      /* Stereo. */
 #define BUFFER_SAMPLES 16384  /* 64k buffer. */
+#define REVERB_BUF_MS  50     /* 50ms cross-delay for reverb effect. */
 
 static SDL_sem *semaphore;
 static long samples_remaining;
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
-static long filt_l, filt_r;
+static long reverb_len, reverb_idx, filt_l, filt_r;
+static short *reverb_buffer;
 
 /*
 	2:1 downsampling with simple but effective anti-aliasing.
@@ -39,6 +41,24 @@ static void downsample( short *input, short *output, long count ) {
 	}
 }
 
+/* Simple cross delay with feedback. */
+static void reverb( short *buffer, long count ) {
+	long buffer_idx, buffer_end;
+	buffer_idx = 0;
+	buffer_end = buffer_idx + ( count << 1 );
+	while( buffer_idx < buffer_end ) {
+		buffer[ buffer_idx ] = ( buffer[ buffer_idx ] * 3 + reverb_buffer[ reverb_idx + 1 ] ) >> 2;
+		buffer[ buffer_idx + 1 ] = ( buffer[ buffer_idx + 1 ] * 3 + reverb_buffer[ reverb_idx ] ) >> 2;
+		reverb_buffer[ reverb_idx ] = buffer[ buffer_idx ];
+		reverb_buffer[ reverb_idx + 1 ] = buffer[ buffer_idx + 1 ];
+		reverb_idx += 2;
+		if( reverb_idx >= reverb_len ) {
+			reverb_idx = 0;
+		}
+		buffer_idx += 2;
+	}
+}
+
 static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	long count;
 	/* Get audio from replay. */
@@ -50,6 +70,9 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
 	micromod_get_audio( mix_buffer, count );
 	downsample( mix_buffer, ( short * ) stream, count );
+	if( reverb_len > 0 ) {
+		reverb( ( short * ) stream, count / OVERSAMPLE );
+	}
 	samples_remaining -= count;
 	/* Notify the main thread if song has finished. */	
 	if( samples_remaining <= 0 ) SDL_SemPost( semaphore );
@@ -68,7 +91,7 @@ static void load_module( char *file_name ) {
 
 	module = malloc( 1084 );
 	if( module == NULL ) {
-		fprintf( stderr, "Unable to allocate memory.\n");
+		fprintf( stderr, "Unable to allocate memory for module header.\n");
 		exit( EXIT_FAILURE );
 	}
 	read = fread( module, 1, 1084, file );
@@ -86,7 +109,7 @@ static void load_module( char *file_name ) {
 
 	module = malloc( length );
 	if( module == NULL ) {
-		fprintf( stderr, "Unable to allocate memory.\n");
+		fprintf( stderr, "Unable to allocate memory for module data.\n");
 		exit( EXIT_FAILURE );
 	}
 	error = fseek( file, 0, SEEK_SET );
@@ -123,15 +146,28 @@ static void print_module_info() {
 }
 
 int main( int argc, char **argv ) {
+	char *filename;
 	SDL_AudioSpec audiospec;
 
-	if( argc != 2 ) {
-		fprintf( stderr, "Usage: %s filename\n", argv[ 0 ] );
+	if( argc == 2 ) {
+		filename = argv[ 1 ];
+	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
+		if( NUM_CHANNELS == 2 ) {
+			reverb_len = SAMPLING_FREQ * NUM_CHANNELS * REVERB_BUF_MS / 1000;
+			reverb_buffer = malloc( reverb_len * sizeof( short ) );
+			if( reverb_buffer == NULL ) {
+				fprintf( stderr, "Unable to allocate memory for reverb buffer.\n");
+				reverb_len = 0;
+			}
+		}
+		filename = argv[ 2 ];
+	} else {
+		fprintf( stderr, "Usage: %s [-reverb] filename\n", argv[ 0 ] );
 		return EXIT_FAILURE;
 	}
 
 	/* Read module. */
-	load_module( argv[ 1 ] );
+	load_module( filename );
 	print_module_info();
 	
 	/* Calculate song length. */
