@@ -154,7 +154,7 @@ int main( int argc, char **argv ) {
 	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
 		if( NUM_CHANNELS == 2 ) {
 			reverb_len = SAMPLING_FREQ * NUM_CHANNELS * REVERB_BUF_MS / 1000;
-			reverb_buffer = malloc( reverb_len * sizeof( short ) );
+			reverb_buffer = calloc( reverb_len, sizeof( short ) );
 			if( reverb_buffer == NULL ) {
 				fprintf( stderr, "Unable to allocate memory for reverb buffer.\n");
 				reverb_len = 0;
@@ -173,6 +173,7 @@ int main( int argc, char **argv ) {
 	/* Calculate song length. */
 	samples_remaining = micromod_calculate_song_duration();
 	printf( "Song Duration: %i seconds.\n", ( int ) ( samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) ) );
+	fflush( NULL );
 
 	/* Initialise SDL_AudioSpec Structure. */
 	memset( &audiospec, 0, sizeof( SDL_AudioSpec ) );

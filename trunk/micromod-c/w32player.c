@@ -9,7 +9,6 @@
 
 /*
 	Simple command-line test player for micromod using the Windows MMAPI.
-	Written because SDL on Windows redirects standard output to a file.
 */
 
 #define SAMPLING_FREQ  48000  /* 48khz. */
@@ -17,12 +16,14 @@
 #define NUM_CHANNELS   2      /* Stereo. */
 #define BUFFER_SAMPLES 16384  /* 64k per buffer. */
 #define NUM_BUFFERS    8      /* 8 buffers (512k). */
+#define REVERB_BUF_MS  50     /* 50ms cross-delay for reverb effect. */
 
 static HANDLE semaphore;
 static WAVEHDR wave_headers[ NUM_BUFFERS ];
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static short wave_buffers[ NUM_BUFFERS ][ BUFFER_SAMPLES * NUM_CHANNELS ];
-static long filt_l, filt_r;
+static long reverb_len, reverb_idx, filt_l, filt_r;
+static short *reverb_buffer;
 
 static void STDCALL wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
 	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
@@ -123,26 +124,58 @@ static void downsample( short *input, short *output, long count ) {
 		output[ out_idx++ ] = out_r + filt_r;
 	}
 }
-	
+
+/* Simple cross delay with feedback. */
+static void reverb( short *buffer, long count ) {
+	long buffer_idx, buffer_end;
+	buffer_idx = 0;
+	buffer_end = buffer_idx + ( count << 1 );
+	while( buffer_idx < buffer_end ) {
+		buffer[ buffer_idx ] = ( buffer[ buffer_idx ] * 3 + reverb_buffer[ reverb_idx + 1 ] ) >> 2;
+		buffer[ buffer_idx + 1 ] = ( buffer[ buffer_idx + 1 ] * 3 + reverb_buffer[ reverb_idx ] ) >> 2;
+		reverb_buffer[ reverb_idx ] = buffer[ buffer_idx ];
+		reverb_buffer[ reverb_idx + 1 ] = buffer[ buffer_idx + 1 ];
+		reverb_idx += 2;
+		if( reverb_idx >= reverb_len ) {
+			reverb_idx = 0;
+		}
+		buffer_idx += 2;
+	}
+}
+
 int main( int argc, char **argv ) {
+	char *filename;
 	static WAVEFORMATEX wave_format;
 	static HWAVEOUT h_wave_out;
 	WAVEHDR *header;
 	short *buffer;
 	long idx, current_buffer, samples_remaining, count;
 	
-	if( argc != 2 ) {
-		fprintf( stderr, "Usage: %s filename\n", argv[ 0 ] );
+	if( argc == 2 ) {
+		filename = argv[ 1 ];
+	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
+		if( NUM_CHANNELS == 2 ) {
+			reverb_len = SAMPLING_FREQ * NUM_CHANNELS * REVERB_BUF_MS / 1000;
+			reverb_buffer = calloc( reverb_len, sizeof( short ) );
+			if( reverb_buffer == NULL ) {
+				fprintf( stderr, "Unable to allocate memory for reverb buffer.\n");
+				reverb_len = 0;
+			}
+		}
+		filename = argv[ 2 ];
+	} else {
+		fprintf( stderr, "Usage: %s [-reverb] filename\n", argv[ 0 ] );
 		return EXIT_FAILURE;
 	}
 
 	/* Read module. */
-	load_module( argv[ 1 ] );
+	load_module( filename );
 	print_module_info();
 	
 	/* Calculate song length. */
 	samples_remaining = micromod_calculate_song_duration();
 	printf( "Song Duration: %i seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
+	fflush( NULL );
 
 	/* Initialise Wave Format Structure. */
 	wave_format.wFormatTag = WAVE_FORMAT_PCM;
@@ -181,6 +214,9 @@ int main( int argc, char **argv ) {
 		memset( mix_buffer, 0, BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE * sizeof( short ) );
 		micromod_get_audio( mix_buffer, count );
 		downsample( mix_buffer, buffer, BUFFER_SAMPLES * OVERSAMPLE );
+		if( reverb_len > 0 ) {
+			reverb( buffer, BUFFER_SAMPLES );
+		}
 		samples_remaining -= count;
 		
 		/* Submit buffer to audio system. */
