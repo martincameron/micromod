@@ -12,16 +12,16 @@
 */
 
 #define SAMPLING_FREQ  48000  /* 48khz. */
+#define REVERB_BUF_LEN 4800   /* 50ms. */
 #define OVERSAMPLE     2      /* 2x oversampling. */
 #define NUM_CHANNELS   2      /* Stereo. */
 #define BUFFER_SAMPLES 16384  /* 64k buffer. */
-#define REVERB_BUF_MS  50     /* 50ms cross-delay for reverb effect. */
 
 static SDL_sem *semaphore;
 static long samples_remaining;
+static short reverb_buffer[ REVERB_BUF_LEN ];
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static long reverb_len, reverb_idx, filt_l, filt_r;
-static short *reverb_buffer;
 
 /*
 	2:1 downsampling with simple but effective anti-aliasing.
@@ -41,21 +41,23 @@ static void downsample( short *input, short *output, long count ) {
 	}
 }
 
-/* Simple cross delay with feedback. */
+/* Simple stereo cross delay with feedback. */
 static void reverb( short *buffer, long count ) {
 	long buffer_idx, buffer_end;
-	buffer_idx = 0;
-	buffer_end = buffer_idx + ( count << 1 );
-	while( buffer_idx < buffer_end ) {
-		buffer[ buffer_idx ] = ( buffer[ buffer_idx ] * 3 + reverb_buffer[ reverb_idx + 1 ] ) >> 2;
-		buffer[ buffer_idx + 1 ] = ( buffer[ buffer_idx + 1 ] * 3 + reverb_buffer[ reverb_idx ] ) >> 2;
-		reverb_buffer[ reverb_idx ] = buffer[ buffer_idx ];
-		reverb_buffer[ reverb_idx + 1 ] = buffer[ buffer_idx + 1 ];
-		reverb_idx += 2;
-		if( reverb_idx >= reverb_len ) {
-			reverb_idx = 0;
+	if( reverb_len > 2 ) {
+		buffer_idx = 0;
+		buffer_end = buffer_idx + ( count << 1 );
+		while( buffer_idx < buffer_end ) {
+			buffer[ buffer_idx ] = ( buffer[ buffer_idx ] * 3 + reverb_buffer[ reverb_idx + 1 ] ) >> 2;
+			buffer[ buffer_idx + 1 ] = ( buffer[ buffer_idx + 1 ] * 3 + reverb_buffer[ reverb_idx ] ) >> 2;
+			reverb_buffer[ reverb_idx ] = buffer[ buffer_idx ];
+			reverb_buffer[ reverb_idx + 1 ] = buffer[ buffer_idx + 1 ];
+			reverb_idx += 2;
+			if( reverb_idx >= reverb_len ) {
+				reverb_idx = 0;
+			}
+			buffer_idx += 2;
 		}
-		buffer_idx += 2;
 	}
 }
 
@@ -70,9 +72,7 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
 	micromod_get_audio( mix_buffer, count );
 	downsample( mix_buffer, ( short * ) stream, count );
-	if( reverb_len > 0 ) {
-		reverb( ( short * ) stream, count / OVERSAMPLE );
-	}
+	reverb( ( short * ) stream, count / OVERSAMPLE );
 	samples_remaining -= count;
 	/* Notify the main thread if song has finished. */	
 	if( samples_remaining <= 0 ) SDL_SemPost( semaphore );
@@ -152,14 +152,7 @@ int main( int argc, char **argv ) {
 	if( argc == 2 ) {
 		filename = argv[ 1 ];
 	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
-		if( NUM_CHANNELS == 2 ) {
-			reverb_len = SAMPLING_FREQ * NUM_CHANNELS * REVERB_BUF_MS / 1000;
-			reverb_buffer = calloc( reverb_len, sizeof( short ) );
-			if( reverb_buffer == NULL ) {
-				fprintf( stderr, "Unable to allocate memory for reverb buffer.\n");
-				reverb_len = 0;
-			}
-		}
+		reverb_len = REVERB_BUF_LEN;
 		filename = argv[ 2 ];
 	} else {
 		fprintf( stderr, "Usage: %s [-reverb] filename\n", argv[ 0 ] );
