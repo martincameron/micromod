@@ -57,7 +57,7 @@ public class IBXMPlayer extends JFrame {
 	private JLabel timeLabel;
 	private JSlider seekSlider;
 	private JButton playButton;
-	private JList instrumentList;
+	private JList<String> instrumentList;
 	private Timer updateTimer;
 	private JFileChooser loadFileChooser, saveFileChooser;
 	private JCheckBox fadeOutCheckBox;
@@ -88,7 +88,7 @@ public class IBXMPlayer extends JFrame {
 		controlPanel.add( playButton, BorderLayout.EAST );
 		seekSlider = new JSlider( JSlider.HORIZONTAL, 0, 0, 0 );
 		controlPanel.add( seekSlider, BorderLayout.CENTER );
-		instrumentList = new JList();
+		instrumentList = new JList<String>();
 		instrumentList.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
 		instrumentList.setOpaque( false );
 		JScrollPane instrumentPane = new JScrollPane( instrumentList );
