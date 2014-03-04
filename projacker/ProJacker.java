@@ -3,17 +3,19 @@ package projacker;
 
 /* A simple text format for Protracker MOD files. */
 public class ProJacker {
-	private static final String SCHEMA = "Module(Channels,Sequence,Instrument(Name,Volume,FineTune,Waveform,Wavefile,LoopStart,LoopLength),Pattern(Row))";
+	private static final String INSTRUMENT_SCHEMA = "Instrument(Name,Volume,FineTune,Waveform,WaveFile(Gain,Pitch),LoopStart,LoopLength)";
+	private static final String PROJACKER_SCHEMA = "Module(Channels,Sequence," + INSTRUMENT_SCHEMA + ",Pattern(Row))";
 	
 	public static micromod.Module parse( java.io.Reader input ) throws java.io.IOException {
 		Handler handler = new Handler();
-		new Schema( new java.io.StringReader( SCHEMA ) ).parse( input, handler );
+		new Schema( new java.io.StringReader( PROJACKER_SCHEMA ) ).parse( input, handler );
 		return handler.module;
 	}
 
 	public static class Handler implements Schema.Handler {
 		public micromod.Module module;
 		public int instIdx, patternIdx, rowIdx;
+		public AudioData audioData;
 		
 		public void value( Schema.Value value ) {			
 			Schema schema = value.getSchema();
@@ -91,7 +93,7 @@ public class ProJacker {
 						instrument.fineTune = fine > 0 ? fine : fine + 16;
 					} else if( "Waveform".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " Waveform: " + value );
-						instrument.sampleData = new byte[ 32 ];
+						instrument.sampleData = new byte[ 33 ];
 						if( "Sawtooth".equals( value.toString() ) ) {
 							for( int idx = 0; idx < 32; idx++ ) {
 								instrument.sampleData[ idx ] = ( byte ) ( ( idx << 3 ) - 128 );
@@ -104,9 +106,19 @@ public class ProJacker {
 							throw new IllegalArgumentException( "Invalid waveform type: " + value );
 						}
 						instrument.loopStart = 0;
-						instrument.loopLength = instrument.sampleData.length;
-					} else if( "Wavefile".equals( schema.getName() ) ) {
-						throw new UnsupportedOperationException( "Fixme." );
+						instrument.loopLength = 32;
+					} else if( "WaveFile".equals( schema.getName() ) ) {
+						System.out.println( "Instrument " + instIdx + " WaveFile: " + value );
+						try {
+							// Get the left/mono channel from the wav file and downsample by 2 for now.
+							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
+							audioData = audioData.downsample();
+							instrument.sampleData = audioData.quantize();
+							instrument.loopStart = instrument.sampleData.length - 1;
+							instrument.loopLength = 0;
+						} catch( java.io.IOException e ) {
+							throw new IllegalArgumentException( "Instrument " + instIdx +" unable to load wave file.", e );
+						}
 					} else if( "LoopStart".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopStart: " + value );
 						int loop = value.toInteger();
@@ -199,7 +211,7 @@ public class ProJacker {
 		final int SAMPLE_RATE = 48000;
 		// Initialise Micromod.
 		micromod.Micromod micromod = new micromod.Micromod( module, SAMPLE_RATE );
-		//micromod.setInterpolation( interpolation );
+		micromod.setInterpolation( true );
 		// Print some info.
 		System.out.println( "Micromod " + micromod.VERSION );
 		System.out.println( "Song name: " + module.songName );
