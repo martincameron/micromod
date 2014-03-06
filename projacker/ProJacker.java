@@ -110,7 +110,7 @@ public class ProJacker {
 					} else if( "WaveFile".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " WaveFile: " + value );
 						try {
-							// Get the left/mono channel from the wav file and downsample by 2 for now.
+							// Get the left/mono channel from the wav file.
 							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
 							instrument.sampleData = audioData.quantize();
 							instrument.loopStart = instrument.sampleData.length - 1;
@@ -129,7 +129,7 @@ public class ProJacker {
 					} else if( "LoopLength".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopLength: " + value );
 						int loop = value.toInteger();
-						int max = instrument.sampleData.length - instrument.loopStart;
+						int max = instrument.sampleData.length - instrument.loopStart - 1;
 						if( loop < 0 || loop > max ) {
 							throw new IllegalArgumentException( "Instrument " + instIdx + " loop length out of range (0 to " + max + "): " + loop );
 						}

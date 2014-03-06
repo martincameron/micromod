@@ -91,9 +91,11 @@ public class Schema {
 				chr = input.read();
 			}
 			String param = new String( buf, 0, len );
-			schema = schema.next( token );
-			value = new Value( schema, value, param );
-			handler.value( value );
+			if( token.length() > 0 ) {
+				schema = schema.next( token );
+				value = new Value( schema, value, param );
+				handler.value( value );
+			}
 		}
 	}
 
