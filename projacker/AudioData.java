@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class AudioData {
+	private static final int
+		FP_SHIFT = 7, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1, TAPS = 64, DELAY = TAPS >> 1;
+	
 	private int sampleRate;
 	private short[] sampleData;
 	private boolean noiseShaping;
@@ -14,6 +17,14 @@ public class AudioData {
 		this.sampleRate = samplingRate;
 		this.sampleData = samples;
 		this.noiseShaping = true;
+	}
+
+	public int getSamplingRate() {
+		return sampleRate;
+	}
+
+	public short[] getSampleData() {
+		return sampleData;
 	}
 
 	/* Read a Wav file. Channel is 0 for left/mono.*/
@@ -35,6 +46,9 @@ public class AudioData {
 		chunkSize = readInt( inputStream );
 		int format = readShort( inputStream );
 		int numChannels = readShort( inputStream );
+		if( channel < 0 || channel >= numChannels ) {
+			throw new IllegalArgumentException( "No such channel: " + channel );
+		}
 		sampleRate = readInt( inputStream );
 		int bytesPerSec = readInt( inputStream );
 		int bytesPerSample = readShort( inputStream );
@@ -118,11 +132,7 @@ public class AudioData {
 		}
 		outputStream.write( outputBuf, 0, outputBuf.length );
 	}
-	
-	public AudioData scale( int volume, boolean waveShaping ) {
-		return this;
-	}
-	
+
 	public byte[] quantize() {
 		byte[] outputBuf = new byte[ sampleData.length ];
 		if( noiseShaping ) {
@@ -157,56 +167,57 @@ public class AudioData {
 		return outputBuf;
 	}
 
-	/* 2:1 downsampling with good antialiasing.*/
-	public AudioData downsample() {
-		final int POINTS = 59, DELAY = 29;
+	public AudioData scale( int volume ) {
 		int len = sampleData.length;
-		short[] buf = new short[ len + POINTS ];
+		short[] buf = new short[ len ];
 		for( int idx = 0; idx < len; idx++ ) {
-			buf[ idx + DELAY ] = sampleData[ idx ];
+			int a = ( sampleData[ idx ] * volume ) >> 6;
+			if( a < -32768 ) a = -32768;
+			if( a >  32767 ) a =  32767;
+			buf[ idx ] = ( short ) a;
 		}
-		short[] outputBuf = new short[ len >> 1 ];
-		for( int idx = 0, end = len - POINTS; idx < end; idx += 2 ) {
-			// Blackman-Harris window 59 tap (31-multiplication).
-			float amp = buf[ idx ] * 6.5857216E-7f;
-			amp += buf[ idx +  2 ] * -9.429484E-6f;
-			amp += buf[ idx +  4 ] * 5.001287E-5f;
-			amp += buf[ idx +  6 ] * -1.6808609E-4f;
-			amp += buf[ idx +  8 ] * 4.5153443E-4f;
-			amp += buf[ idx + 10 ] * -0.0010446908f;
-			amp += buf[ idx + 12 ] * 0.0021634107f;
-			amp += buf[ idx + 14 ] * -0.0041115517f;
-			amp += buf[ idx + 16 ] * 0.0073062177f;
-			amp += buf[ idx + 18 ] * -0.012336408f;
-			amp += buf[ idx + 20 ] * 0.020126805f;
-			amp += buf[ idx + 22 ] * -0.032437306f;
-			amp += buf[ idx + 24 ] * 0.05364726f;
-			amp += buf[ idx + 26 ] * -0.09979081f;
-			amp += buf[ idx + 28 ] * 0.31615275f;
-			amp += buf[ idx + 29 ] * 0.5f;
-			amp += buf[ idx + 30 ] * 0.31615275f;
-			amp += buf[ idx + 32 ] * -0.09979081f;
-			amp += buf[ idx + 34 ] * 0.05364726f;
-			amp += buf[ idx + 36 ] * -0.032437306f;
-			amp += buf[ idx + 38 ] * 0.020126805f;
-			amp += buf[ idx + 40 ] * -0.012336408f;
-			amp += buf[ idx + 42 ] * 0.0073062177f;
-			amp += buf[ idx + 44 ] * -0.0041115517f;
-			amp += buf[ idx + 46 ] * 0.0021634107f;
-			amp += buf[ idx + 48 ] * -0.0010446908f;
-			amp += buf[ idx + 50 ] * 4.5153443E-4f;
-			amp += buf[ idx + 52 ] * -1.6808609E-4f;
-			amp += buf[ idx + 54 ] * 5.001287E-5f;
-			amp += buf[ idx + 56 ] * -9.429484E-6f;
-			amp += buf[ idx + 58 ] * 6.5857216E-7f;
-			int out = ( int ) amp;
-			if( out < -32768 ) out = -32768;
-			if( out >  32767 ) out =  32767;
-			outputBuf[ idx >> 1 ] = ( short ) out;
-		}
-		return new AudioData( outputBuf, this.sampleRate >> 1 );
+		return new AudioData( buf, this.sampleRate );
 	}
-	
+
+	public AudioData resample( int samplingRate ) {
+		int len = sampleData.length;
+		short[] inputBuf = new short[ len + TAPS ];
+		for( int idx = 0; idx < len; idx++ ) {
+			inputBuf[ idx + DELAY - 1 ] = sampleData[ idx ];
+		}
+		int step = ( this.sampleRate << FP_SHIFT ) / samplingRate;
+		int outputLen = ( len << FP_SHIFT ) / step;
+		short[] outputBuf = new short[ outputLen ];
+		float[] sinc = sincTable( step > FP_ONE ? FP_ONE / ( double ) step : 1.0 );
+		int inputIdx = 0;
+		for( int outputIdx = 0; outputIdx < outputLen; outputIdx++ ) {
+			float a = 0;
+			for( int tap = 0; tap < DELAY; tap++ ) {
+				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap ] * sinc[ ( ( DELAY - tap - 1 ) << FP_SHIFT ) + ( inputIdx & FP_MASK ) ];
+				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap + DELAY ] * sinc[ ( ( tap + 1 ) << FP_SHIFT ) - ( inputIdx & FP_MASK ) ];
+			}
+			if( a < -32768 ) a = -32768;
+			if( a >  32767 ) a =  32767;
+			outputBuf[ outputIdx ] = ( short ) a;
+			inputIdx += step;
+		}
+		return new AudioData( outputBuf, samplingRate );
+	}
+
+	private static float[] sincTable( double bandwidth ) {
+		int len = TAPS * FP_ONE / 2;
+		float[] tab = new float[ len + 1 ];
+		tab[ 0 ] = ( float ) bandwidth;
+		for( int idx = 1; idx < len; idx++ ) {
+			double pit = Math.PI * idx / FP_ONE;
+			/* Blackman-Harris window function. */
+			double w = 2 * Math.PI * ( 0.5 + ( idx * 0.5 / len ) );
+			double y = 0.35875 - 0.48829 * Math.cos( w ) + 0.14128 * Math.cos( w * 2 ) - 0.01168 * Math.cos( w * 3 );
+			tab[ idx ] = ( float ) ( y * Math.sin( pit * bandwidth ) / pit );
+		}
+		return tab;
+	}
+
 	private static int readInt( InputStream input ) throws IOException {
 		return readShort( input ) | ( readShort( input ) << 16 );
 	}
