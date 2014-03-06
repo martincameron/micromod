@@ -112,7 +112,6 @@ public class ProJacker {
 						try {
 							// Get the left/mono channel from the wav file and downsample by 2 for now.
 							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
-							audioData = audioData.downsample();
 							instrument.sampleData = audioData.quantize();
 							instrument.loopStart = instrument.sampleData.length - 1;
 							instrument.loopLength = 0;
@@ -135,6 +134,18 @@ public class ProJacker {
 							throw new IllegalArgumentException( "Instrument " + instIdx + " loop length out of range (0 to " + max + "): " + loop );
 						}
 						module.instruments[ instIdx ].loopLength = loop;
+					}
+				} else if( "WaveFile".equals( parent.getName() ) ) {
+					micromod.Instrument instrument = module.instruments[ instIdx ];
+					if( "Gain".equals( schema.getName() ) ) {
+						audioData = audioData.scale( value.toInteger() );
+						instrument.sampleData = audioData.quantize();
+					} else if( "Pitch".equals( schema.getName() ) ) {
+						double rate = audioData.getSamplingRate() * Math.pow( 2, value.toInteger() / -96.0 );
+						audioData = audioData.resample( ( int ) rate );
+						instrument.sampleData = audioData.quantize();
+						instrument.loopStart = instrument.sampleData.length - 1;
+						instrument.loopLength = 0;
 					}
 				} else if( "Pattern".equals( parent.getName() ) ) {
 					if( "Row".equals( schema.getName() ) ) {
