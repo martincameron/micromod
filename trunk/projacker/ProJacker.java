@@ -113,19 +113,20 @@ public class ProJacker {
 							// Get the left/mono channel from the wav file.
 							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
 							instrument.sampleData = audioData.quantize();
-							instrument.loopStart = instrument.sampleData.length - 1;
-							instrument.loopLength = 0;
+							instrument.loopStart = instrument.sampleData.length - 2;
+							instrument.loopLength = 1;
 						} catch( java.io.IOException e ) {
 							throw new IllegalArgumentException( "Instrument " + instIdx +" unable to load wave file.", e );
 						}
 					} else if( "LoopStart".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopStart: " + value );
 						int loop = value.toInteger();
-						int max = instrument.sampleData.length - 1;
+						int max = instrument.sampleData.length - 2;
 						if( loop < 0 || loop > max ) {
 							throw new IllegalArgumentException( "Instrument " + instIdx + " loop start out of range (0 to " + max + "): " + loop );
 						}
 						instrument.loopStart = loop;
+						instrument.loopLength = max - loop + 1;
 					} else if( "LoopLength".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopLength: " + value );
 						int loop = value.toInteger();
@@ -144,8 +145,8 @@ public class ProJacker {
 						double rate = audioData.getSamplingRate() * Math.pow( 2, value.toInteger() / -96.0 );
 						audioData = audioData.resample( ( int ) rate );
 						instrument.sampleData = audioData.quantize();
-						instrument.loopStart = instrument.sampleData.length - 1;
-						instrument.loopLength = 0;
+						instrument.loopStart = instrument.sampleData.length - 2;
+						instrument.loopLength = 1;
 					}
 				} else if( "Pattern".equals( parent.getName() ) ) {
 					if( "Row".equals( schema.getName() ) ) {
@@ -222,7 +223,7 @@ public class ProJacker {
 		final int SAMPLE_RATE = 48000;
 		// Initialise Micromod.
 		micromod.Micromod micromod = new micromod.Micromod( module, SAMPLE_RATE );
-		micromod.setInterpolation( true );
+		//micromod.setInterpolation( true );
 		// Print some info.
 		System.out.println( "Micromod " + micromod.VERSION );
 		System.out.println( "Song name: " + module.songName );
