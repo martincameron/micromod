@@ -19,6 +19,15 @@ public class AudioData {
 		this.noiseShaping = true;
 	}
 
+	public AudioData( micromod.Instrument instrument, int samplingRate ) {
+		this.sampleRate = samplingRate;
+		this.sampleData = new short[ instrument.sampleData.length - 2 ];
+		for( int idx = 0; idx < sampleData.length; idx++ ) {
+			sampleData[ idx ] = ( short ) ( instrument.sampleData[ idx ] << 8 );
+		}
+		this.noiseShaping = false;
+	}
+
 	public int getSamplingRate() {
 		return sampleRate;
 	}
@@ -109,7 +118,7 @@ public class AudioData {
 		}
 	}
 	
-	public void writeWav( OutputStream outputStream ) throws IOException {
+	public void writeWav( OutputStream outputStream, boolean quantize ) throws IOException {
 		writeChars( outputStream, "RIFF".toCharArray(), 4 );
 		writeInt( outputStream, sampleData.length * 2 + 36 ); // Wave chunk length.
 		writeChars( outputStream, "WAVE".toCharArray(), 4 );
@@ -118,19 +127,27 @@ public class AudioData {
 		writeShort( outputStream, 1 ); // PCM format.
 		writeShort( outputStream, 1 ); // Mono.
 		writeInt( outputStream, sampleRate );
-		writeInt( outputStream, sampleRate * 2 ); // Bytes per sec.
-		writeShort( outputStream, 2 ); // Frame size.
-		writeShort( outputStream, 16 ); // 16 bit.
+		int frameSize = quantize ? 1 : 2;
+		writeInt( outputStream, sampleRate * frameSize ); // Bytes per sec.
+		writeShort( outputStream, frameSize ); // Frame size.
+		writeShort( outputStream, frameSize * 8 ); // Bits per sample.
 		writeChars( outputStream, "data".toCharArray(), 4 );
-		writeInt( outputStream, sampleData.length * 2 ); // PCM data length.
-		// Write data.
-		byte[] outputBuf = new byte[ sampleData.length * 2 ];
-		for( int outputIdx = 0; outputIdx < outputBuf.length; outputIdx += 2 ) {
-			int amp = sampleData[ outputIdx >> 1 ];
-			outputBuf[ outputIdx ] = ( byte ) amp;
-			outputBuf[ outputIdx + 1 ] = ( byte ) ( amp >> 8 );
+		writeInt( outputStream, sampleData.length * frameSize ); // PCM data length.
+		if( quantize ) {
+			byte[] outputBuf = quantize();
+			for( int outputIdx = 0; outputIdx < outputBuf.length; outputIdx++ ) {
+				outputBuf[ outputIdx ] = ( byte ) ( outputBuf[ outputIdx ] + 128 );
+			}
+			outputStream.write( outputBuf, 0, outputBuf.length );
+		} else {
+			byte[] outputBuf = new byte[ sampleData.length * 2 ];
+			for( int outputIdx = 0; outputIdx < outputBuf.length; outputIdx += 2 ) {
+				int amp = sampleData[ outputIdx >> 1 ];
+				outputBuf[ outputIdx ] = ( byte ) amp;
+				outputBuf[ outputIdx + 1 ] = ( byte ) ( amp >> 8 );
+			}
+			outputStream.write( outputBuf, 0, outputBuf.length );
 		}
-		outputStream.write( outputBuf, 0, outputBuf.length );
 	}
 
 	public byte[] quantize() {
