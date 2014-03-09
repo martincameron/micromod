@@ -10,9 +10,15 @@ public class Module {
 	public byte[] patterns, sequence;
 	public Instrument[] instruments;
 
-	private static final short[] keyToPeriod = {
-		/*     C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
-		1814, 1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907
+	private static final short[] keyToPeriod = { 1814,
+	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
+		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
+		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
+		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
+		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
+		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
+		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28,
+		  26
 	};
 
 	public Module() {
@@ -71,21 +77,11 @@ public class Module {
 				patterns[ patIdx ] = 0;
 			} else {
 				/* Convert period to key. */
-				int key = 0, oct = 0;
-				while( period < 907 ) {
-					period *= 2;
-					oct++;
-				}
-				while( key < 12 ) {
-					int d1 = keyToPeriod[ key ] - period;
-					int d2 = period - keyToPeriod[ key + 1 ];
-					if( d2 >= 0 ) {
-						if( d2 < d1 ) key++;
-						break;
-					}
-					key++;
-				}
-				patterns[ patIdx ] = ( byte ) ( oct * 12 + key );
+				int key = 1;
+				while( keyToPeriod[ key + 12 ] >= period ) key += 12;
+				while( keyToPeriod[ key + 1 ] >= period ) key++;
+				if( ( keyToPeriod[ key ] - period ) > ( period - keyToPeriod[ key + 1 ] ) ) key++;
+				patterns[ patIdx ] = ( byte ) key;
 			}
 			int ins = ( module[ 1084 + patIdx + 2 ] & 0xF0 ) >> 4;
 			patterns[ patIdx + 1 ] = ( byte ) ( ins | ( module[ 1084 + patIdx ] & 0x10 ) );
@@ -124,6 +120,117 @@ public class Module {
 		}
 	}
 
+	public byte[] save() {
+		byte[] module = new byte[ save( null ) ];
+		save( module );
+		return module;
+	}
+	
+	public int save( byte[] outBuf ) {
+		if( outBuf != null ) {
+			writeAscii( songName, outBuf, 0, 20 );
+			if( sequenceLength < 1 || sequenceLength > 127 ) {
+				throw new IndexOutOfBoundsException( "Sequence length out of range (1-127): " + sequenceLength );
+			}
+			outBuf[ 950 ] = ( byte ) sequenceLength;
+			if( restartPos < 0 || restartPos >= sequenceLength ) {
+				throw new IndexOutOfBoundsException( "Restart pos out of range (0-" + sequenceLength + "): " + restartPos );
+			}			
+			outBuf[ 951 ] = ( byte ) ( restartPos & 0x7F );
+			if( numChannels < 1 || numChannels > 99 ) {
+				throw new IndexOutOfBoundsException( "Invalid number of channels (1-99): " + numChannels );
+			} else if( numChannels == 4 ) {
+				writeAscii( "M.K.", outBuf, 1080, 4 );
+			} else if( numChannels < 10 ) {
+				outBuf[ 1080 ] = ( byte ) ( '0' + numChannels );
+				writeAscii( "CHN", outBuf, 1081, 3 );
+			} else {
+				outBuf[ 1080 ] = ( byte ) ( '0' + numChannels / 10 );
+				outBuf[ 1081 ] = ( byte ) ( '0' + numChannels % 10 );
+				writeAscii( "CH", outBuf, 1082, 2 );
+			}
+		}
+		int numPat = 0;
+		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
+			int patIdx = seqIdx < sequenceLength ? sequence[ seqIdx ] & 0x7F : 0;
+			if( outBuf != null ) {
+				outBuf[ 952 + seqIdx ] = ( byte ) patIdx;
+			}
+			if( patIdx >= numPat ) {
+				numPat = patIdx + 1;
+				if( numPat > numPatterns ) {
+					throw new IndexOutOfBoundsException( "Sequence entry out of range (0-" + ( numPatterns - 1 ) + "): " + patIdx );
+				}
+			}
+		}
+		if( outBuf != null ) {
+			int maxKey = numChannels == 4 ? 48 : 72;
+			for( int patIdx = 0; patIdx < numPat; patIdx++ ) {
+				for( int rowIdx = 0; rowIdx < 64; rowIdx++ ) {
+					for( int chanIdx = 0; chanIdx < numChannels; chanIdx++ ) {
+						int offset = ( ( patIdx * 64 + rowIdx ) * numChannels + chanIdx ) * 4;
+						int key = patterns[ offset ] & 0xFF;
+						if( key > maxKey ) {
+							throw new IndexOutOfBoundsException( "Pattern " + patIdx + ", Row " + rowIdx + ": Key out of range (0-" + maxKey + "): " + key );
+						}
+						int per = key > 0 ? keyToPeriod[ key ] : 0;
+						int ins = patterns[ offset + 1 ] & 0xFF;
+						if( ins > 31 ) {
+							throw new IndexOutOfBoundsException( "Pattern " + patIdx + ", Row " + rowIdx + ": Instrument out of range (0-31): " + ins );
+						}
+						outBuf[ 1084 + offset ] = ( byte ) ( ( ins & 0x10 ) | ( per >> 8 ) );
+						outBuf[ 1084 + offset + 1 ] = ( byte ) per;
+						outBuf[ 1084 + offset + 2 ] = ( byte ) ( ( ins << 4 ) | ( patterns[ offset + 2 ] & 0xF ) );
+						outBuf[ 1084 + offset + 3 ] = patterns[ offset + 3 ];
+					}
+				}
+			}
+		}
+		int outIdx = 1084 + numPat * 64 * numChannels * 4;
+		if( numInstruments > 31 ) {
+			throw new IndexOutOfBoundsException( "Number of instruments out of range (0-31): " + numInstruments );
+		}
+		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
+			Instrument instrument = instruments[ instIdx ];
+			int loopStart = instrument.loopStart >> 1;
+			if( loopStart < 0 || loopStart > 65535 ) {
+				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Loop start out of range: " + loopStart * 2 );
+			}
+			int loopLength = instrument.loopLength >> 1;
+			int sampleLength = loopStart + loopLength;
+			if( loopLength < 0 || sampleLength > 65535 ) {
+				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Loop length out of range: " + loopLength * 2 );
+			}
+			int fineTune = instrument.fineTune;
+			if( fineTune < 0 || fineTune > 15 ) {
+				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": FineTune out of range (0-15): " + fineTune );
+			}
+			int volume = instrument.volume;
+			if( volume < 0 || volume > 64 ) {
+				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Volume out of range (0-64): " + volume );
+			}
+			if( outBuf != null ) {
+				writeAscii( instrument.name, outBuf, instIdx * 30 - 10, 22 );
+				outBuf[ instIdx * 30 + 12 ] = ( byte ) ( sampleLength >> 8 );
+				outBuf[ instIdx * 30 + 13 ] = ( byte ) sampleLength;
+				outBuf[ instIdx * 30 + 14 ] = ( byte ) fineTune;
+				outBuf[ instIdx * 30 + 15 ] = ( byte ) volume;
+				if( loopLength == 0 ) {
+					loopStart = 0;
+				}
+				outBuf[ instIdx * 30 + 16 ] = ( byte ) ( loopStart >> 8 );
+				outBuf[ instIdx * 30 + 17 ] = ( byte ) loopStart;
+				outBuf[ instIdx * 30 + 18 ] = ( byte ) ( loopLength >> 8 );
+				outBuf[ instIdx * 30 + 19 ] = ( byte ) loopLength;
+				if( sampleLength > 0 ) {
+					System.arraycopy( instrument.sampleData, 0, outBuf, outIdx, sampleLength * 2 );
+				}
+			}
+			outIdx += sampleLength * 2;
+		}
+		return outIdx;
+	}
+
 	private static int ushortbe( byte[] buf, int offset ) {
 		return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
 	}
@@ -135,5 +242,14 @@ public class Module {
 			str[ idx ] = c < 32 ? 32 : ( char ) c;
 		}
 		return new String( str );
+	}
+	
+	private static void writeAscii( String text, byte[] outBuf, int offset, int len ) {
+		if( text == null ) {
+			text = "";
+		}
+		for( int idx = 0; idx < len; idx++ ) {
+			outBuf[ offset + idx ] = ( byte ) ( idx < text.length() ? text.charAt( idx ) : 32 );
+		}
 	}
 }
