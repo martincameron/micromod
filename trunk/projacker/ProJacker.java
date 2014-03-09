@@ -260,10 +260,20 @@ public class ProJacker {
 	}
 
 	public static void main( String[] args ) throws Exception {
-		if( args.length == 1 ) {
-			play( parse( new java.io.InputStreamReader( new java.io.FileInputStream( args[ 0 ] ) ) ) );
+		if( args.length > 0 ) {
+			micromod.Module module = parse( new java.io.InputStreamReader( new java.io.FileInputStream( args[ 0 ] ) ) );
+			if( args.length > 1 ) {
+				java.io.OutputStream outputStream = new java.io.FileOutputStream( args[ 1 ] );
+				try{
+					outputStream.write( module.save() );
+				} finally {
+					outputStream.close();
+				}
+			} else {
+				play( module );
+			}
 		} else {
-			System.err.println( "Usage java " + ProJacker.class.getName() + " input.pj" );
+			System.err.println( "Usage java " + ProJacker.class.getName() + " input.pj output.mod" );
 		}
 	}
 }
