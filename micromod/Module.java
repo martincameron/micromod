@@ -73,14 +73,14 @@ public class Module {
 		for( int patIdx = 0; patIdx < patterns.length; patIdx += 4 ) {
 			int period = ( module[ 1084 + patIdx ] & 0xF ) << 8;
 			period = period | ( module[ 1084 + patIdx + 1 ] & 0xFF );
-			if( period < 28 ) {
+			if( period < 28 || period > 1712 ) {
 				patterns[ patIdx ] = 0;
 			} else {
 				/* Convert period to key. */
 				int key = 1;
 				while( keyToPeriod[ key + 12 ] >= period ) key += 12;
 				while( keyToPeriod[ key + 1 ] >= period ) key++;
-				if( ( keyToPeriod[ key ] - period ) > ( period - keyToPeriod[ key + 1 ] ) ) key++;
+				if( ( keyToPeriod[ key ] - period ) >= ( period - keyToPeriod[ key + 1 ] ) ) key++;
 				patterns[ patIdx ] = ( byte ) key;
 			}
 			int ins = ( module[ 1084 + patIdx + 2 ] & 0xF0 ) >> 4;
