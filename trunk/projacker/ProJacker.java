@@ -76,77 +76,58 @@ public class ProJacker {
 					micromod.Instrument instrument = module.instruments[ instIdx ];
 					if( "Name".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " Name: " + value );
-						instrument.name = value.toString();
+						instrument.setName( value.toString() );
 					} else if( "Volume".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " Volume: " + value );
-						int vol = value.toInteger();
-						if( vol < 0 || vol > 64 ) {
-							throw new IllegalArgumentException( "Instrument " + instIdx + " volume out of range (0 to 64): " + vol );
-						}
-						instrument.volume = vol;
+						instrument.setVolume( value.toInteger() );
 					} else if( "FineTune".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " FineTune: " + value );
-						int fine = value.toInteger();
-						if( fine < -8 || fine > 7 ) {
-							throw new IllegalArgumentException( "Instrument " + instIdx + " finetune out of range (-8 to 7): " + fine );
-						}
-						instrument.fineTune = fine > 0 ? fine : fine + 16;
+						instrument.setFineTune( value.toInteger() );
 					} else if( "Waveform".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " Waveform: " + value );
-						instrument.sampleData = new byte[ 33 ];
+						byte[] waveform = new byte[ 32 ];
 						if( "Sawtooth".equals( value.toString() ) ) {
 							for( int idx = 0; idx < 32; idx++ ) {
-								instrument.sampleData[ idx ] = ( byte ) ( ( idx << 3 ) - 128 );
+								waveform[ idx ] = ( byte ) ( ( idx << 3 ) - 128 );
 							}
 						} else if( "Square".equals( value.toString() ) ) {
 							for( int idx = 0; idx < 32; idx++ ) {
-								instrument.sampleData[ idx ] = ( byte ) ( ( ( idx & 0x10 ) >> 4 ) * 255 - 128 );
+								waveform[ idx ] = ( byte ) ( ( ( idx & 0x10 ) >> 4 ) * 255 - 128 );
 							}
 						} else {
 							throw new IllegalArgumentException( "Invalid waveform type: " + value );
 						}
-						instrument.loopStart = 0;
-						instrument.loopLength = 32;
+						instrument.setSampleData( waveform, 0, waveform.length );
 					} else if( "WaveFile".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " WaveFile: " + value );
 						try {
 							// Get the left/mono channel from the wav file.
 							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
-							instrument.sampleData = audioData.quantize();
-							instrument.loopStart = instrument.sampleData.length - 2;
-							instrument.loopLength = 1;
+							instrument.setSampleData( audioData.quantize(), 0, 0 );
 						} catch( java.io.IOException e ) {
 							throw new IllegalArgumentException( "Instrument " + instIdx +" unable to load wave file.", e );
 						}
 					} else if( "LoopStart".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopStart: " + value );
-						int loop = value.toInteger();
-						int max = instrument.sampleData.length - 2;
-						if( loop < 0 || loop > max ) {
-							throw new IllegalArgumentException( "Instrument " + instIdx + " loop start out of range (0 to " + max + "): " + loop );
-						}
-						instrument.loopStart = loop;
-						instrument.loopLength = max - loop + 1;
+						byte[] sampleData = audioData.quantize();
+						int loopStart = value.toInteger();
+						instrument.setSampleData( sampleData, loopStart, sampleData.length - loopStart );
 					} else if( "LoopLength".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " LoopLength: " + value );
-						int loop = value.toInteger();
-						int max = instrument.sampleData.length - instrument.loopStart - 1;
-						if( loop < 0 || loop > max ) {
-							throw new IllegalArgumentException( "Instrument " + instIdx + " loop length out of range (0 to " + max + "): " + loop );
-						}
-						module.instruments[ instIdx ].loopLength = loop;
+						byte[] sampleData = audioData.quantize();
+						int loopStart = instrument.getLoopStart();
+						int loopLength = value.toInteger();
+						instrument.setSampleData( sampleData, loopStart, loopLength );
 					}
 				} else if( "WaveFile".equals( parent.getName() ) ) {
 					micromod.Instrument instrument = module.instruments[ instIdx ];
 					if( "Gain".equals( schema.getName() ) ) {
 						audioData = audioData.scale( value.toInteger() );
-						instrument.sampleData = audioData.quantize();
+						instrument.setSampleData( audioData.quantize(), 0, 0 );
 					} else if( "Pitch".equals( schema.getName() ) ) {
 						double rate = audioData.getSamplingRate() * Math.pow( 2, value.toInteger() / -96.0 );
 						audioData = audioData.resample( ( int ) rate );
-						instrument.sampleData = audioData.quantize();
-						instrument.loopStart = instrument.sampleData.length - 2;
-						instrument.loopLength = 1;
+						instrument.setSampleData( audioData.quantize(), 0, 0 );
 					}
 				} else if( "Pattern".equals( parent.getName() ) ) {
 					if( "Row".equals( schema.getName() ) ) {
@@ -228,7 +209,7 @@ public class ProJacker {
 		System.out.println( "Micromod " + micromod.VERSION );
 		System.out.println( "Song name: " + module.songName );
 		for( int idx = 1; idx < module.instruments.length; idx++ ) {
-			String name = module.instruments[ idx ].name;
+			String name = module.instruments[ idx ].getName();
 			if( name != null && name.trim().length() > 0 )
 				System.out.println( String.format( "%1$3d ", idx ) + name );
 		}

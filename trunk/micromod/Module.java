@@ -94,28 +94,21 @@ public class Module {
 		int modIdx = 1084 + numNotes * 4;
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
 			Instrument inst = new Instrument();
-			inst.name = ascii( module, instIdx * 30 - 10, 22 );
+			inst.setName( ascii( module, instIdx * 30 - 10, 22 ) );
 			int sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
-			inst.fineTune = module[ instIdx * 30 + 14 ] & 0xF;
-			inst.volume = module[ instIdx * 30 + 15 ] & 0x7F;
-			if( inst.volume > 64 ) inst.volume = 64;
+			int fineTune = module[ instIdx * 30 + 14 ] & 0xF;
+			inst.setFineTune( fineTune > 7 ? fineTune - 16 : fineTune );
+			int volume =  module[ instIdx * 30 + 15 ] & 0x7F;
+			inst.setVolume( volume > 64 ? 64 : volume );
 			int loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
 			int loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
-			byte[] sampleData = new byte[ sampleLength + 1 ];
-			if( modIdx + sampleLength > module.length )
+			byte[] sampleData = new byte[ sampleLength ];
+			if( modIdx + sampleLength > module.length ) {
 				sampleLength = module.length - modIdx;
-			System.arraycopy( module, modIdx, sampleData, 0, sampleLength );
-			modIdx += sampleLength;
-			if( loopStart + loopLength > sampleLength )
-				loopLength = sampleLength - loopStart;
-			if( loopLength < 4 ) {
-				loopStart = sampleLength;
-				loopLength = 0;
 			}
-			sampleData[ loopStart + loopLength ] = sampleData[ loopStart ];
-			inst.loopStart = loopStart;
-			inst.loopLength = loopLength;
-			inst.sampleData = sampleData;
+			System.arraycopy( module, modIdx, sampleData, 0, sampleLength );
+			inst.setSampleData( sampleData, loopStart, loopLength > 2 ? loopLength : 0 );
+			modIdx += sampleLength;
 			instruments[ instIdx ] = inst;
 		}
 	}
@@ -192,28 +185,28 @@ public class Module {
 		}
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
 			Instrument instrument = instruments[ instIdx ];
-			int loopStart = instrument.loopStart >> 1;
+			int loopStart = instrument.getLoopStart() >> 1;
 			if( loopStart < 0 || loopStart > 65535 ) {
 				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Loop start out of range: " + loopStart * 2 );
 			}
-			int loopLength = instrument.loopLength >> 1;
+			int loopLength = instrument.getLoopLength() >> 1;
 			int sampleLength = loopStart + loopLength;
 			if( loopLength < 0 || sampleLength > 65535 ) {
 				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Loop length out of range: " + loopLength * 2 );
 			}
-			int fineTune = instrument.fineTune;
-			if( fineTune < 0 || fineTune > 15 ) {
-				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": FineTune out of range (0-15): " + fineTune );
+			int fineTune = instrument.getFineTune();
+			if( fineTune < -8 || fineTune > 7 ) {
+				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": FineTune out of range (-8 to 7): " + fineTune );
 			}
-			int volume = instrument.volume;
+			int volume = instrument.getVolume();
 			if( volume < 0 || volume > 64 ) {
 				throw new IndexOutOfBoundsException( "Instrument " + instIdx + ": Volume out of range (0-64): " + volume );
 			}
 			if( outBuf != null ) {
-				writeAscii( instrument.name, outBuf, instIdx * 30 - 10, 22 );
+				writeAscii( instrument.getName(), outBuf, instIdx * 30 - 10, 22 );
 				outBuf[ instIdx * 30 + 12 ] = ( byte ) ( sampleLength >> 8 );
 				outBuf[ instIdx * 30 + 13 ] = ( byte ) sampleLength;
-				outBuf[ instIdx * 30 + 14 ] = ( byte ) fineTune;
+				outBuf[ instIdx * 30 + 14 ] = ( byte ) ( fineTune < 0 ? fineTune + 16 : fineTune );
 				outBuf[ instIdx * 30 + 15 ] = ( byte ) volume;
 				if( loopLength == 0 ) {
 					loopStart = 0;
@@ -221,10 +214,8 @@ public class Module {
 				outBuf[ instIdx * 30 + 16 ] = ( byte ) ( loopStart >> 8 );
 				outBuf[ instIdx * 30 + 17 ] = ( byte ) loopStart;
 				outBuf[ instIdx * 30 + 18 ] = ( byte ) ( loopLength >> 8 );
-				outBuf[ instIdx * 30 + 19 ] = ( byte ) loopLength;
-				if( sampleLength > 0 ) {
-					System.arraycopy( instrument.sampleData, 0, outBuf, outIdx, sampleLength * 2 );
-				}
+				outBuf[ instIdx * 30 + 19 ] = ( byte ) loopLength;				
+				instrument.save( outBuf, outIdx, instIdx );
 			}
 			outIdx += sampleLength * 2;
 		}

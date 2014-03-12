@@ -19,11 +19,11 @@ public class AudioData {
 		this.noiseShaping = true;
 	}
 
-	public AudioData( micromod.Instrument instrument, int samplingRate ) {
+	public AudioData( byte[] samples, int samplingRate ) {
 		this.sampleRate = samplingRate;
-		this.sampleData = new short[ instrument.sampleData.length - 2 ];
-		for( int idx = 0; idx < sampleData.length; idx++ ) {
-			sampleData[ idx ] = ( short ) ( instrument.sampleData[ idx ] << 8 );
+		this.sampleData = new short[ samples.length ];
+		for( int idx = 0; idx < samples.length; idx++ ) {
+			this.sampleData[ idx ] = ( short ) ( samples[ idx ] << 8 );
 		}
 		this.noiseShaping = false;
 	}
