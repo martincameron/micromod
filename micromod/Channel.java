@@ -2,11 +2,6 @@
 package micromod;
 
 public class Channel {
-	private static final int
-		FP_SHIFT = 15,
-		FP_ONE = 1 << FP_SHIFT,
-		FP_MASK = FP_ONE - 1;
-
 	private static final short[] keyToPeriod = { 1814,
 	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
 		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
@@ -18,8 +13,8 @@ public class Channel {
 	};
 
 	private static final short[] fineTuning = {
-		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
-		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
+		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
+		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
 	};
 
 	private static final short[] arpTuning = {
@@ -36,7 +31,7 @@ public class Channel {
 	private int noteKey, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
 	private int sampleIdx, sampleFra, freq;
-	private int volume, panning, fineTune, ampl;
+	private int volume, panning, fineTune;
 	private int period, portaPeriod, portaSpeed, fxCount;
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
 	private int tremoloType, tremoloPhase, tremoloSpeed, tremoloDepth;
@@ -54,63 +49,23 @@ public class Channel {
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 	
-	public void resample( int[] outBuf, int offset, int length, int sampleRate, boolean interpolate ) {
-		if( ampl <= 0 ) return;
-		int lAmpl = ampl * panning >> 8;
-		int rAmpl = ampl * ( 255 - panning ) >> 8;
-		int samIdx = sampleIdx;
-		int samFra = sampleFra;
-		int step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-		Instrument ins = module.instruments[ instrument ];
-		int loopLen = ins.loopLength;
-		int loopEp1 = ins.loopStart + loopLen;
-		byte[] sampleData = ins.sampleData;
-		int outIdx = offset << 1;
-		int outEp1 = offset + length << 1;
-		if( interpolate ) {
-			while( outIdx < outEp1 ) {
-				if( samIdx >= loopEp1 ) {
-					if( loopLen <= 1 ) break;
-					while( samIdx >= loopEp1 ) samIdx -= loopLen;
-				}
-				int c = sampleData[ samIdx ];
-				int m = sampleData[ samIdx + 1 ] - c;
-				int y = ( m * samFra >> FP_SHIFT - 8 ) + ( c << 8 );
-				outBuf[ outIdx++ ] += y * lAmpl >> FP_SHIFT;
-				outBuf[ outIdx++ ] += y * rAmpl >> FP_SHIFT;
-				samFra += step;
-				samIdx += samFra >> FP_SHIFT;
-				samFra &= FP_MASK;
-			}
-		} else {
-			while( outIdx < outEp1 ) {
-				if( samIdx >= loopEp1 ) {
-					if( loopLen <= 1 ) break;
-					while( samIdx >= loopEp1 ) samIdx -= loopLen;
-				}
-				int y = sampleData[ samIdx ];
-				outBuf[ outIdx++ ] += y * lAmpl >> FP_SHIFT - 8;
-				outBuf[ outIdx++ ] += y * rAmpl >> FP_SHIFT - 8;
-				samFra += step;
-				samIdx += samFra >> FP_SHIFT;
-				samFra &= FP_MASK;
-			}
+	public void resample( int[] mixBuf, int offset, int count, int sampleRate, boolean interpolation ) {
+		int ampl = ( volume * module.gain * Instrument.FP_ONE ) >> 13;
+		if( ampl > 0 ) {
+			int leftGain = ( ampl * panning ) >> 8;
+			int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
+			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+			module.instruments[ instrument ].getAudio( sampleIdx, sampleFra, step,
+				leftGain, rightGain, mixBuf, offset, count, interpolation );
 		}
 	}
 
 	public void updateSampleIdx( int length, int sampleRate ) {
-		int step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+		int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * length;
-		sampleIdx += sampleFra >> FP_SHIFT;
-		Instrument ins = module.instruments[ instrument ];
-		int loopStart = ins.loopStart;
-		int loopLength = ins.loopLength;
-		int loopOffset = sampleIdx - loopStart;
-		if( loopOffset > 0 ) {
-			sampleIdx = loopStart;
-			if( loopLength > 1 ) sampleIdx += loopOffset % loopLength;
-		}
-		sampleFra &= FP_MASK;
+		sampleIdx += sampleFra >> Instrument.FP_SHIFT;
+		sampleIdx = module.instruments[ instrument ].normalizeSampleIdx( sampleIdx );
+		sampleFra &= Instrument.FP_MASK;
 	}
 
 	public void row( int key, int ins, int effect, int param ) {
@@ -243,16 +198,15 @@ public class Channel {
 		int volume = this.volume + tremoloAdd;
 		if( volume > 64 ) volume = 64;
 		if( volume < 0 ) volume = 0;
-		ampl = ( volume * module.gain * FP_ONE ) >> 13;
 	}
 
 	private void trigger() {
 		if( noteIns > 0 && noteIns <= module.numInstruments ) {
 			assigned = noteIns;
 			Instrument assignedIns = module.instruments[ assigned ];
-			fineTune = assignedIns.fineTune;
-			volume = assignedIns.volume >= 64 ? 64 : assignedIns.volume & 0x3F;
-			if( assignedIns.loopLength > 0 && instrument > 0 ) instrument = assigned;
+			fineTune = assignedIns.getFineTune() + 8;
+			volume = assignedIns.getVolume();
+			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
 		}
 		if( noteEffect == 0x15 ) fineTune = noteParam;
 		if( noteKey > 0 && noteKey <= 72 ) {
