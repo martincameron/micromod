@@ -13,9 +13,15 @@ public class Instrument {
 	}
 	
 	public void setName( String name ) {
-		this.name = ( name != null ) ? name : "";
+		if( name == null ) {
+			this.name = "";
+		} else if( name.length() > 22 ) {
+			this.name = name.substring( 0, 22 );
+		} else {
+			this.name = name;
+		}
 	}
-	
+
 	public int getVolume() {
 		return volume;
 	}
@@ -39,20 +45,30 @@ public class Instrument {
 	}
 	
 	public void setSampleData( byte[] sampleData, int loopStart, int loopLength ) {
-		int sampleLength = sampleData.length;
+		setSampleData( sampleData, 0, sampleData.length, loopStart, loopLength );
+	}
+	
+	public void setSampleData( byte[] sampleData, int sampleOffset, int sampleLength, int loopStart, int loopLength ) {
+		if( sampleOffset + sampleLength > sampleData.length ) {
+			sampleLength = sampleData.length - sampleOffset;
+		}
 		if( loopStart + loopLength > sampleLength ) {
 			loopLength = sampleLength - loopStart;
 		}
-		if( loopStart < 0 || loopStart >= sampleLength || loopLength < 2 ) {
+		if( loopStart < 0 || loopStart >= sampleLength || loopLength < 4 ) {
 			loopStart = sampleLength;
 			loopLength = 0;
 		}
-		this.loopStart = loopStart;
-		this.loopLength = loopLength;
-		this.sampleData = new byte[ loopStart + loopLength + 1 ];
-		System.arraycopy( sampleData, 0, this.sampleData, 0, loopStart + loopLength );
+		int loopEnd = ( loopStart & -2 ) + ( loopLength & -2 );
+		if( loopEnd > 0x1FFFE ) {
+			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + loopEnd );
+		}
+		this.loopStart = loopStart & -2;
+		this.loopLength = loopLength & -2;
+		this.sampleData = new byte[ loopEnd + 1 ];
+		System.arraycopy( sampleData, sampleOffset, this.sampleData, 0, loopEnd );
 		/* The sample after the loop end must be the same as the loop start for the interpolation algorithm. */
-		this.sampleData[ loopStart + loopLength ] = this.sampleData[ loopStart ];
+		this.sampleData[ loopEnd ] = this.sampleData[ this.loopStart ];
 	}
 	
 	public int getLoopStart() {
@@ -118,13 +134,45 @@ public class Instrument {
 		return sampleIdx;
 	}
 
-	public int load( byte[] module, int offset, int sample ) {
-		return 0;
+	public int load( byte[] module, int instIdx, int sampleDataOffset ) {
+		char[] name = new char[ 22 ];
+		for( int idx = 0; idx < name.length; idx++ ) {
+			int chr = module[ instIdx * 30 - 10 + idx ] & 0xFF;
+			name[ idx ] = chr > 32 ? ( char ) chr : 32;
+		}
+		setName( new String( name ) );
+		int sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
+		int fineTune = module[ instIdx * 30 + 14 ] & 0xF;
+		setFineTune( fineTune > 7 ? fineTune - 16 : fineTune );
+		int volume =  module[ instIdx * 30 + 15 ] & 0x7F;
+		setVolume( volume > 64 ? 64 : volume );
+		int loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
+		int loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
+		setSampleData( module, sampleDataOffset, sampleLength, loopStart, loopLength );
+		return sampleDataOffset + sampleLength;
 	}
 	
-	public int save( byte[] module, int offset, int sample ) {
-		int sampleLength = ( loopStart & 2 ) + ( loopLength & -2 );
-		System.arraycopy( sampleData, 0, module, offset, sampleLength );
-		return offset + sampleLength;
+	public int save( byte[] module, int instIdx, int sampleDataOffset ) {
+		int sampleLength = loopStart + loopLength;
+		if( module != null ) {
+			for( int idx = 0; idx < 22; idx++ ) {
+				int chr = idx < name.length() ? name.charAt( idx ) : 32;
+				module[ instIdx * 30 - 10 + idx ] = ( byte ) chr;
+			}
+			module[ instIdx * 30 + 12 ] = ( byte ) ( sampleLength >> 9 );
+			module[ instIdx * 30 + 13 ] = ( byte ) ( sampleLength >> 1 );
+			module[ instIdx * 30 + 14 ] = ( byte ) ( fineTune < 0 ? fineTune + 16 : fineTune );
+			module[ instIdx * 30 + 15 ] = ( byte ) volume;
+			module[ instIdx * 30 + 16 ] = ( byte ) ( loopStart >> 9 );
+			module[ instIdx * 30 + 17 ] = ( byte ) ( loopStart >> 1 );
+			module[ instIdx * 30 + 18 ] = ( byte ) ( loopLength >> 9 );
+			module[ instIdx * 30 + 19 ] = ( byte ) ( loopLength >> 1 );
+			System.arraycopy( sampleData, 0, module, sampleDataOffset, sampleLength );
+		}
+		return sampleDataOffset + sampleLength;
+	}
+	
+	private static int ushortbe( byte[] buf, int offset ) {
+		return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
 	}
 }
