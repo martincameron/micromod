@@ -103,7 +103,7 @@ public class ProJacker {
 						try {
 							// Get the left/mono channel from the wav file.
 							audioData = new AudioData( new java.io.FileInputStream( value.toString() ), 0 );
-							instrument.setSampleData( audioData.quantize(), 0, 0 );
+							//instrument.setSampleData( audioData.quantize(), 0, 0 );
 						} catch( java.io.IOException e ) {
 							throw new IllegalArgumentException( "Instrument " + instIdx +" unable to load wave file.", e );
 						}
@@ -123,7 +123,7 @@ public class ProJacker {
 					micromod.Instrument instrument = module.instruments[ instIdx ];
 					if( "Gain".equals( schema.getName() ) ) {
 						audioData = audioData.scale( value.toInteger() );
-						instrument.setSampleData( audioData.quantize(), 0, 0 );
+						//instrument.setSampleData( audioData.quantize(), 0, 0 );
 					} else if( "Pitch".equals( schema.getName() ) ) {
 						double rate = audioData.getSamplingRate() * Math.pow( 2, value.toInteger() / -96.0 );
 						audioData = audioData.resample( ( int ) rate );
