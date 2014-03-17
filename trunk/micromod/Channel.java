@@ -2,16 +2,6 @@
 package micromod;
 
 public class Channel {
-	private static final short[] keyToPeriod = { 1814,
-	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
-		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
-		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
-		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
-		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
-		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
-		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28
-	};
-
 	private static final short[] fineTuning = {
 		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
 		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
@@ -28,7 +18,7 @@ public class Channel {
 	};
 
 	private Module module;
-	private int noteKey, noteEffect, noteParam;
+	private int notePeriod, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
 	private int sampleIdx, sampleFra, freq;
 	private int volume, panning, fineTune;
@@ -50,26 +40,30 @@ public class Channel {
 	}
 	
 	public void resample( int[] mixBuf, int offset, int count, int sampleRate, boolean interpolation ) {
-		int ampl = ( volume * module.gain * Instrument.FP_ONE ) >> 13;
-		if( ampl > 0 ) {
-			int leftGain = ( ampl * panning ) >> 8;
-			int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
-			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-			module.instruments[ instrument ].getAudio( sampleIdx, sampleFra, step,
-				leftGain, rightGain, mixBuf, offset, count, interpolation );
+		if( instrument > 0 ) {
+			int ampl = ( volume * module.getGain() * Instrument.FP_ONE ) >> 13;
+			if( ampl > 0 ) {
+				int leftGain = ( ampl * panning ) >> 8;
+				int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
+				int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+				module.getInstrument( instrument ).getAudio( sampleIdx, sampleFra, step,
+					leftGain, rightGain, mixBuf, offset, count, interpolation );
+			}
 		}
 	}
 
 	public void updateSampleIdx( int length, int sampleRate ) {
-		int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-		sampleFra += step * length;
-		sampleIdx += sampleFra >> Instrument.FP_SHIFT;
-		sampleIdx = module.instruments[ instrument ].normalizeSampleIdx( sampleIdx );
-		sampleFra &= Instrument.FP_MASK;
+		if( instrument > 0 ) {
+			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+			sampleFra += step * length;
+			sampleIdx += sampleFra >> Instrument.FP_SHIFT;
+			sampleIdx = module.getInstrument( instrument ).normalizeSampleIdx( sampleIdx );
+			sampleFra &= Instrument.FP_MASK;
+		}
 	}
 
-	public void row( int key, int ins, int effect, int param ) {
-		noteKey = key;
+	public void row( int period, int ins, int effect, int param ) {
+		notePeriod = period;
 		noteIns = ins;
 		noteEffect = effect;
 		noteParam = param;
@@ -93,7 +87,7 @@ public class Channel {
 				tremolo();
 				break;
 			case 0x8: /* Set Panning. Not for Protracker. */
-				if( module.c2Rate == Module.C2_NTSC ) panning = param;
+				if( module.getNumChannels() != 4 ) panning = param;
 				break;
 			case 0x9: /* Set Sample Position.*/
 				sampleIdx = param << 8;
@@ -193,7 +187,7 @@ public class Channel {
 	private void updateFrequency() {
 		int period = this.period + vibratoAdd;
 		if( period < 7 ) period = 6848;
-		freq = module.c2Rate * 428 / period;
+		freq = module.getC2Rate() * 428 / period;
 		freq = ( freq * arpTuning[ arpeggioAdd ] >> 12 ) & 0x7FFFF;
 		int volume = this.volume + tremoloAdd;
 		if( volume > 64 ) volume = 64;
@@ -201,16 +195,17 @@ public class Channel {
 	}
 
 	private void trigger() {
-		if( noteIns > 0 && noteIns <= module.numInstruments ) {
+		if( noteIns > 0 && noteIns < 32 ) {
 			assigned = noteIns;
-			Instrument assignedIns = module.instruments[ assigned ];
-			fineTune = assignedIns.getFineTune() + 8;
-			volume = assignedIns.getVolume();
+			Instrument assignedIns = module.getInstrument( assigned );
+			fineTune = ( assignedIns.getFineTune() + 8 ) & 0xF;
+			volume = assignedIns.getVolume() & 0x7F;
+			if( volume > 64 ) volume = 64;
 			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
 		}
 		if( noteEffect == 0x15 ) fineTune = noteParam;
-		if( noteKey > 0 && noteKey <= 72 ) {
-			int per = ( keyToPeriod[ noteKey ] * fineTuning[ fineTune & 0xF ] ) >> 11;
+		if( notePeriod > 0 ) {
+			int per = ( notePeriod * fineTuning[ fineTune & 0xF ] ) >> 11;
 			portaPeriod = ( per >> 1 ) + ( per & 1 );
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;

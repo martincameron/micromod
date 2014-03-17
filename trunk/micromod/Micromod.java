@@ -5,10 +5,11 @@ package micromod;
 	Java ProTracker Replay (c)2014 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20140313 (c)2014 mumart@gmail.com";
+	public static final String VERSION = "20140317 (c)2014 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
+	private Note note;
 	private Channel[] channels;
 	private int sampleRate;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
@@ -20,7 +21,8 @@ public class Micromod {
 		this.module = module;
 		setSampleRate( samplingRate );
 		rampBuf = new int[ 128 ];
-		channels = new Channel[ module.numChannels ];
+		note = new Note();
+		channels = new Channel[ module.getNumChannels() ];
 		setSequencePos( 0 );
 	}
 
@@ -61,14 +63,14 @@ public class Micromod {
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */
 	public void setSequencePos( int pos ) {
-		if( pos >= module.sequenceLength ) pos = 0;
+		if( pos >= module.getSequenceLength() ) pos = 0;
 		breakSeqPos = pos;
 		nextRow = 0;
 		tick = 1;
 		speed = 6;
 		tempo = 125;
 		plCount = plChannel = -1;
-		for( int idx = 0; idx < module.numChannels; idx++ )
+		for( int idx = 0; idx < channels.length; idx++ )
 			channels[ idx ] = new Channel( module, idx );
 		for( int idx = 0; idx < 128; idx++ )
 			rampBuf[ idx ] = 0;
@@ -95,7 +97,7 @@ public class Micromod {
 		int currentPos = 0;
 		int tickLen = calculateTickLen( tempo, sampleRate );
 		while( ( samplePos - currentPos ) >= tickLen ) {
-			for( int idx = 0; idx < module.numChannels; idx++ )
+			for( int idx = 0; idx < channels.length; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
 			currentPos += tickLen;
 			tick();
@@ -107,13 +109,13 @@ public class Micromod {
 	/* Seek to the specified position and row in the sequence. */
 	public void seekSequencePos( int sequencePos, int sequenceRow ) {
 		setSequencePos( 0 );
-		if( sequencePos < 0 || sequencePos >= module.sequenceLength )
+		if( sequencePos < 0 || sequencePos >= module.getSequenceLength() )
 			sequencePos = 0;
 		if( sequenceRow >= 64 )
 			sequenceRow = 0;
 		while( seqPos < sequencePos || row < sequenceRow ) {
 			int tickLen = calculateTickLen( tempo, sampleRate );
-			for( int idx = 0; idx < module.numChannels; idx++ )
+			for( int idx = 0; idx < channels.length; idx++ )
 				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
 			if( tick() ) {
 				// Song end reached.
@@ -133,7 +135,7 @@ public class Micromod {
 		for( int idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ )
 			outputBuf[ idx ] = 0;
 		// Resample.
-		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
+		for( int chanIdx = 0; chanIdx < channels.length; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
 			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
 			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
@@ -173,7 +175,7 @@ public class Micromod {
 			tick = speed;
 			songEnd = row();
 		} else {
-			for( int idx = 0; idx < module.numChannels; idx++ ) channels[ idx ].tick();
+			for( int idx = 0; idx < channels.length; idx++ ) channels[ idx ].tick();
 		}
 		return songEnd;
 	}
@@ -181,10 +183,10 @@ public class Micromod {
 	private boolean row() {
 		boolean songEnd = false;
 		if( breakSeqPos >= 0 ) {
-			if( breakSeqPos >= module.sequenceLength ) breakSeqPos = nextRow = 0;
+			if( breakSeqPos >= module.getSequenceLength() ) breakSeqPos = nextRow = 0;
 			if( breakSeqPos <= seqPos ) songEnd = true;
 			seqPos = breakSeqPos;
-			for( int idx = 0; idx < module.numChannels; idx++ ) channels[ idx ].plRow = 0;
+			for( int idx = 0; idx < channels.length; idx++ ) channels[ idx ].plRow = 0;
 			breakSeqPos = -1;
 		}
 		row = nextRow;
@@ -193,20 +195,17 @@ public class Micromod {
 			breakSeqPos = seqPos + 1;
 			nextRow = 0;
 		}
-		int patOffset = ( module.sequence[ seqPos ] * 64 + row ) * module.numChannels * 4;
-		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
+		for( int chanIdx = 0; chanIdx < channels.length; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
-			int key = module.patterns[ patOffset ] & 0xFF;
-			int ins = module.patterns[ patOffset + 1 ] & 0xFF;
-			int effect = module.patterns[ patOffset + 2 ] & 0xFF;
-			int param  = module.patterns[ patOffset + 3 ] & 0xFF;
-			patOffset += 4;
+			module.getPattern( module.getSequenceEntry( seqPos ) ).getNote( row, chanIdx, note );
+			int effect = note.effect & 0xFF;
+			int param  = note.parameter & 0xFF;
 			if( effect == 0xE ) {
 				effect = 0x10 | ( param >> 4 );
 				param &= 0xF;
 			}
 			if( effect == 0 && param > 0 ) effect = 0xE;
-			channel.row( key, ins, effect, param );
+			channel.row( note.getPeriod(), note.instrument, effect, param );
 			switch( effect ) {
 				case 0xB: /* Pattern Jump.*/
 					if( plCount < 0 ) {
