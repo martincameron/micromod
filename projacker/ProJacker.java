@@ -23,57 +23,30 @@ public class ProJacker {
 				if( "Module".equals( schema.getName() ) ) {
 					System.out.println( "Title: " + value );
 					module = new micromod.Module();
-					module.songName = value.toString();
-					module.numInstruments = 31;
-					module.instruments = new micromod.Instrument[ module.numInstruments + 1 ];
-					for( int idx = 0; idx <= module.numInstruments; idx++ ) {
-						module.instruments[ idx ] = new micromod.Instrument();
-					}
+					module.setSongName( value.toString() );
 				}
 			} else {
 				Schema parent = schema.getParent();
 				if( "Module".equals( parent.getName() ) ) {
 					if( "Channels".equals( schema.getName() ) ) {
-						module.numChannels = value.toInteger();
-						if( module.numChannels < 4 || module.numChannels > 16 ) {
-							throw new IllegalArgumentException( "Number of channels out of range (4 to 16): " + module.numChannels );
-						}
+						module.setNumChannels( value.toInteger() );
 					} else if( "Sequence".equals( schema.getName() ) ) {
 						System.out.println( "Sequence: " + value );
-						module.numPatterns = 1;
-						int[] sequence = new int[ 127 ];
-						module.sequenceLength = value.toIntegerArray( sequence );
-						if( module.sequenceLength < 1 || module.sequenceLength > 127 ) {
-							throw new IllegalArgumentException( "Sequence length out of range (1 to 127): " + module.sequenceLength );
+						int[] sequence = new int[ 128 ];
+						int sequenceLength = value.toIntegerArray( sequence );
+						module.setSequenceLength( sequenceLength );
+						System.out.println( "Sequence Length: " + module.getSequenceLength() );
+						for( int idx = 0; idx < sequenceLength; idx++ ) {
+							module.setSequenceEntry( idx, sequence[ idx ] );
 						}
-						System.out.println( "Sequence Length: " + module.sequenceLength );
-						module.sequence = new byte[ module.sequenceLength ];
-						for( int idx = 0; idx < module.sequenceLength; idx++ ) {
-							int pat = sequence[ idx ];
-							if( pat < 0 || pat > 127 ) {
-								throw new IllegalArgumentException( "Sequence entry out of range (0 to 127): " + pat );
-							}
-							if( pat >= module.numPatterns ) {
-								module.numPatterns = pat + 1;
-							}
-							module.sequence[ idx ] = ( byte ) pat;
-						}
-						System.out.println( "Num Patterns: " + module.numPatterns );
-						module.patterns = new byte[ module.numPatterns * 64 * 4 * module.numChannels ];
 					} else if( "Instrument".equals( schema.getName() ) ) {
 						instIdx = value.toInteger();
-						if( instIdx < 1 || instIdx > module.numInstruments ) {
-							throw new IllegalArgumentException( "Instrument index out of range (1 to " + module.numInstruments + "): " + instIdx );
-						}
 					} else if( "Pattern".equals( schema.getName() ) ) {
 						rowIdx = 0;
 						patternIdx = value.toInteger();
-						if( patternIdx < 0 || patternIdx >= module.numPatterns ) {
-							throw new IllegalArgumentException( "Pattern index out of range (0 to " + module.numPatterns + "): " + patternIdx );
-						}
 					}
 				} else if( "Instrument".equals( parent.getName() ) ) {
-					micromod.Instrument instrument = module.instruments[ instIdx ];
+					micromod.Instrument instrument = module.getInstrument( instIdx );
 					if( "Name".equals( schema.getName() ) ) {
 						System.out.println( "Instrument " + instIdx + " Name: " + value );
 						instrument.setName( value.toString() );
@@ -120,7 +93,7 @@ public class ProJacker {
 						instrument.setSampleData( sampleData, loopStart, loopLength );
 					}
 				} else if( "WaveFile".equals( parent.getName() ) ) {
-					micromod.Instrument instrument = module.instruments[ instIdx ];
+					micromod.Instrument instrument = module.getInstrument( instIdx );
 					if( "Gain".equals( schema.getName() ) ) {
 						audioData = audioData.scale( value.toInteger() );
 						//instrument.setSampleData( audioData.quantize(), 0, 0 );
@@ -130,20 +103,23 @@ public class ProJacker {
 						instrument.setSampleData( audioData.quantize(), 0, 0 );
 					}
 				} else if( "Pattern".equals( parent.getName() ) ) {
+					micromod.Pattern pattern = module.getPattern( patternIdx );
 					if( "Row".equals( schema.getName() ) ) {
 						String row = value.toString();
 						int channelIdx = 0;
-						char[] note = new char[ 8 ];
+						char[] input = new char[ 8 ];
+						micromod.Note output = new micromod.Note();
 						int idx = 0, len = row.length();
 						while( idx < len ) {
 							int noteIdx = 0;
 							while( idx < len && noteIdx < 8 ) {
-								note[ noteIdx++ ] = row.charAt( idx++ );
+								input[ noteIdx++ ] = row.charAt( idx++ );
 							}
 							if( noteIdx == 8 ) {
-								parseNote( note, module.patterns, ( ( patternIdx * 64 + rowIdx ) * module.numChannels + channelIdx ) * 4 );
+								parseNote( input, output );
+								pattern.setNote( rowIdx, channelIdx, output );
 							} else {
-								throw new IllegalArgumentException( "Pattern " + patternIdx + " Row " + rowIdx + " Channel " + channelIdx + ". Malformed key: " + new String( note, 0, noteIdx ) );
+								throw new IllegalArgumentException( "Pattern " + patternIdx + " Row " + rowIdx + " Channel " + channelIdx + ". Malformed key: " + new String( input, 0, noteIdx ) );
 							}
 							while( idx < len && row.charAt( idx ) <= 32 ) {
 								idx++;
@@ -157,7 +133,7 @@ public class ProJacker {
 			//System.out.println( "Token " + context.getName() + ", Value " + value );
 		}
 		
-		private void parseNote( char[] input, byte[] output, int outputIdx ) {
+		private void parseNote( char[] input, micromod.Note output ) {
 			if( input.length >= 8 ) {
 				int key = numChar( input[ 0 ], 11 );
 				if( key > 10 ) {
@@ -170,14 +146,14 @@ public class ProJacker {
 						throw new IllegalArgumentException( "Pattern " + patternIdx + " Row " + rowIdx + " key out of range (0 to 72): " + key );
 					}
 				}
-				output[ outputIdx ] = ( byte ) key;
+				output.key = key;
 				int ins = numChar( input[ 3 ], 10 ) * 10 + numChar( input[ 4 ], 10 );
-				if( ins < 0 || ins > module.numInstruments ) {
-					throw new IllegalArgumentException( "Pattern " + patternIdx + " Row " + rowIdx + " instrument out of range (0 to " + module.numInstruments + "): " + ins );
+				if( ins < 0 || ins > 31 ) {
+					throw new IllegalArgumentException( "Pattern " + patternIdx + " Row " + rowIdx + " instrument out of range (0 to 31): " + ins );
 				}
-				output[ outputIdx + 1 ] = ( byte ) ins;
-				output[ outputIdx + 2 ] = ( byte ) numChar( input[ 5 ], 16 );
-				output[ outputIdx + 3 ] = ( byte ) ( ( numChar( input[ 6 ], 16 ) << 4 ) + numChar( input[ 7 ], 16 ) );
+				output.instrument = ins;
+				output.effect = numChar( input[ 5 ], 16 );
+				output.parameter = ( numChar( input[ 6 ], 16 ) << 4 ) + numChar( input[ 7 ], 16 );
 			} else {
 				throw new IllegalArgumentException( "Note too short: " + new String( input, 0, input.length ) );
 			}
@@ -207,9 +183,9 @@ public class ProJacker {
 		//micromod.setInterpolation( true );
 		// Print some info.
 		System.out.println( "Micromod " + micromod.VERSION );
-		System.out.println( "Song name: " + module.songName );
-		for( int idx = 1; idx < module.instruments.length; idx++ ) {
-			String name = module.instruments[ idx ].getName();
+		System.out.println( "Song name: " + module.getSongName() );
+		for( int idx = 1; idx < 32; idx++ ) {
+			String name = module.getInstrument( idx ).getName();
 			if( name != null && name.trim().length() > 0 )
 				System.out.println( String.format( "%1$3d ", idx ) + name );
 		}

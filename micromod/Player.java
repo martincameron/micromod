@@ -42,9 +42,9 @@ public class Player {
 		micromod.setInterpolation( interpolation );
 		// Print some info.
 		System.out.println( "Micromod " + Micromod.VERSION );
-		System.out.println( "Song name: " + module.songName );
-		for( int idx = 1; idx < module.instruments.length; idx++ ) {
-			String name = module.instruments[ idx ].getName();
+		System.out.println( "Song name: " + module.getSongName() );
+		for( int idx = 1; idx <= 31; idx++ ) {
+			String name = module.getInstrument( idx ).getName();
 			if( name.trim().length() > 0 )
 				System.out.println( String.format( "%1$3d ", idx ) + name );
 		}
