@@ -4,8 +4,11 @@ package micromod;
 public class Note {
 	public int key, instrument, effect, parameter;
 
+	private static final String  hexToString = "0123456789ABCDEF";
+	private static final String  keyToString = "A-A#B-C-C#D-D#E-F-F#G-G#";
+	private static final byte[]  stringToKey = { -2, 0, 1, 3, 5, 6, 8, 10 };
 	private static final short[] keyToPeriod = { 1814,
-	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
+	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-1  A#1  B-1 */
 		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
 		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
 		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
@@ -17,7 +20,7 @@ public class Note {
 
 	public int getPeriod() {
 		int period = 0;
-		if( key >= 1 && key <= 72 ) {
+		if( key > 0 && key < 73 ) {
 			period = keyToPeriod[ key ];
 		}
 		return period;
@@ -51,4 +54,58 @@ public class Note {
 		}
 		return offset + 4;
 	}
+
+	public void fromString( String note ) {
+		if( note.length() != 8 ) {
+			throw new IllegalArgumentException( "Malformed note (incorrect length): " + note );
+		}
+		key = 0;
+		char chr = note.charAt( 0 );
+		if( numChar( chr, 17 ) < 10 ) {
+			/* Decimal note number. */
+			key = numChar( chr, 10 ) * 100 + numChar( note.charAt( 1 ), 10 ) * 10 + numChar( note.charAt( 2 ), 10 );
+		} else {
+			/* Key string (A#1 etc.) */
+			key = stringToKey[ chr - 'A' ];
+			chr = note.charAt( 1 );
+			if( chr == '#' ) {
+				key++;
+			} else if( chr != '-' ) {
+				throw new IllegalArgumentException( "Invalid key: " + note );
+			}			
+			key += numChar( note.charAt( 2 ), 10 ) * 12;
+		}
+		instrument = numChar( note.charAt( 3 ), 10 ) * 10 + numChar( note.charAt( 4 ), 10 );
+		effect = numChar( note.charAt( 5 ), 16 );
+		parameter = ( numChar( note.charAt( 6 ), 16 ) << 4 ) + numChar( note.charAt( 7 ), 16 );
+	}
+
+	public String toString() {
+		char[] note = new char[ 8 ];
+		note[ 0 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 ) : '-';
+		note[ 1 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 + 1 ) : '-';
+		note[ 2 ] = ( key > 0 && key < 118 ) ? ( char ) ( '0' + ( key + 2 ) / 12 ) : '-';
+		note[ 3 ] = ( instrument > 9 && instrument < 100 ) ? ( char ) ( '0' + instrument / 10 ) : '-';
+		note[ 4 ] = ( instrument > 0 && instrument < 100 ) ? ( char ) ( '0' + instrument % 10 ) : '-';
+		note[ 5 ] = ( effect > 0 && effect < 16 ) ? hexToString.charAt( effect ) : '-';
+		note[ 6 ] = ( ( parameter & 0xF0 ) > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
+		note[ 7 ] = ( ( parameter & 0xF ) > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
+		return new String( note );
+	}
+
+	/* Digit of the form [0-9A-Z] or hyphen (0).*/
+	private static int numChar( char chr, int radix ) {
+		int value = 0;
+		if( chr >= '0' && chr <= '9' ) {
+			value = chr - '0';
+		} else if( chr >= 'A' && chr <= 'Z' ) {
+			value = chr + 10 - 'A';
+		} else if( chr != '-' ) {
+			throw new IllegalArgumentException( "Invalid character: " + chr );
+		}
+		if( value >= radix ) {
+			throw new IllegalArgumentException( "Invalid character: " + chr );
+		}
+		return value;
+	}	
 }

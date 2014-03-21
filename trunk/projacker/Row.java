@@ -35,7 +35,7 @@ public class Row implements Element {
 				input[ noteIdx++ ] = row.charAt( idx++ );
 			}
 			if( noteIdx == 8 ) {
-				parseNote( input, output );
+				output.fromString( new String( input ) );
 				parent.setNote( rowIdx, channelIdx, output );
 			} else {
 				throw new IllegalArgumentException( "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + channelIdx + ". Malformed key: " + new String( input, 0, noteIdx ) );
@@ -53,47 +53,5 @@ public class Row implements Element {
 	
 	public void setRowIdx( int rowIdx ) {
 		this.rowIdx = rowIdx;
-	}
-	
-	private void parseNote( char[] input, micromod.Note output ) {
-		if( input.length >= 8 ) {
-			int key = numChar( input[ 0 ], 11 );
-			if( key > 10 ) {
-				/* A-G etc.*/
-				throw new UnsupportedOperationException( "Fixme." );
-			} else {
-				/* Decimal note number(1-72).*/
-				key = numChar( input[ 0 ], 10 ) * 100 + numChar( input[ 1 ], 10 ) * 10 + numChar( input[ 2 ], 10 );
-				if( key < 0 || key > 72 ) {
-					throw new IllegalArgumentException( "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " key out of range (0 to 72): " + key );
-				}
-			}
-			output.key = key;
-			int ins = numChar( input[ 3 ], 10 ) * 10 + numChar( input[ 4 ], 10 );
-			if( ins < 0 || ins > 31 ) {
-				throw new IllegalArgumentException( "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " instrument out of range (0 to 31): " + ins );
-			}
-			output.instrument = ins;
-			output.effect = numChar( input[ 5 ], 16 );
-			output.parameter = ( numChar( input[ 6 ], 16 ) << 4 ) + numChar( input[ 7 ], 16 );
-		} else {
-			throw new IllegalArgumentException( "Note too short: " + new String( input, 0, input.length ) );
-		}
-	}
-	
-	/* Digit of the form [0-9A-Z] or hyphen(0).*/
-	private static int numChar( char chr, int radix ) {
-		int value = 0;
-		if( chr >= '0' && chr <= '9' ) {
-			value = chr - '0';
-		} else if( chr >= 'A' && chr <= 'Z' ) {
-			value = chr + 10 - 'A';
-		} else if( chr != '-' ) {
-			throw new IllegalArgumentException( "Invalid character: " + chr );
-		}
-		if( value >= radix ) {
-			throw new IllegalArgumentException( "Invalid character: " + chr );
-		}
-		return value;
-	}
+	}	
 }
