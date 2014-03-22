@@ -25,27 +25,18 @@ public class Row implements Element {
 	}
 	
 	public void begin( String row ) {
-		int channelIdx = 0;
-		char[] input = new char[ 8 ];
+		String[] notes = Parser.split( row, ' ' );
 		micromod.Note output = new micromod.Note();
-		int idx = 0, len = row.length();
-		while( idx < len ) {
-			int noteIdx = 0;
-			while( idx < len && noteIdx < 8 ) {
-				input[ noteIdx++ ] = row.charAt( idx++ );
+		for( int chanIdx = 0; chanIdx < notes.length; chanIdx++ ) {
+			try {
+				output.fromString( notes[ chanIdx ] );
+				parent.setNote( rowIdx, chanIdx, output );
+			} catch( IllegalArgumentException e ) {
+				String msg = "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + chanIdx;
+				throw new IllegalArgumentException( msg + " " + e.getMessage() );
 			}
-			if( noteIdx == 8 ) {
-				output.fromString( new String( input ) );
-				parent.setNote( rowIdx, channelIdx, output );
-			} else {
-				throw new IllegalArgumentException( "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + channelIdx + ". Malformed key: " + new String( input, 0, noteIdx ) );
-			}
-			while( idx < len && row.charAt( idx ) <= 32 ) {
-				idx++;
-			}
-			channelIdx++;							
 		}
-		rowIdx++;		
+		rowIdx++;
 	}
 	
 	public void end() {
