@@ -203,7 +203,9 @@ public class Channel {
 			if( volume > 64 ) volume = 64;
 			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
 		}
-		if( noteEffect == 0x15 ) fineTune = noteParam;
+		if( noteEffect == 0x15 ) {
+			fineTune = ( noteParam > 7 ? noteParam - 8 : noteParam + 8 ) & 0xF;
+		}
 		if( notePeriod > 0 ) {
 			int per = ( notePeriod * fineTuning[ fineTune & 0xF ] ) >> 11;
 			portaPeriod = ( per >> 1 ) + ( per & 1 );
