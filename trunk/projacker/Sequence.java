@@ -27,10 +27,9 @@ public class Sequence implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		int[] sequence = new int[ 128 ];
-		int sequenceLength = Parser.parseIntegerArray( value, sequence );
-		parent.setSequenceLength( sequenceLength );
-		for( int idx = 0; idx < sequenceLength; idx++ ) {
+		int[] sequence = Parser.parseIntegerArray( value );
+		parent.setSequenceLength( sequence.length );
+		for( int idx = 0; idx < sequence.length; idx++ ) {
 			parent.setSequenceEntry( idx, sequence[ idx ] );
 		}
 	}

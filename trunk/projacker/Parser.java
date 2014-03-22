@@ -86,6 +86,39 @@ public class Parser {
 		}
 	}
 	
+	/* Split a string, separated by whitespace or separator. */
+	public static String[] split( String input, char separator ) {
+		String[] output = new String[ split( input, ',', null ) ];
+		split( input, ',', output );
+		return output;
+	}
+	
+	public static int split( String input, char separator, String[] output ) {
+		int outIdx = 0, inLen = input.length(), start = 0;
+		for( int inIdx = 0; inIdx <= inLen; inIdx++ ) {
+			char chr = inIdx < inLen ? input.charAt( inIdx ) : separator;
+			if( chr < 33 || chr == separator ) {
+				if( inIdx > start ) {
+					if( output != null && outIdx < output.length ) {
+						output[ outIdx ] = input.substring( start, inIdx );
+					}
+					outIdx++;
+				}
+				start = inIdx + 1;
+			}
+		}
+		return outIdx;
+	}
+	
+	public static int[] parseIntegerArray( String param ) {
+		String[] input = split( param, ',' );
+		int[] output = new int[ input.length ];
+		for( int idx = 0; idx < input.length; idx++ ) {
+			output[ idx ] = parseInteger( input[ idx ] );
+		}
+		return output;
+	}
+	
 	public static int parseInteger( String param ) {
 		int idx = 0, len = param.length(), a = 0, s = 1;
 		if( idx < len ) {
@@ -103,59 +136,5 @@ public class Parser {
 			}
 		}
 		return a * s;
-	}
-
-	/* The size of the array is returned, output may be null.*/
-	public static int parseIntegerArray( String param, int[] output ) {
-		int size = 0;
-		int idx = 0, len = param.length();
-		while( idx < len ) {
-			int a = 0, s = 1;
-			char chr = param.charAt( idx++ );
-			if( idx < len && chr == '-' ) {
-				s = -1;
-				chr = param.charAt( idx++ );
-			}
-			while( chr >= '0' && chr <= '9' ) {
-				a = a * 10 + chr - '0';
-				chr = idx < len ? param.charAt( idx++ ) : ',';
-			}
-			a = a * s;
-			if( chr == '>' ) {
-				int b = 0, t = 1;
-				if( idx < len ) {
-					chr = param.charAt( idx++ );
-				}
-				if( idx < len && chr == '-' ) {
-					t = -1;
-					chr = param.charAt( idx++ );
-				}
-				while( chr >= '0' && chr <= '9' ) {
-					b = b * 10 + chr - '0';
-					chr = idx < len ? param.charAt( idx++ ) : ',';
-				}
-				b = b * t;
-				if( chr != ',' ) {
-					throw new IllegalArgumentException( "Invalid character in list: " + param );
-				}
-				int d = a > b ? -1 : 1;
-				int e = a > b ? b - 1 : b + 1;
-				while( a != e ) {
-					if( output != null && size < output.length ) {
-						output[ size ] = a;
-					}
-					a += d;
-					size += 1;
-				}
-			} else if( chr == ',' ) {
-				if( output != null && size < output.length ) {
-					output[ size ] = a;
-				}
-				size += 1;
-			} else {
-				throw new IllegalArgumentException( "Invalid character in list: " + param );
-			}
-		}
-		return size;
 	}
 }
