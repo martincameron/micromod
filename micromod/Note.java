@@ -25,6 +25,24 @@ public class Note {
 		}
 		return period;
 	}
+	
+	/* Adjust the relative key (0 for no change). */
+	public void transpose( int key ) {
+		/* Todo: Adjust portamento rates, slide rates and vibrato depth. */
+		this.key += key;
+	}
+	
+	/* Set the note volume. The effect command may be replaced. */
+	public void setVolume( int volume, Module module ) {
+		/* Todo: Adjust, slide rates and tremolo depth. */
+		if( instrument != 0 ) {
+			effect = 0xC;
+			parameter = module.getInstrument( instrument ).getVolume();
+		}
+		if( effect == 0xC ) {
+			parameter = ( parameter * volume ) >> 6;
+		}
+	}
 
 	public int load( byte[] input, int offset ) {
 		int period = ( ( input[ offset ] & 0xF ) << 8 ) | ( input[ offset + 1 ] & 0xFF );
@@ -59,22 +77,7 @@ public class Note {
 		if( note.length() != 8 ) {
 			throw new IllegalArgumentException( "Malformed note (incorrect length): " + note );
 		}
-		key = 0;
-		char chr = note.charAt( 0 );
-		if( numChar( chr, 17 ) < 10 ) {
-			/* Decimal note number. */
-			key = numChar( chr, 10 ) * 100 + numChar( note.charAt( 1 ), 10 ) * 10 + numChar( note.charAt( 2 ), 10 );
-		} else {
-			/* Key string (A#1 etc.) */
-			key = stringToKey[ chr - 'A' ];
-			chr = note.charAt( 1 );
-			if( chr == '#' ) {
-				key++;
-			} else if( chr != '-' ) {
-				throw new IllegalArgumentException( "Invalid key: " + note );
-			}			
-			key += numChar( note.charAt( 2 ), 10 ) * 12;
-		}
+		key = parseKey( note );
 		instrument = numChar( note.charAt( 3 ), 10 ) * 10 + numChar( note.charAt( 4 ), 10 );
 		effect = numChar( note.charAt( 5 ), 16 );
 		parameter = ( numChar( note.charAt( 6 ), 16 ) << 4 ) + numChar( note.charAt( 7 ), 16 );
@@ -91,6 +94,27 @@ public class Note {
 		note[ 6 ] = ( ( parameter & 0xF0 ) > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
 		note[ 7 ] = ( ( parameter & 0xF ) > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
 		return new String( note );
+	}
+
+	/* Key of the form "C-2", or 3-char note number such as "025". */
+	public static int parseKey( String note ) {
+		int key = 0;
+		char chr = note.charAt( 0 );
+		if( numChar( chr, 17 ) < 10 ) {
+			/* Decimal note number. */
+			key = numChar( chr, 10 ) * 100 + numChar( note.charAt( 1 ), 10 ) * 10 + numChar( note.charAt( 2 ), 10 );
+		} else {
+			/* Key string, "C-2", "C#2", etc. */
+			key = stringToKey[ chr - 'A' ];
+			chr = note.charAt( 1 );
+			if( chr == '#' ) {
+				key++;
+			} else if( chr != '-' ) {
+				throw new IllegalArgumentException( "Invalid key: " + note );
+			}			
+			key += numChar( note.charAt( 2 ), 10 ) * 12;
+		}
+		return key;
 	}
 
 	/* Digit of the form [0-9A-Z] or hyphen (0).*/
