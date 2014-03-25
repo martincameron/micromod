@@ -26,22 +26,41 @@ public class Note {
 		return period;
 	}
 	
-	/* Adjust the relative key (0 for no change). */
-	public void transpose( int key ) {
-		/* Todo: Adjust portamento rates, slide rates and vibrato depth. */
-		this.key += key;
+	/* Adjust the relative pitch (0 for no change). */
+	public void transpose( int semitones ) {
+		if( key > 0 ) {
+			key = key + semitones;
+			if( key < 1 ) key = 0;
+		}
+		if( semitones < -36 ) semitones = -36;
+		if( semitones >  36 ) semitones =  36;
+		switch( effect ) {
+			case 0x1: case 0x2: case 0x3:
+				/* Adjust portamento rate.*/
+				parameter = parameter * keyToPeriod[ semitones + 37 ] / 214;
+				if( parameter > 255 ) parameter = 255;
+				break;
+			case 0x4:
+				/* Adjust vibrato depth.*/
+				int depth = ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ] / 214;
+				if( depth > 15 ) depth = 15;
+				parameter = ( parameter & 0xF0 ) + depth;
+				break;
+		}
 	}
 	
 	/* Set the note volume. The effect command may be replaced. */
 	public void setVolume( int volume, Module module ) {
-		/* Todo: Adjust, slide rates and tremolo depth. */
-		if( instrument != 0 ) {
+		if( volume < 0 ) volume = 0;
+		if( volume > 64 ) volume = 64;
+		if( instrument > 0 && volume < 64 ) {
 			effect = 0xC;
 			parameter = module.getInstrument( instrument ).getVolume();
 		}
 		if( effect == 0xC ) {
 			parameter = ( parameter * volume ) >> 6;
 		}
+		/* Todo: Adjust, slide rates and tremolo depth. */
 	}
 
 	public int load( byte[] input, int offset ) {
