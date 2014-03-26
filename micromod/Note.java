@@ -28,16 +28,13 @@ public class Note {
 	
 	/* Adjust the relative pitch (0 for no change). */
 	public void transpose( int semitones ) {
-		if( key > 0 ) {
-			key = key + semitones;
-			if( key < 1 ) key = 0;
-		}
+		if( semitones > 36 ) semitones = 36;
 		if( semitones < -36 ) semitones = -36;
-		if( semitones >  36 ) semitones =  36;
+		if( key > 0 ) key = key + semitones;
 		switch( effect ) {
 			case 0x1: case 0x2: case 0x3:
 				/* Adjust portamento rate.*/
-				parameter = parameter * keyToPeriod[ semitones + 37 ] / 214;
+				parameter = ( parameter & 0xFF ) * keyToPeriod[ semitones + 37 ] / 214;
 				if( parameter > 255 ) parameter = 255;
 				break;
 			case 0x4:
@@ -46,21 +43,51 @@ public class Note {
 				if( depth > 15 ) depth = 15;
 				parameter = ( parameter & 0xF0 ) + depth;
 				break;
+			case 0xE:
+				switch( parameter & 0xF0 ) {
+					case 0x10: case 0x20:
+						/* Adjust fine portamento rate.*/
+						int rate = ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ] / 214;
+						if( rate > 15 ) rate = 15;
+						parameter = ( parameter & 0xF0 ) + rate;
+						break;
+				}
+				break;
 		}
 	}
 	
-	/* Set the note volume. The effect command may be replaced. */
-	public void setVolume( int volume, Module module ) {
+	/* Reduce the note volume. The effect command may be replaced. */
+	public void attenuate( int volume, Module module ) {
 		if( volume < 0 ) volume = 0;
 		if( volume > 64 ) volume = 64;
 		if( instrument > 0 && volume < 64 ) {
+			/* Setting an instrument sets the volume. */
 			effect = 0xC;
 			parameter = module.getInstrument( instrument ).getVolume();
 		}
-		if( effect == 0xC ) {
-			parameter = ( parameter * volume ) >> 6;
+		switch( effect ) {
+			case 0x5: case 0x6: case 0xA:
+				/* Adjust volume slide rate.*/
+				int slideUp = ( ( parameter >> 4 ) & 0xF ) * volume / 64;
+				parameter = ( slideUp << 4 ) + ( parameter & 0xF ) * volume / 64;
+				break;
+			case 0x7:
+				/* Adjust tremolo depth.*/
+				parameter = ( parameter & 0xF0 ) + ( parameter & 0xF ) * volume / 64;
+				break;
+			case 0xC:
+				/* Set volume. */
+				parameter = parameter * volume / 64;
+				break;
+			case 0xE:
+				switch( parameter & 0xF0 ) {
+					case 0xA0: case 0xB0:
+						/* Adjust fine volume slide rate.*/
+						parameter = ( parameter & 0xF0 ) + ( parameter & 0xF ) * volume / 64;
+						break;
+				}
+				break;
 		}
-		/* Todo: Adjust, slide rates and tremolo depth. */
 	}
 
 	public int load( byte[] input, int offset ) {
