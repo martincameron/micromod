@@ -25,65 +25,53 @@ public class Note {
 		}
 		return period;
 	}
-	
-	/* Adjust the relative pitch (0 for no change). */
-	public void transpose( int semitones ) {
+
+	/* Adjust the relative pitch (-36 to 36 semitones) and reduce the volume (0 to 64).
+	/* The effect command may be replaced if the volume is less than 64. */
+	public void transpose( int semitones, int volume, Module module ) {
 		if( semitones > 36 ) semitones = 36;
 		if( semitones < -36 ) semitones = -36;
-		if( key > 0 ) key = key + semitones;
-		switch( effect ) {
-			case 0x1: case 0x2: case 0x3:
-				/* Adjust portamento rate.*/
-				parameter = ( parameter & 0xFF ) * keyToPeriod[ semitones + 37 ] / 214;
-				if( parameter > 255 ) parameter = 255;
-				break;
-			case 0x4:
-				/* Adjust vibrato depth.*/
-				int depth = ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ] / 214;
-				if( depth > 15 ) depth = 15;
-				parameter = ( parameter & 0xF0 ) + depth;
-				break;
-			case 0xE:
-				switch( parameter & 0xF0 ) {
-					case 0x10: case 0x20:
-						/* Adjust fine portamento rate.*/
-						int rate = ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ] / 214;
-						if( rate > 15 ) rate = 15;
-						parameter = ( parameter & 0xF0 ) + rate;
-						break;
-				}
-				break;
-		}
-	}
-	
-	/* Reduce the note volume. The effect command may be replaced. */
-	public void attenuate( int volume, Module module ) {
 		if( volume < 0 ) volume = 0;
 		if( volume > 64 ) volume = 64;
+		if( key > 0 ) key = key + semitones;
 		if( instrument > 0 && volume < 64 ) {
 			/* Setting an instrument sets the volume. */
 			effect = 0xC;
 			parameter = module.getInstrument( instrument ).getVolume();
 		}
 		switch( effect ) {
+			case 0x1: case 0x2: case 0x3:
+				/* Adjust portamento rate.*/
+				parameter = divide( ( parameter & 0xFF ) * keyToPeriod[ semitones + 37 ], 214, 255 );
+				break;
+			case 0x4:
+				/* Adjust vibrato depth.*/
+				int depth = divide( ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ], 214, 15 );
+				parameter = ( parameter & 0xF0 ) + depth;
+				break;
 			case 0x5: case 0x6: case 0xA:
 				/* Adjust volume slide rate.*/
-				int slideUp = ( ( parameter >> 4 ) & 0xF ) * volume / 64;
-				parameter = ( slideUp << 4 ) + ( parameter & 0xF ) * volume / 64;
+				int slideUp = divide( ( ( parameter >> 4 ) & 0xF ) * volume, 64, 15 );
+				parameter = ( slideUp << 4 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
 				break;
 			case 0x7:
 				/* Adjust tremolo depth.*/
-				parameter = ( parameter & 0xF0 ) + ( parameter & 0xF ) * volume / 64;
+				parameter = ( parameter & 0xF0 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
 				break;
 			case 0xC:
 				/* Set volume. */
-				parameter = parameter * volume / 64;
+				parameter = divide( parameter * volume, 64, 64 );
 				break;
 			case 0xE:
 				switch( parameter & 0xF0 ) {
+					case 0x10: case 0x20:
+						/* Adjust fine portamento rate.*/
+						int rate = divide( ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ], 214, 15 );
+						parameter = ( parameter & 0xF0 ) + rate;
+						break;
 					case 0xA0: case 0xB0:
 						/* Adjust fine volume slide rate.*/
-						parameter = ( parameter & 0xF0 ) + ( parameter & 0xF ) * volume / 64;
+						parameter = ( parameter & 0xF0 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
 						break;
 				}
 				break;
@@ -177,5 +165,12 @@ public class Note {
 			throw new IllegalArgumentException( "Invalid character: " + chr );
 		}
 		return value;
-	}	
+	}
+	
+	private static int divide( int dividend, int divisor, int maximum ) {
+		/* Divide positive integers with rounding and clipping. */
+		int quotient = ( dividend << 1 ) / divisor;
+		quotient = ( quotient >> 1 ) + ( quotient & 1 );
+		return quotient < maximum ? quotient : maximum;
+	}
 }
