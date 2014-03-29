@@ -6,12 +6,12 @@ public class Instrument implements Element {
 	private int loopStart, loopLength;
 	private AudioData audioData;
 	private Module parent;
-	private Pattern sibling;
+	private Macro sibling;
 	private Name child = new Name( this );
 	
 	public Instrument( Module parent ) {
 		this.parent = parent;
-		sibling = new Pattern( parent );
+		sibling = new Macro( parent );
 	}
 	
 	public String getToken() {
@@ -41,7 +41,7 @@ public class Instrument implements Element {
 		if( audioData != null ) {
 			instrument.setSampleData( audioData.quantize(), loopStart, loopLength );
 		}
-		System.out.println( "Instrument end." );
+		System.out.println( getToken() + " end." );
 	}
 	
 	public void setName( String name ) {
