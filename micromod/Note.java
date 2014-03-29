@@ -7,8 +7,8 @@ public class Note {
 	private static final String  hexToString = "0123456789ABCDEF";
 	private static final String  keyToString = "A-A#B-C-C#D-D#E-F-F#G-G#";
 	private static final byte[]  stringToKey = { -2, 0, 1, 3, 5, 6, 8, 10 };
-	private static final short[] keyToPeriod = { 1814,
-	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-1  A#1  B-1 */
+	private static final short[] keyToPeriod = { 1814, /*
+		 C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-1  A#1  B-1 */
 		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
 		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
 		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
@@ -141,11 +141,8 @@ public class Note {
 			/* Key string, "C-2", "C#2", etc. */
 			key = stringToKey[ chr - 'A' ];
 			chr = note.charAt( 1 );
-			if( chr == '#' ) {
-				key++;
-			} else if( chr != '-' ) {
-				throw new IllegalArgumentException( "Invalid key: " + note );
-			}			
+			if( chr == '#' ) key++;
+			if( keyToString.charAt( key * 2 + 5 ) != chr ) throw new IllegalArgumentException( "Invalid key: " + note );
 			key += numChar( note.charAt( 2 ), 10 ) * 12;
 		}
 		return key;
