@@ -27,7 +27,7 @@ public class Note {
 	}
 
 	/* Adjust the relative pitch (-36 to 36 semitones) and reduce the volume (0 to 64).
-	/* The effect command may be replaced if the volume is less than 64. */
+	/* If the volume is less than 64, the effect command may be replaced and a Module must be specified. */
 	public void transpose( int semitones, int volume, Module module ) {
 		if( semitones > 36 ) semitones = 36;
 		if( semitones < -36 ) semitones = -36;
