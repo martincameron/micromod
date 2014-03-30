@@ -34,7 +34,7 @@ public class Note {
 		if( volume < 0 ) volume = 0;
 		if( volume > 64 ) volume = 64;
 		if( key > 0 ) key = key + semitones;
-		if( instrument > 0 && volume < 64 ) {
+		if( instrument > 0 && volume < 64 && effect != 0xC ) {
 			/* Setting an instrument sets the volume. */
 			effect = 0xC;
 			parameter = module.getInstrument( instrument ).getVolume();

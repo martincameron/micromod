@@ -49,7 +49,7 @@ public class Module implements Element {
 	}
 	
 	public void setMacro( int macroIdx, micromod.Pattern macro ) {
-		macros[ macroIdx ] = macro;
+		macros[ macroIdx ] = ( macroIdx > 0 ) ? macro : null;
 	}
 	
 	public micromod.Pattern getMacro( int macroIdx ) {
