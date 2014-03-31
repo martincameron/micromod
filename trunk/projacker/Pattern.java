@@ -45,12 +45,22 @@ public class Pattern implements Element {
 				pattern.getNote( rowIdx, channelIdx, note );
 				if( note.instrument > 0 ) {
 					macro = parent.getMacro( note.instrument );
-					macroRowIdx = 0;
-					transpose = ( note.key > 0 ) ? note.key - 25 : 0;
-					volume = ( note.effect == 0xC ) ? note.parameter : 64;
+					macroRowIdx = transpose = 0;
+					volume = 64;
 				}
 				if( macro != null ) {
+					if( note.key > 0 ) {
+						transpose = note.key - 25;
+					}
+					int effect = note.effect;
+					int param = note.parameter;
 					macro.getNote( macroRowIdx++, 0, note );
+					if( effect == 0xC ) {
+						volume = param;
+					} else if( ( note.effect | note.parameter ) == 0 ) {
+						note.effect = effect;
+						note.parameter = param;
+					}
 					note.transpose( transpose, volume, parent.getModule() );
 				}
 				pattern.setNote( rowIdx++, channelIdx, note );
