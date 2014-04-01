@@ -1,10 +1,10 @@
 package projacker;
 
 public class Gain implements Element {
-	private WaveFile parent;
+	private Instrument parent;
 	private Pitch sibling;
 
-	public Gain( WaveFile parent ) {
+	public Gain( Instrument parent ) {
 		this.parent = parent;
 		sibling = new Pitch( parent );
 	}
@@ -27,7 +27,8 @@ public class Gain implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setGain( Parser.parseInteger( value ) );
+		int gain = Parser.parseInteger( value );
+		parent.setAudioData( parent.getAudioData().scale( gain ) );
 	}
 	
 	public void end() {

@@ -1,10 +1,12 @@
 package projacker;
 
 public class Pitch implements Element {
-	private WaveFile parent;
+	private Instrument parent;
+	private LoopStart sibling;
 
-	public Pitch( WaveFile parent ) {
+	public Pitch( Instrument parent ) {
 		this.parent = parent;
+		sibling = new LoopStart( parent );
 	}
 	
 	public String getToken() {
@@ -16,7 +18,7 @@ public class Pitch implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
@@ -25,7 +27,10 @@ public class Pitch implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setPitch( Parser.parseInteger( value ) );
+		int pitch = Parser.parseInteger( value );
+		AudioData audioData = parent.getAudioData();
+		double rate = audioData.getSamplingRate() * Math.pow( 2, pitch / -96.0 );
+		parent.setAudioData( audioData.resample( ( int ) Math.round( rate ) ) );
 	}
 	
 	public void end() {

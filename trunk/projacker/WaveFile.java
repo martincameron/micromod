@@ -2,13 +2,11 @@ package projacker;
 
 public class WaveFile implements Element {
 	private Instrument parent;
-	private LoopStart sibling;
-	private Gain child;
+	private Gain sibling;
 
 	public WaveFile( Instrument parent ) {
 		this.parent = parent;
-		sibling = new LoopStart( parent );
-		child = new Gain( this );
+		sibling = new Gain( parent );
 	}
 	
 	public String getToken() {
@@ -24,7 +22,7 @@ public class WaveFile implements Element {
 	}
 	
 	public Element getChild() {
-		return child;
+		return null;
 	}
 	
 	public void begin( String value ) {
@@ -38,15 +36,5 @@ public class WaveFile implements Element {
 	}
 	
 	public void end() {
-	}
-	
-	public void setGain( int gain ) {
-		parent.setAudioData( parent.getAudioData().scale( gain ) );
-	}
-	
-	public void setPitch( int pitch ) {
-		AudioData audioData = parent.getAudioData();
-		double rate = audioData.getSamplingRate() * Math.pow( 2, pitch / -96.0 );
-		parent.setAudioData( audioData.resample( ( int ) Math.round( rate ) ) );
 	}
 }
