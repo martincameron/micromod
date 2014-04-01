@@ -83,7 +83,7 @@ public class Note {
 		key = 0;
 		if( period >= keyToPeriod[ 72 ] && period <= keyToPeriod[ 1 ] ) {
 			/* Convert period to key.*/
-			while( keyToPeriod[ key + 12 ] >= period ) key += 12;
+			while( keyToPeriod[ key + 12 ] > period ) key += 12;
 			while( keyToPeriod[ key + 1 ] >= period ) key++;
 			if( ( keyToPeriod[ key ] - period ) >= ( period - keyToPeriod[ key + 1 ] ) ) key++;
 		}

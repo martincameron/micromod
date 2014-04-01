@@ -1,14 +1,14 @@
 package projacker;
 
-public class Cycles implements Element {
+public class Chorus implements Element {
 	private Waveform parent;
 
-	public Cycles( Waveform parent ) {
+	public Chorus( Waveform parent ) {
 		this.parent = parent;
 	}
 	
 	public String getToken() {
-		return "Cycles";
+		return "Chorus";
 	}
 	
 	public Element getParent() {

@@ -3,7 +3,7 @@ package projacker;
 public class Waveform implements Element {
 	private Instrument parent;
 	private WaveFile sibling;
-	private Cycles child = new Cycles( this );
+	private Chorus child = new Chorus( this );
 	private boolean squareWave;
 	private int numCycles = 1;
 
@@ -41,10 +41,9 @@ public class Waveform implements Element {
 	}
 	
 	public void end() {
-		AudioData audioData = generate( squareWave, numCycles ).resample( 8363 );
-		parent.setAudioData( audioData );
+		parent.setAudioData( generate( squareWave, numCycles ) );
 		parent.setLoopStart( 0 );
-		parent.setLoopLength( audioData.getSampleData().length );
+		parent.setLoopLength( parent.getAudioData().getSampleData().length );
 	}
 	
 	public void setNumCycles( int cycles ) {
@@ -69,6 +68,6 @@ public class Waveform implements Element {
 				}
 			}
 		}
-		return new AudioData( buf, 66904 );
+		return new AudioData( buf, 8363 * 8 );
 	}
 }
