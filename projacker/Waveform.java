@@ -42,7 +42,8 @@ public class Waveform implements Element {
 	}
 	
 	public void end() {
-		AudioData audioData = generate( squareWave, numCycles );
+		/* Ptolemy's scale: C=1 D=9/8 E=5/4 F=4/3 G=3/2 A=5/3 B=15/8 */
+		AudioData audioData = generate( squareWave, numCycles, 1, 1 );
 		if( octave > 0 ) {
 			audioData = audioData.resample( audioData.getSamplingRate() >> octave );
 		}
@@ -62,18 +63,26 @@ public class Waveform implements Element {
 		this.numCycles = cycles;
 	}
 	
+	public void setDetune( int semitones ) {
+	}
+	
 	/* Generate a sawtooth or square waveform with phase-modulation chorus if cycles is greater than 1. */
-	public static AudioData generate( boolean square, int cycles ) {		
-		byte[] buf = new byte[ 256 * cycles ];
+	public static AudioData generate( boolean square, int cycles, int ratio1, int ratio2 ) {
+		int cycleLen = 256 * ratio1 * ratio2;
+		byte[] buf = new byte[ cycleLen * cycles ];
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
 			int phase = 128 + Math.round( ( float ) Math.cos( 2 * Math.PI * cycle / cycles ) * 128f );
 			if( square ) {
-				for( int idx = 0; idx < 256; idx++ ) {
-					buf[ cycle * 256 + idx ] = ( byte ) ( ( ( idx & 0x80 ) >> 7 ) * 127 + ( ( ( idx + phase ) & 0x80 ) >> 7 ) * 127 - 128 );
+				for( int idx = 0; idx < cycleLen; idx++ ) {
+					int a1 = ( ( ( idx * ratio1 / ratio2 ) & 0x80 ) >> 7 ) * 127 - 64;
+					int a2 = ( ( ( idx + phase ) & 0x80 ) >> 7 ) * 127 - 64;
+					buf[ cycle * cycleLen + idx ] = ( byte ) ( a1 + a2 );
 				}
 			} else {
-				for( int idx = 0; idx < 256; idx++ ) {
-					buf[ cycle * 256 + idx ] = ( byte ) ( ( ( idx + phase ) % 256 + idx - 256 ) / 2 );
+				for( int idx = 0; idx < cycleLen; idx++ ) {
+					int a1 = ( ( idx * ratio1 / ratio2 ) % 256 - 128 ) / 2;
+					int a2 = ( ( idx + phase ) % 256 - 128 ) / 2;
+					buf[ cycle * cycleLen + idx ] = ( byte ) ( a1 + a2 );
 				}
 			}
 		}
