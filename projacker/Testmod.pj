@@ -6,8 +6,7 @@ Module "Test"
 	Instrument 1
 		Name "Square Wave"
 		Volume 64
-		Waveform Square Chorus 512
-		Pitch 96
+		Waveform Square Octave 3 Chorus 256
 	Macro 2	
 		Note C-2-1---
 		Note -----C38
@@ -34,5 +33,5 @@ Module "Test"
 		Row "-------- -------- -------- --------"
 		Row "-------- -------- -------- F#3-2C10"
 		Row "-------- -------- -------- --------"
-		Row "A#4-2C10 -------- -------- --------"
+		Row "C#3-2C10 -------- -------- --------"
 (End.)

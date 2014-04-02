@@ -1,14 +1,16 @@
 package projacker;
 
-public class Pitch implements Element {
-	private WaveFile parent;
+public class Octave implements Element {
+	private Waveform parent;
+	private Chorus sibling;
 
-	public Pitch( WaveFile parent ) {
+	public Octave( Waveform parent ) {
 		this.parent = parent;
+		sibling = new Chorus( parent );
 	}
 	
 	public String getToken() {
-		return "Pitch";
+		return "Octave";
 	}
 	
 	public Element getParent() {
@@ -16,7 +18,7 @@ public class Pitch implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
@@ -25,7 +27,7 @@ public class Pitch implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setPitch( Parser.parseInteger( value ) );
+		parent.setOctave( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {
