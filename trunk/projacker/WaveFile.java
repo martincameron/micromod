@@ -2,11 +2,13 @@ package projacker;
 
 public class WaveFile implements Element {
 	private Instrument parent;
-	private Gain sibling;
+	private LoopStart sibling;
+	private Gain child = new Gain( this );
+	private int gain, pitch;
 
 	public WaveFile( Instrument parent ) {
 		this.parent = parent;
-		sibling = new Gain( parent );
+		sibling = new LoopStart( parent );
 	}
 	
 	public String getToken() {
@@ -22,7 +24,7 @@ public class WaveFile implements Element {
 	}
 	
 	public Element getChild() {
-		return null;
+		return child;
 	}
 	
 	public void begin( String value ) {
@@ -30,11 +32,30 @@ public class WaveFile implements Element {
 		try {
 			// Get the left/mono channel from the wav file.
 			parent.setAudioData( new AudioData( new java.io.FileInputStream( value.toString() ), 0 ) );
+			setGain( 64 );
+			setPitch( 0 );
 		} catch( java.io.IOException e ) {
 			throw new IllegalArgumentException( e );
 		}
 	}
 	
 	public void end() {
+		AudioData audioData = parent.getAudioData();
+		if( gain != 64 ) {
+			audioData = audioData.scale( gain );
+		}
+		if( pitch != 0 ) {
+			double rate = audioData.getSamplingRate() * Math.pow( 2, pitch / -96.0 );
+			audioData = audioData.resample( ( int ) Math.round( rate ) );
+		}
+		parent.setAudioData( audioData );
+	}
+	
+	public void setGain( int gain ) {
+		this.gain = gain;
+	}
+	
+	public void setPitch( int pitch ) {
+		this.pitch = pitch;
 	}
 }

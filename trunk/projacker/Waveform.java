@@ -3,9 +3,9 @@ package projacker;
 public class Waveform implements Element {
 	private Instrument parent;
 	private WaveFile sibling;
-	private Chorus child = new Chorus( this );
+	private Octave child = new Octave( this );
 	private boolean squareWave;
-	private int numCycles = 1;
+	private int octave, numCycles;
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -37,13 +37,22 @@ public class Waveform implements Element {
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
+		setOctave( 0 );
 		setNumCycles( 1 );
 	}
 	
 	public void end() {
-		parent.setAudioData( generate( squareWave, numCycles ) );
+		AudioData audioData = generate( squareWave, numCycles );
+		if( octave > 0 ) {
+			audioData = audioData.resample( audioData.getSamplingRate() >> octave );
+		}
+		parent.setAudioData( audioData );
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getSampleData().length );
+	}
+	
+	public void setOctave( int octave ) {
+		this.octave = octave;
 	}
 	
 	public void setNumCycles( int cycles ) {
@@ -68,6 +77,6 @@ public class Waveform implements Element {
 				}
 			}
 		}
-		return new AudioData( buf, 8363 * 8 );
+		return new AudioData( buf, 256 * 262 );
 	}
 }
