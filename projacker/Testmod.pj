@@ -6,7 +6,7 @@ Module "Test"
 	Instrument 1
 		Name "Square Wave"
 		Volume 64
-		Waveform Square Octave 3 Chorus 256
+		Waveform Square Octave 2 Chorus 256
 	Macro 2	
 		Note C-2-1---
 		Note -----C38
