@@ -37,7 +37,7 @@ public class Waveform implements Element {
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
-		setOctave( 0 );
+		setOctave( 3 );
 		setNumCycles( 1 );
 	}
 	
