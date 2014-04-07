@@ -1,46 +1,22 @@
 
 package projacker;
 
-public class Macro implements Element {
-	private Module parent;
-	private Pattern sibling;
-	private Note child = new Note( this );
-	private micromod.Pattern pattern;
-	private int macroIdx, rowIdx;
+public class Macro {
+	private String scale, root;
+	private micromod.Pattern notes;
 	
-	public Macro( Module parent ) {
-		this.parent = parent;
-		sibling = new Pattern( parent );
+	public Macro( String scale, String root, micromod.Pattern notes ) {
+		this.scale = ( scale != null ) ? scale : "C#D#EF#G#A#B";
+		this.root = ( root != null ) ? root : "C-2" ;
+		this.notes = notes;
 	}
 	
-	public String getToken() {
-		return "Macro";
+	public void expand( Pattern pattern, int channelIdx, int rowIdx ) {
+		// Expand macro into Pattern until end or another note is set.
 	}
 	
-	public Element getParent() {
-		return parent;
-	}
-	
-	public Element getSibling() {
-		return sibling;
-	}
-	
-	public Element getChild() {
-		return child;
-	}
-	
-	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
-		pattern = new micromod.Pattern( 1 );
-		macroIdx = Parser.parseInteger( value );
-		rowIdx = 0;
-	}
-	
-	public void end() {
-		parent.setMacro( macroIdx, pattern );
-	}
-	
-	public void nextNote( micromod.Note note ) {
-		pattern.setNote( rowIdx++, 0, note );
+	public void getNote( int rowIdx, micromod.Note note ) {
+		// Temporary until expand() implemented.
+		notes.getNote( rowIdx, 0, note );
 	}
 }

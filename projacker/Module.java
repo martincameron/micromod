@@ -3,7 +3,7 @@ package projacker;
 
 public class Module implements Element {
 	private micromod.Module module;
-	private micromod.Pattern[] macros = new micromod.Pattern[ 100 ];
+	private Macro[] macros = new Macro[ 100 ];
 	private Channels child = new Channels( this );
 
 	public String getToken() {
@@ -48,11 +48,11 @@ public class Module implements Element {
 		return module.getInstrument( insIdx );
 	}
 	
-	public void setMacro( int macroIdx, micromod.Pattern macro ) {
-		macros[ macroIdx ] = ( macroIdx > 0 ) ? macro : null;
+	public void setMacro( int macroIdx, Macro macro ) {
+		macros[ macroIdx ] = macro;
 	}
 	
-	public micromod.Pattern getMacro( int macroIdx ) {
+	public Macro getMacro( int macroIdx ) {
 		return macros[ macroIdx ];
 	}
 	
