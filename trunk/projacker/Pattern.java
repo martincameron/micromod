@@ -38,7 +38,7 @@ public class Pattern implements Element {
 		micromod.Note note = new micromod.Note();
 		int numChannels = pattern.getNumChannels();
 		for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
-			micromod.Pattern macro = null;
+			Macro macro = null;
 			int rowIdx = 0;
 			int macroRowIdx = 0, transpose = 0, volume = 64;
 			while( rowIdx < micromod.Pattern.NUM_ROWS ) {
@@ -54,7 +54,7 @@ public class Pattern implements Element {
 					}
 					int effect = note.effect;
 					int param = note.parameter;
-					macro.getNote( macroRowIdx++, 0, note );
+					macro.getNote( macroRowIdx++, note );
 					if( effect == 0xC ) {
 						volume = param;
 					} else if( ( note.effect | note.parameter ) == 0 ) {

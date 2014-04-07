@@ -1,16 +1,17 @@
 
 package projacker;
 
-public class Note implements Element {
+public class Root implements Element {
 	private MacroElement parent;
-	private micromod.Note note = new micromod.Note();
+	private Note sibling;
 	
-	public Note( MacroElement parent ) {
+	public Root( MacroElement parent ) {
 		this.parent = parent;
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
-		return "Note";
+		return "Root";
 	}
 	
 	public Element getParent() {
@@ -18,7 +19,7 @@ public class Note implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
@@ -26,10 +27,10 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		note.fromString( value );
-		parent.nextNote( note );
+		System.out.println( getToken() + ": " + value );
+		parent.setRoot( value );
 	}
 	
 	public void end() {
-	}	
+	}
 }

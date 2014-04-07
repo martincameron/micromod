@@ -6,12 +6,12 @@ public class Instrument implements Element {
 	private int loopStart, loopLength;
 	private AudioData audioData;
 	private Module parent;
-	private Macro sibling;
+	private MacroElement sibling;
 	private Name child = new Name( this );
 	
 	public Instrument( Module parent ) {
 		this.parent = parent;
-		sibling = new Macro( parent );
+		sibling = new MacroElement( parent );
 	}
 	
 	public String getToken() {
