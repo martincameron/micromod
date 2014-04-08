@@ -50,7 +50,7 @@ public class Pattern implements Element {
 				}
 				if( macro != null ) {
 					if( note.key > 0 ) {
-						transpose = note.key - 25;
+						transpose = macro.getTranspose( note.key );
 					}
 					int effect = note.effect;
 					int param = note.parameter;
@@ -61,7 +61,7 @@ public class Pattern implements Element {
 						note.effect = effect;
 						note.parameter = param;
 					}
-					note.transpose( transpose, volume, parent.getModule() );
+					macro.transpose( note, transpose, volume, parent.getModule() );
 				}
 				pattern.setNote( rowIdx++, channelIdx, note );
 			}

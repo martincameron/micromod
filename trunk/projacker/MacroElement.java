@@ -4,7 +4,7 @@ package projacker;
 public class MacroElement implements Element {
 	private Module parent;
 	private Pattern sibling;
-	private Scale child = new Scale( this );
+	private ScaleElement child = new ScaleElement( this );
 	private micromod.Pattern pattern;
 	private int macroIdx, rowIdx;
 	private String scale, root;
