@@ -119,9 +119,7 @@ public class Note {
 
 	public String toString() {
 		char[] note = new char[ 8 ];
-		note[ 0 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 ) : '-';
-		note[ 1 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 + 1 ) : '-';
-		note[ 2 ] = ( key > 0 && key < 118 ) ? ( char ) ( '0' + ( key + 2 ) / 12 ) : '-';
+		keyToChars( key, note );
 		note[ 3 ] = ( instrument > 9 && instrument < 100 ) ? ( char ) ( '0' + instrument / 10 ) : '-';
 		note[ 4 ] = ( instrument > 0 && instrument < 100 ) ? ( char ) ( '0' + instrument % 10 ) : '-';
 		note[ 5 ] = ( effect > 0 && effect < 16 ) ? hexToString.charAt( effect ) : '-';
@@ -146,6 +144,18 @@ public class Note {
 			key += numChar( note.charAt( 2 ), 10 ) * 12;
 		}
 		return key;
+	}
+
+	public static String keyToString( int key ) {
+		char[] chars = new char[ 3 ];
+		keyToChars( key, chars );
+		return new String( chars );
+	}
+
+	private static void keyToChars( int key, char[] out ) {
+		out[ 0 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 ) : '-';
+		out[ 1 ] = ( key > 0 && key < 118 ) ? keyToString.charAt( ( ( key + 2 ) % 12 ) * 2 + 1 ) : '-';
+		out[ 2 ] = ( key > 0 && key < 118 ) ? ( char ) ( '0' + ( key + 2 ) / 12 ) : '-';
 	}
 
 	/* Digit of the form [0-9A-Z] or hyphen (0).*/
