@@ -26,14 +26,18 @@ public class Note {
 		return period;
 	}
 
-	/* Adjust the relative pitch (-36 to 36 semitones) and reduce the volume (0 to 64).
+	/* Adjust the pitch by the specified number of notes on the given scale and reduce the volume (0 to 64).
 	/* If the volume is less than 64, the effect command may be replaced and a Module must be specified. */
-	public void transpose( int semitones, int volume, Module module ) {
-		if( semitones > 36 ) semitones = 36;
-		if( semitones < -36 ) semitones = -36;
+	public void transpose( Scale scale, int pitch, int volume, Module module ) {
+		int semitones = 0;
+		if( key > 0 ) {
+			semitones = scale.transpose( key, pitch ) - key;
+			if( semitones > 36 ) semitones = 36;
+			if( semitones < -36 ) semitones = -36;
+			key = key + semitones;
+		}
 		if( volume < 0 ) volume = 0;
 		if( volume > 64 ) volume = 64;
-		if( key > 0 ) key = key + semitones;
 		if( instrument > 0 && volume < 64 && effect != 0xC ) {
 			/* Setting an instrument sets the volume. */
 			effect = 0xC;

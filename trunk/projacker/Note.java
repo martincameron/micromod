@@ -2,10 +2,10 @@
 package projacker;
 
 public class Note implements Element {
-	private MacroElement parent;
+	private Macro parent;
 	private micromod.Note note = new micromod.Note();
 	
-	public Note( MacroElement parent ) {
+	public Note( Macro parent ) {
 		this.parent = parent;
 	}
 	
