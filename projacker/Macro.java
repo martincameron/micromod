@@ -1,33 +1,55 @@
 
 package projacker;
 
-public class Macro {
-	private Scale scale;
-	private int rootKey;
-	private micromod.Pattern notes;
+public class Macro implements Element {
+	private Module parent;
+	private Pattern sibling;
+	private Scale child = new Scale( this );
+	private micromod.Pattern pattern;
+	private int macroIdx, rowIdx;
+	private String scale, root;
 	
-	public Macro( String scale, String root, micromod.Pattern notes ) {
-		this.scale = new Scale( scale != null ? scale : Scale.CHROMATIC );
-		this.rootKey = micromod.Note.parseKey( root != null ? root : "C-2" );
-		this.notes = notes;
-	}
-	
-	public void expand( Pattern pattern, int channelIdx, int rowIdx ) {
-		// Expand macro into Pattern until end or another note is set.
+	public Macro( Module parent ) {
+		this.parent = parent;
+		sibling = new Pattern( parent );
 	}
 	
-	public void getNote( int rowIdx, micromod.Note note ) {
-		// Temporary until expand() implemented.
-		notes.getNote( rowIdx, 0, note );
+	public String getToken() {
+		return "Macro";
 	}
-	public int getTranspose( int key ) {
-		return scale.getDistance( rootKey, key );
+	
+	public Element getParent() {
+		return parent;
 	}
-	public void transpose( micromod.Note note, int distance, int volume, micromod.Module module ) {
-		int semitones = 0;
-		if( note.key > 0 ) {
-			semitones = scale.transpose( note.key, distance ) - note.key;
-		}
-		note.transpose( semitones, volume, module );
+	
+	public Element getSibling() {
+		return sibling;
+	}
+	
+	public Element getChild() {
+		return child;
+	}
+	
+	public void begin( String value ) {
+		System.out.println( getToken() + ": " + value );
+		pattern = new micromod.Pattern( 1 );
+		macroIdx = Parser.parseInteger( value );
+		rowIdx = 0;
+	}
+	
+	public void end() {
+		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern ) );
+	}
+	
+	public void setScale( String scale ) {
+		this.scale = scale;
+	}
+	
+	public void setRoot( String root ) {
+		this.root = root;
+	}
+	
+	public void nextNote( micromod.Note note ) {
+		pattern.setNote( rowIdx++, 0, note );
 	}
 }

@@ -3,7 +3,6 @@ package projacker;
 public class Pattern implements Element {
 	private Module parent;
 	private Row child = new Row( this );
-	private micromod.Pattern pattern;
 	private int patternIdx;
 
 	public Pattern( Module parent ) {
@@ -29,41 +28,25 @@ public class Pattern implements Element {
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
 		patternIdx = Parser.parseInteger( value );
-		pattern = parent.getPattern( patternIdx );
 		child.setRowIdx( 0 );
 	}
 	
 	public void end() {
 		/* Expand macros.*/
+		micromod.Pattern pattern = parent.getPattern( patternIdx );
 		micromod.Note note = new micromod.Note();
 		int numChannels = pattern.getNumChannels();
 		for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
-			Macro macro = null;
-			int rowIdx = 0;
-			int macroRowIdx = 0, transpose = 0, volume = 64;
-			while( rowIdx < micromod.Pattern.NUM_ROWS ) {
+			for( int rowIdx = 0; rowIdx < micromod.Pattern.NUM_ROWS; rowIdx++ ) {
 				pattern.getNote( rowIdx, channelIdx, note );
 				if( note.instrument > 0 ) {
-					macro = parent.getMacro( note.instrument );
-					macroRowIdx = transpose = 0;
-					volume = 64;
-				}
-				if( macro != null ) {
-					if( note.key > 0 ) {
-						transpose = macro.getTranspose( note.key );
+					micromod.Macro macro = parent.getMacro( note.instrument );
+					if( macro != null ) {
+						note.instrument = 0;
+						pattern.setNote( rowIdx, channelIdx, note );
+						macro.expand( parent.getModule(), patternIdx, channelIdx, rowIdx );
 					}
-					int effect = note.effect;
-					int param = note.parameter;
-					macro.getNote( macroRowIdx++, note );
-					if( effect == 0xC ) {
-						volume = param;
-					} else if( ( note.effect | note.parameter ) == 0 ) {
-						note.effect = effect;
-						note.parameter = param;
-					}
-					macro.transpose( note, transpose, volume, parent.getModule() );
 				}
-				pattern.setNote( rowIdx++, channelIdx, note );
 			}
 		}
 	}
@@ -73,6 +56,6 @@ public class Pattern implements Element {
 	}
 	
 	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
-		pattern.setNote( rowIdx, channelIdx, note );
+		parent.getPattern( patternIdx ).setNote( rowIdx, channelIdx, note );
 	}
 }

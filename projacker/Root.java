@@ -2,10 +2,10 @@
 package projacker;
 
 public class Root implements Element {
-	private MacroElement parent;
+	private Macro parent;
 	private Note sibling;
 	
-	public Root( MacroElement parent ) {
+	public Root( Macro parent ) {
 		this.parent = parent;
 		sibling = new Note( parent );
 	}
