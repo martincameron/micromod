@@ -14,7 +14,7 @@ public class Macro {
 	
 	/* Expand macro into Pattern until end or an instrument is set. */
 	public void expand( Module module, int patternIdx, int channelIdx, int rowIdx ) {
-		int macroRowIdx = 0, distance = 0, volume = 64;
+		int macroRowIdx = 0, srcKey = 0, dstKey = 0, distance = 0, volume = 64;
 		Pattern pattern = module.getPattern( patternIdx );
 		Note note = new Note();
 		while( rowIdx < Pattern.NUM_ROWS ) {
@@ -34,7 +34,23 @@ public class Macro {
 				note.effect = effect;
 				note.parameter = param;
 			}
-			note.transpose( scale, distance, volume, module );
+			int semitones = 0;
+			if( note.key > 0 ) {
+				srcKey = note.key;
+				dstKey = scale.transpose( srcKey, distance );
+				semitones = dstKey - srcKey;
+			}
+			note.transpose( semitones, volume, module );
+			if( srcKey > 0 && note.effect == 0 && note.parameter != 0 ) {
+				/* Adjust arpeggio.*/
+				int dist = scale.getDistance( srcKey, srcKey + ( ( note.parameter >> 4 ) & 0xF ) );
+				int arp1 = scale.transpose( srcKey, distance + dist ) - dstKey;
+				if( arp1 > 15 ) arp1 = ( arp1 - 3 ) % 12 + 3;
+				dist = scale.getDistance( srcKey, srcKey + ( note.parameter & 0xF ) );
+				int arp2 = scale.transpose( srcKey, distance + dist ) - dstKey;
+				if( arp2 > 15 ) arp2 = ( arp2 - 3 ) % 12 + 3;
+				note.parameter = ( arp1 << 4 ) + ( arp2 & 0xF );
+			}
 			pattern.setNote( rowIdx++, channelIdx, note );
 		}
 	}
