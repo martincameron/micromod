@@ -33,12 +33,34 @@ public class Scale {
 		return getNoteIdx( destKey ) - getNoteIdx( srcKey );
 	}
 	
+	/* Transpose a key the specified number of notes on the scale.*/
 	public int transpose( int key, int distance ) {
 		int noteIdx = getNoteIdx( key );
 		while( key > 0 && keys[ key ] != noteIdx + distance ) {
 			key = ( key + ( distance > 0 ? 1 : -1 ) ) % keys.length;
 		}
 		return key;
+	}
+	
+	/* Return a String representation of this scale transposed
+	   the specified number of semitones. */
+	public String transpose( int semitones ) {
+		if( semitones > 0 ) {
+			semitones = semitones % 12;
+		}
+		char[] chars = new char[ 12 ];
+		for( int idx = 0; idx < 12; idx++ ) {
+			if( keys[ ( idx + 12 - semitones ) % 12 + 1 ] > 0 ) {
+				chars[ idx ] = CHROMATIC.charAt( idx );
+			} else {
+				chars[ idx ] = '-';
+			}
+		}
+		return new String( chars );
+	}
+	
+	public String toString() {
+		return transpose( 0 );
 	}
 	
 	private int getNoteIdx( int key ) {
