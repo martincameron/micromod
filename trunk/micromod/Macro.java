@@ -6,12 +6,25 @@ public class Macro {
 	private int rootKey;
 	private Pattern notes;
 	
-	public Macro( String scale, String root, Pattern notes ) {
+	public Macro( String scale, String rootKey, Pattern notes ) {
 		this.scale = new Scale( scale != null ? scale : Scale.CHROMATIC );
-		this.rootKey = Note.parseKey( root != null ? root : "C-2" );
-		this.notes = notes;
+		this.rootKey = Note.parseKey( rootKey != null ? rootKey : "C-2" );
+		this.notes = new Pattern( 1, notes );
 	}
-	
+
+	/* Return a new Macro with the notes transposed to the specified key.*/
+	public Macro transpose( String key ) {
+		int semitones = Note.parseKey( key ) - rootKey;
+		Pattern pattern = new Pattern( 1, notes );
+		Note note = new Note();
+		for( int rowIdx = 0; rowIdx < 64; rowIdx++ ) {
+			pattern.getNote( rowIdx, 0, note );
+			note.transpose( semitones, 64, null );
+			pattern.setNote( rowIdx, 0, note );
+		}
+		return new Macro( scale.transpose( semitones ), key, pattern );
+	}
+
 	/* Expand macro into Pattern until end or an instrument is set. */
 	public void expand( Module module, int patternIdx, int channelIdx, int rowIdx ) {
 		int macroRowIdx = 0, srcKey = 0, dstKey = 0, distance = 0, volume = 64;
