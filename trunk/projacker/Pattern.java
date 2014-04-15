@@ -44,7 +44,7 @@ public class Pattern implements Element {
 					if( macro != null ) {
 						note.instrument = 0;
 						pattern.setNote( rowIdx, channelIdx, note );
-						macro.expand( parent.getModule(), patternIdx, channelIdx, rowIdx );
+						macro.expand( parent.getModule(), patternIdx, channelIdx, rowIdx, -1 );
 					}
 				}
 			}
