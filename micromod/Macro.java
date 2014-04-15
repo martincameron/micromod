@@ -25,12 +25,21 @@ public class Macro {
 		return new Macro( scale.transpose( semitones ), key, pattern );
 	}
 
-	/* Expand macro into Pattern until end or an instrument is set. */
-	public void expand( Module module, int patternIdx, int channelIdx, int rowIdx ) {
+	/* Expand macro into the specified pattern until end or an instrument is set. */
+	/* When the end of the pattern is reached, macro expansion continues into the */
+	/* pattern specified by patternIdx2 unless a negative index is specified. */
+	public void expand( Module module, int patternIdx, int channelIdx, int rowIdx, int patternIdx2 ) {
 		int macroRowIdx = 0, srcKey = 0, dstKey = 0, distance = 0, volume = 64;
 		Pattern pattern = module.getPattern( patternIdx );
 		Note note = new Note();
-		while( rowIdx < Pattern.NUM_ROWS ) {
+		while( macroRowIdx < Pattern.NUM_ROWS ) {
+			if( rowIdx >= Pattern.NUM_ROWS ) {
+				if( patternIdx2 < 0 ) {
+					break;
+				}
+				pattern = module.getPattern( patternIdx2 );
+				rowIdx = 0;
+			}
 			pattern.getNote( rowIdx, channelIdx, note );
 			if( note.instrument > 0 ) {
 				break;
