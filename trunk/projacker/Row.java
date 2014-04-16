@@ -27,13 +27,19 @@ public class Row implements Element {
 	public void begin( String row ) {
 		String[] notes = Parser.split( row, ' ' );
 		micromod.Note output = new micromod.Note();
-		for( int chanIdx = 0; chanIdx < notes.length; chanIdx++ ) {
+		int noteIdx = 0;
+		if( notes[ noteIdx ].length() < 4 ) {
+			rowIdx = Parser.parseInteger( notes[ noteIdx++ ] );
+		}
+		int chanIdx = 0;
+		while( noteIdx < notes.length ) {
 			try {
-				output.fromString( notes[ chanIdx ] );
+				output.fromString( notes[ noteIdx++ ] );
 				parent.setNote( rowIdx, chanIdx, output );
+				chanIdx++;
 			} catch( IllegalArgumentException e ) {
-				String msg = "Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + chanIdx;
-				throw new IllegalArgumentException( msg + " " + e.getMessage() );
+				String msg = "At Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + chanIdx;
+				throw new IllegalArgumentException( msg + ": " + e.getMessage() );
 			}
 		}
 		rowIdx++;

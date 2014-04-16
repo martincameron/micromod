@@ -29,6 +29,12 @@ public class Pattern {
 	}
 
 	public void getNote( int row, int channel, Note note ) {
+		if( row < 0 || row >= NUM_ROWS ) {
+			throw new IllegalArgumentException( "Row out of range (0 to " + ( NUM_ROWS - 1 ) + "): " + row );
+		}
+		if( channel < 0 || channel >= numChannels ) {
+			throw new IllegalArgumentException( "Channel out of range (0 to " + ( numChannels - 1 ) + "): " + channel );
+		}
 		int patternDataIdx = ( row * numChannels + channel ) * 4;
 		note.key = patternData[ patternDataIdx ] & 0xFF;
 		note.instrument = patternData[ patternDataIdx + 1 ] & 0xFF;
@@ -37,6 +43,12 @@ public class Pattern {
 	}
 	
 	public void setNote( int row, int channel, Note note ) {
+		if( row < 0 || row >= NUM_ROWS ) {
+			throw new IllegalArgumentException( "Row out of range (0 to " + ( NUM_ROWS - 1 ) + "): " + row );
+		}
+		if( channel < 0 || channel >= numChannels ) {
+			throw new IllegalArgumentException( "Channel out of range (0 to " + ( numChannels - 1 ) + "): " + channel );
+		}
 		int patternDataIdx = ( row * numChannels + channel ) * 4;
 		patternData[ patternDataIdx ] = ( byte ) note.key;
 		patternData[ patternDataIdx + 1 ] = ( byte ) note.instrument;
