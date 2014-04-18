@@ -29,7 +29,11 @@ public class Row implements Element {
 		micromod.Note output = new micromod.Note();
 		int noteIdx = 0;
 		if( notes[ noteIdx ].length() < 4 ) {
-			rowIdx = Parser.parseInteger( notes[ noteIdx++ ] );
+			int idx = Parser.parseInteger( notes[ noteIdx++ ] );
+			if( idx < rowIdx ) {
+				throw new IllegalArgumentException( "Row index is less less than current (" + rowIdx + "): " + idx );
+			}
+			rowIdx = idx;
 		}
 		int chanIdx = 0;
 		while( noteIdx < notes.length ) {
@@ -38,7 +42,7 @@ public class Row implements Element {
 				parent.setNote( rowIdx, chanIdx, output );
 				chanIdx++;
 			} catch( IllegalArgumentException e ) {
-				String msg = "At Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + chanIdx;
+				String msg = "At Pattern " + parent.getPatternList() + " Row " + rowIdx + " Channel " + chanIdx;
 				throw new IllegalArgumentException( msg + ": " + e.getMessage() );
 			}
 		}
