@@ -44,7 +44,7 @@ public class Waveform implements Element {
 	public void end() {
 		AudioData audioData = generate( squareWave, numCycles );
 		if( octave > 0 ) {
-			audioData = audioData.resample( audioData.getSamplingRate() >> octave );
+			audioData = audioData.resample( audioData.getSamplingRate() >> octave, true );
 		}
 		parent.setAudioData( audioData );
 		parent.setLoopStart( 0 );
