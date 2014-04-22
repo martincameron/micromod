@@ -7,7 +7,7 @@ import java.io.OutputStream;
 
 public class AudioData {
 	private static final int
-		FP_SHIFT = 7, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1, TAPS = 64, DELAY = TAPS >> 1;
+		FP_SHIFT = 7, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1, HTAPS = 32;
 	
 	private int sampleRate;
 	private short[] sampleData;
@@ -197,21 +197,30 @@ public class AudioData {
 	}
 
 	public AudioData resample( int samplingRate ) {
-		int len = sampleData.length;
-		short[] inputBuf = new short[ len + TAPS ];
-		for( int idx = 0; idx < len; idx++ ) {
-			inputBuf[ idx + DELAY - 1 ] = sampleData[ idx ];
+		return resample( samplingRate, false );
+	}
+
+	public AudioData resample( int samplingRate, boolean periodic ) {
+		short[] inputBuf = new short[ sampleData.length + HTAPS * 2 ];
+		if( periodic ) {
+			for( int idx = 0; idx < inputBuf.length; idx++ ) {
+				inputBuf[ idx ] = sampleData[ ( idx + sampleData.length * HTAPS - HTAPS + 1 ) % sampleData.length ];
+			}
+		} else {
+			for( int idx = 0; idx < sampleData.length; idx++ ) {
+				inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
+			}
 		}
 		int step = ( this.sampleRate << FP_SHIFT ) / samplingRate;
-		int outputLen = ( len << FP_SHIFT ) / step;
+		int outputLen = ( sampleData.length << FP_SHIFT ) / step;
 		short[] outputBuf = new short[ outputLen ];
 		float[] sinc = sincTable( step > FP_ONE ? FP_ONE / ( double ) step : 1.0 );
 		int inputIdx = 0;
 		for( int outputIdx = 0; outputIdx < outputLen; outputIdx++ ) {
 			float a = 0;
-			for( int tap = 0; tap < DELAY; tap++ ) {
-				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap ] * sinc[ ( ( DELAY - tap - 1 ) << FP_SHIFT ) + ( inputIdx & FP_MASK ) ];
-				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap + DELAY ] * sinc[ ( ( tap + 1 ) << FP_SHIFT ) - ( inputIdx & FP_MASK ) ];
+			for( int tap = 0; tap < HTAPS; tap++ ) {
+				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap ] * sinc[ ( ( HTAPS - tap - 1 ) << FP_SHIFT ) + ( inputIdx & FP_MASK ) ];
+				a = a + inputBuf[ ( inputIdx >> FP_SHIFT ) + tap + HTAPS ] * sinc[ ( ( tap + 1 ) << FP_SHIFT ) - ( inputIdx & FP_MASK ) ];
 			}
 			if( a < -32768 ) a = -32768;
 			if( a >  32767 ) a =  32767;
@@ -222,7 +231,7 @@ public class AudioData {
 	}
 
 	private static float[] sincTable( double bandwidth ) {
-		int len = TAPS * FP_ONE / 2;
+		int len = HTAPS * FP_ONE;
 		float[] tab = new float[ len + 1 ];
 		tab[ 0 ] = ( float ) bandwidth;
 		for( int idx = 1; idx < len; idx++ ) {
