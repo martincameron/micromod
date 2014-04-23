@@ -5,8 +5,9 @@ package projacker;
 public class ProJacker {
 	public static void main( String[] args ) throws Exception {
 		if( args.length > 0 ) {
-			Module module = new Module();
-			Parser.parse( new java.io.InputStreamReader( new java.io.FileInputStream( args[ 0 ] ) ), module );
+			java.io.File inputFile = new java.io.File( args[ 0 ] );
+			Module module = new Module( inputFile.getParentFile() );
+			Parser.parse( new java.io.InputStreamReader( new java.io.FileInputStream( inputFile ) ), module );
 			if( args.length > 1 ) {
 				java.io.OutputStream outputStream = new java.io.FileOutputStream( args[ 1 ] );
 				try{
