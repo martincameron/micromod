@@ -26,21 +26,22 @@ public class Macro {
 	}
 
 	/* Expand macro into the specified pattern until end or an instrument is set. */
-	/* When the end of the pattern is reached, macro expansion continues into the */
-	/* pattern specified by patternIdx2 unless a negative index is specified. */
-	public void expand( Module module, int patternIdx, int channelIdx, int rowIdx, int patternIdx2 ) {
+	public int expand( Module module, int patternIdx, int channelIdx, int rowIdx ) {
+		return expand( module, new int[] { patternIdx }, channelIdx, rowIdx );
+	}
+
+	/* Treat the specified patterns as a single large pattern and expand macro
+	   until the end or an instrument is set. The final row index is returned. */
+	public int expand( Module module, int[] patterns, int channelIdx, int rowIdx ) {
 		int macroRowIdx = 0, srcKey = 0, dstKey = 0, distance = 0, volume = 64;
-		Pattern pattern = module.getPattern( patternIdx );
 		Note note = new Note();
 		while( macroRowIdx < Pattern.NUM_ROWS ) {
-			if( rowIdx >= Pattern.NUM_ROWS ) {
-				if( patternIdx2 < 0 ) {
-					break;
-				}
-				pattern = module.getPattern( patternIdx2 );
-				rowIdx = 0;
+			int patternsIdx = rowIdx / Pattern.NUM_ROWS;
+			if( patternsIdx >= patterns.length ) {
+				break;
 			}
-			pattern.getNote( rowIdx, channelIdx, note );
+			Pattern pattern = module.getPattern( patterns[ patternsIdx ] );
+			pattern.getNote( rowIdx % Pattern.NUM_ROWS, channelIdx, note );
 			if( note.instrument > 0 ) {
 				break;
 			}
@@ -77,7 +78,8 @@ public class Macro {
 				if( arp2 > 15 ) arp2 = ( arp2 - 3 ) % 12 + 3;
 				note.parameter = ( arp1 << 4 ) + ( arp2 & 0xF );
 			}
-			pattern.setNote( rowIdx++, channelIdx, note );
+			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
+		return rowIdx;
 	}
 }
