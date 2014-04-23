@@ -34,25 +34,32 @@ public class Pattern implements Element {
 	public void end() {
 		/* Expand macros.*/
 		micromod.Note note = new micromod.Note();
-		for( int patternsIdx = 0; patternsIdx < patterns.length; patternsIdx++ ) {
-			int patternIdx = patterns[ patternsIdx ];
-			int patternIdx2 = ( patternsIdx + 1 ) < patterns.length ? patterns[ patternsIdx + 1 ] : -1;
-			micromod.Pattern pattern = parent.getPattern( patternIdx );
-			int numChannels = pattern.getNumChannels();
-			for( int rowIdx = 0; rowIdx < micromod.Pattern.NUM_ROWS; rowIdx++ ) {
-				for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
-					pattern.getNote( rowIdx, channelIdx, note );
-					if( note.instrument > 0 ) {
-						micromod.Macro macro = parent.getMacro( note.instrument );
-						if( macro != null ) {
-							note.instrument = 0;
-							pattern.setNote( rowIdx, channelIdx, note );
-							macro.expand( parent.getModule(), patternIdx, channelIdx, rowIdx, patternIdx2 );
-						}
-					}
+		int numChannels = parent.getModule().getNumChannels();
+		for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
+			int rowIdx = 0;
+			int numRows = patterns.length * micromod.Pattern.NUM_ROWS;
+			while( rowIdx < numRows ) {
+				micromod.Pattern pattern = parent.getPattern( patterns[ rowIdx / micromod.Pattern.NUM_ROWS ] );
+				pattern.getNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
+				micromod.Macro macro = ( note.instrument > 0 ) ? parent.getMacro( note.instrument ) : null;
+				if( macro != null ) {
+					note.instrument = 0;
+					pattern.setNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
+					rowIdx = macro.expand( parent.getModule(), patterns, channelIdx, rowIdx );
+				} else {
+					rowIdx++;
 				}
 			}
 		}
+	}
+	
+	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
+		int numRows = patterns.length * micromod.Pattern.NUM_ROWS;
+		if( rowIdx >= numRows ) {
+			throw new IllegalArgumentException( "Row index out of range (0 to " + ( numRows - 1 ) + "): " + rowIdx );
+		}
+		int patternsIdx = rowIdx / micromod.Pattern.NUM_ROWS;
+		parent.getPattern( patterns[ patternsIdx ] ).setNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
 	}
 	
 	public String getPatternList() {
@@ -63,14 +70,5 @@ public class Pattern implements Element {
 			stringBuilder.append( patterns[ idx ] );
 		}
 		return stringBuilder.toString();
-	}
-	
-	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
-		int maxRowIdx = patterns.length * micromod.Pattern.NUM_ROWS - 1;
-		if( rowIdx > maxRowIdx ) {
-			throw new IllegalArgumentException( "Row index out of range (0 to " + maxRowIdx + "): " + rowIdx );
-		}
-		int patternsIdx = rowIdx / micromod.Pattern.NUM_ROWS;
-		parent.getPattern( patterns[ patternsIdx ] ).setNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
 	}
 }
