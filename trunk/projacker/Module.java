@@ -5,6 +5,11 @@ public class Module implements Element {
 	private micromod.Module module;
 	private micromod.Macro[] macros = new micromod.Macro[ 100 ];
 	private Channels child = new Channels( this );
+	private java.io.File resourceDir;
+
+	public Module( java.io.File resourceDir ) {
+		this.resourceDir = resourceDir;
+	}
 
 	public String getToken() {
 		return "Module";
@@ -62,5 +67,9 @@ public class Module implements Element {
 	
 	public micromod.Module getModule() {
 		return module;
+	}
+	
+	public java.io.InputStream getInputStream( String path ) throws java.io.IOException {
+		return new java.io.FileInputStream( new java.io.File( resourceDir, path ) );
 	}
 }

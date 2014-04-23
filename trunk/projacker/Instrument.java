@@ -71,4 +71,8 @@ public class Instrument implements Element {
 	public void setLoopLength( int loopLength ) {
 		this.loopLength = loopLength;
 	}
+	
+	public java.io.InputStream getInputStream( String path ) throws java.io.IOException {
+		return parent.getInputStream( path );
+	}
 }
