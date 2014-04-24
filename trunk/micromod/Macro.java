@@ -33,7 +33,7 @@ public class Macro {
 	/* Treat the specified patterns as a single large pattern and expand macro
 	   until the end or an instrument is set. The final row index is returned. */
 	public int expand( Module module, int[] patterns, int channelIdx, int rowIdx ) {
-		int macroRowIdx = 0, srcKey = 0, dstKey = 0, distance = 0, volume = 64;
+		int macroRowIdx = 0, srcKey = rootKey, distance = 0, volume = 64;
 		Note note = new Note();
 		while( macroRowIdx < Pattern.NUM_ROWS ) {
 			int patternsIdx = rowIdx / Pattern.NUM_ROWS;
@@ -53,15 +53,12 @@ public class Macro {
 			notes.getNote( macroRowIdx++, 0, note );
 			if( note.key > 0 ) {
 				srcKey = note.key;
-				dstKey = scale.transpose( srcKey, distance );
 			}
-			int semitones = 0;
-			if( dstKey > 0 ) {
-				semitones = dstKey - srcKey;
-			}
+			int dstKey = scale.transpose( srcKey, distance );
+			int semitones = dstKey - srcKey;
 			if( effect == 0xC ) {
 				volume = param;
-			} else if( ( note.effect | note.parameter ) == 0 ) {
+			} else if( effect > 0 ) {
 				note.effect = effect;
 				note.parameter = param;
 			}
