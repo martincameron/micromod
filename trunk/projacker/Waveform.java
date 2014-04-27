@@ -37,21 +37,21 @@ public class Waveform implements Element {
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
-		setOctave( 3 );
+		setOctave( 0 );
 		setNumCycles( 1 );
 	}
 	
 	public void end() {
-		AudioData audioData = generate( squareWave, numCycles );
-		if( octave > 0 ) {
-			audioData = audioData.resample( audioData.getSamplingRate() >> octave, true );
-		}
+		AudioData audioData = generate( squareWave, numCycles, octave );
 		parent.setAudioData( audioData );
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getSampleData().length );
 	}
 	
 	public void setOctave( int octave ) {
+		if( octave < -4 || octave > 4 ) {
+			throw new IllegalArgumentException( "Invalid octave (-4 to 4): " + octave );
+		}
 		this.octave = octave;
 	}
 	
@@ -63,20 +63,20 @@ public class Waveform implements Element {
 	}
 	
 	/* Generate a sawtooth or square waveform with phase-modulation chorus if cycles is greater than 1. */
-	public static AudioData generate( boolean square, int cycles ) {
-		byte[] buf = new byte[ 256 * cycles ];
+	public static AudioData generate( boolean square, int cycles, int octave ) {
+		byte[] buf = new byte[ 512 * cycles ];
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
-			int phase = 128 + Math.round( ( float ) ( Math.cos( 2 * Math.PI * cycle / cycles ) * 128 ) );
+			int phase = 256 + Math.round( ( float ) ( Math.cos( 2 * Math.PI * cycle / cycles ) * 256 ) );
 			if( square ) {
-				for( int idx = 0; idx < 256; idx++ ) {
-					buf[ cycle * 256 + idx ] = ( byte ) ( ( ( idx & 0x80 ) + ( ( idx + phase ) & 0x80 ) ) * 255 / 256 - 128 );
+				for( int idx = 0; idx < 512; idx++ ) {
+					buf[ cycle * 512 + idx ] = ( byte ) ( ( ( idx & 0x100 ) + ( ( idx + phase ) & 0x100 ) ) * 255 / 512 - 128 );
 				}
 			} else {
-				for( int idx = 0; idx < 256; idx++ ) {
-					buf[ cycle * 256 + idx ] = ( byte ) ( ( ( idx % 256 ) + ( idx + phase ) % 256 ) / 2 - 128 );
+				for( int idx = 0; idx < 512; idx++ ) {
+					buf[ cycle * 512 + idx ] = ( byte ) ( ( ( idx % 512 ) + ( idx + phase ) % 512 ) / 4 - 128 );
 				}
 			}
 		}
-		return new AudioData( buf, 256 * 262 );
+		return new AudioData( buf, 512 * 262 ).resample( ( 512 * 262 ) >> ( octave + 4 ), true );
 	}
 }
