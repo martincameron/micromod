@@ -54,7 +54,7 @@ public class Channel {
 	private Sample sample;
 	private boolean keyOn;
 	private int noteKey, noteIns, noteVol, noteEffect, noteParam;
-	private int sampleIdx, sampleFra, freq, ampl, pann;
+	private int sampleOffset, sampleIdx, sampleFra, freq, ampl, pann;
 	private int volume, panning, fadeOutVol, volEnvTick, panEnvTick;
 	private int period, portaPeriod, retrigCount, fxCount, autoVibratoCount;
 	private int portaUpParam, portaDownParam, tonePortaParam, offsetParam;
@@ -111,7 +111,10 @@ public class Channel {
 		noteParam = note.param;
 		retrigCount++;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
-		if( noteEffect != 0x7D && noteEffect != 0xFD ) trigger();
+		if( !( ( noteEffect == 0x7D || noteEffect == 0xFD ) && noteParam > 0 ) ) {
+			/* Not note delay.*/
+			trigger();
+		}
 		switch( noteEffect ) {
 			case 0x01: case 0x86: /* Porta Up. */
 				if( noteParam > 0 ) portaUpParam = noteParam;
@@ -145,11 +148,6 @@ public class Channel {
 				break;
 			case 0x08: /* Set Panning.*/
 				panning = noteParam & 0xFF;
-				break;
-			case 0x09: case 0x8F: /* Set Sample Offset. */
-				if( noteParam > 0 ) offsetParam = noteParam;
-				sampleIdx = offsetParam << 8;
-				sampleFra = 0;
 				break;
 			case 0x0A: case 0x84: /* Vol Slide. */
 				if( noteParam > 0 ) vslideParam = noteParam;
@@ -220,9 +218,6 @@ public class Channel {
 				break;
 			case 0x7C: case 0xFC: /* Note Cut. */
 				if( noteParam <= 0 ) volume = 0;
-				break;
-			case 0x7D: case 0xFD: /* Note Delay. */
-				if( noteParam <= 0 ) trigger();
 				break;
 			case 0x8A: /* Arpeggio. */
 				if( noteParam > 0 ) arpeggioParam = noteParam;
@@ -535,9 +530,13 @@ public class Channel {
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
 			if( period > 0 && sam.looped() ) sample = sam; /* Amiga trigger.*/
-			volEnvTick = panEnvTick = 0;
+			sampleOffset = volEnvTick = panEnvTick = 0;
 			fadeOutVol = 32768;
 			keyOn = true;
+		}
+		if( noteEffect == 0x09 || noteEffect == 0x8F ) { /* Set Sample Offset. */
+			if( noteParam > 0 ) offsetParam = noteParam;
+			sampleOffset = offsetParam << 8;
 		}
 		if( noteVol >= 0x10 && noteVol < 0x60 )
 			volume = noteVol < 0x50 ? noteVol - 0x10 : 64;
@@ -572,9 +571,11 @@ public class Channel {
 					noteEffect == 0x03 || noteEffect == 0x05 ||
 					noteEffect == 0x87 || noteEffect == 0x8C;
 				if( !isPorta ) sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
-				byte fineTune = ( byte ) sample.fineTune;
-				if( noteEffect == 0x75 || noteEffect == 0xF2 ) /* Set FineTune. */
-					fineTune = ( byte ) ( ( noteParam & 0xF ) << 4 );
+				int fineTune = sample.fineTune;
+				if( noteEffect == 0x75 || noteEffect == 0xF2 ) { /* Set Fine Tune. */
+					fineTune = ( noteParam & 0xF ) << 4;
+					if( fineTune > 127 ) fineTune -= 256;
+				}
 				int key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;
 				if( key > 120 ) key = 120;
@@ -592,7 +593,8 @@ public class Channel {
 				}
 				if( !isPorta ) {
 					period = portaPeriod;
-					sampleIdx = sampleFra = 0;
+					sampleIdx = sampleOffset;
+					sampleFra = 0;
 					if( vibratoType < 4 ) vibratoPhase = 0;
 					if( tremoloType < 4 ) tremoloPhase = 0;
 					retrigCount = autoVibratoCount = 0;
