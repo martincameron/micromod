@@ -20,7 +20,7 @@ public class Channel {
 	private Module module;
 	private int notePeriod, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
-	private int sampleIdx, sampleFra, freq;
+	private int sampleOffset, sampleIdx, sampleFra, freq;
 	private int volume, panning, fineTune;
 	private int period, portaPeriod, portaSpeed, fxCount;
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
@@ -68,7 +68,10 @@ public class Channel {
 		noteEffect = effect;
 		noteParam = param;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
-		if( effect != 0x1D ) trigger();
+		if( !( effect == 0x1D && param > 0 ) ) {
+			/* Not note delay. */
+			trigger();
+		}
 		switch( effect ) {
 			case 0x3: /* Tone Portamento.*/
 				if( param > 0 ) portaSpeed = param;
@@ -88,10 +91,6 @@ public class Channel {
 				break;
 			case 0x8: /* Set Panning. Not for Protracker. */
 				if( module.getNumChannels() != 4 ) panning = param;
-				break;
-			case 0x9: /* Set Sample Position.*/
-				sampleIdx = param << 8;
-				sampleFra = 0;
 				break;
 			case 0xC: /* Set Volume.*/
 				volume = param > 64 ? 64 : param;
@@ -120,9 +119,6 @@ public class Channel {
 				break;
 			case 0x1C: /* Note Cut.*/
 				if( param <= 0 ) volume = 0;
-				break;
-			case 0x1D: /* Note Delay.*/
-				if( param <= 0 ) trigger();
 				break;
 		}
 		updateFrequency();
@@ -202,8 +198,11 @@ public class Channel {
 			volume = assignedIns.getVolume() & 0x7F;
 			if( volume > 64 ) volume = 64;
 			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
+			sampleOffset = 0;
 		}
-		if( noteEffect == 0x15 ) {
+		if( noteEffect == 0x09 ) {
+			sampleOffset = ( noteParam & 0xFF ) << 8;
+		} else if( noteEffect == 0x15 ) {
 			fineTune = ( noteParam > 7 ? noteParam - 8 : noteParam + 8 ) & 0xF;
 		}
 		if( notePeriod > 0 ) {
@@ -212,7 +211,8 @@ public class Channel {
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;
 				period = portaPeriod;
-				sampleIdx = sampleFra = 0;
+				sampleIdx = sampleOffset;
+				sampleFra = 0;
 				if( vibratoType < 4 ) vibratoPhase = 0;
 				if( tremoloType < 4 ) tremoloPhase = 0;
 			}
