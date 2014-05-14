@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20130926 (c)2013 mumart@gmail.com */
+/* fast protracker replay version 20140514 (c)2014 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define MAX_INSTRUMENTS 32
@@ -23,8 +23,8 @@ struct instrument {
 
 struct channel {
 	struct note note;
-	unsigned long sample_idx, step;
 	unsigned short period, porta_period;
+	unsigned long sample_offset, sample_idx, step;
 	unsigned char volume, panning, fine_tune, ampl;
 	unsigned char id, instrument, assigned, porta_speed, pl_row, fx_count;
 	unsigned char vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
@@ -169,19 +169,24 @@ static void trigger( struct channel *channel ) {
 	ins = channel->note.instrument;
 	if( ins > 0 && ins < MAX_INSTRUMENTS ) {
 		channel->assigned = ins;
+		channel->sample_offset = 0;
 		channel->fine_tune = instruments[ ins ].fine_tune;
 		channel->volume = instruments[ ins ].volume;
 		if( instruments[ ins ].loop_length > 0 && channel->instrument > 0 )
 			channel->instrument = ins;
 	}
-	if( channel->note.effect == 0x15 ) channel->fine_tune = channel->note.param;
+	if( channel->note.effect == 0x09 ) {
+		channel->sample_offset = ( channel->note.param & 0xFF ) << 8;
+	} else if( channel->note.effect == 0x15 ) {
+		channel->fine_tune = channel->note.param;
+	}
 	if( channel->note.key > 0 ) {
 		period = ( channel->note.key * fine_tuning[ channel->fine_tune & 0xF ] ) >> 11;
 		channel->porta_period = ( period >> 1 ) + ( period & 1 );
 		if( channel->note.effect != 0x3 && channel->note.effect != 0x5 ) {
 			channel->instrument = channel->assigned;
 			channel->period = channel->porta_period;
-			channel->sample_idx = 0;
+			channel->sample_idx = ( channel->sample_offset << FP_SHIFT );
 			if( channel->vibrato_type < 4 ) channel->vibrato_phase = 0;
 			if( channel->tremolo_type < 4 ) channel->tremolo_phase = 0;
 		}
@@ -193,7 +198,10 @@ static void channel_row( struct channel *chan ) {
 	effect = chan->note.effect;
 	param = chan->note.param;
 	chan->vibrato_add = chan->tremolo_add = chan->arpeggio_add = chan->fx_count = 0;
-	if( effect != 0x1D ) trigger( chan );
+	if( !( effect == 0x1D && param > 0 ) ) {
+		/* Not note delay. */
+		trigger( chan );
+	}
 	switch( effect ) {
 		case 0x3: /* Tone Portamento.*/
 			if( param > 0 ) chan->porta_speed = param;
@@ -213,9 +221,6 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0x8: /* Set Panning.*/
 			if( num_channels > 4 ) chan->panning = param;
-			break;
-		case 0x9: /* Set Sample Position.*/
-			chan->sample_idx = param << ( FP_SHIFT + 8 );
 			break;
 		case 0xB: /* Pattern Jump.*/
 			if( pl_count < 0 ) {
@@ -283,9 +288,6 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0x1C: /* Note Cut.*/
 			if( param <= 0 ) chan->volume = 0;
-			break;
-		case 0x1D: /* Note Delay.*/
-			if( param <= 0 ) trigger( chan );
 			break;
 		case 0x1E: /* Pattern Delay.*/
 			tick = speed + speed * param;
