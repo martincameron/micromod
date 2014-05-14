@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2013 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2014 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20130921';
+Const MICROMOD_VERSION : String = '20140514';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -89,9 +89,9 @@ End;
 
 Type TChannel = Record
 	Note : TNote;
-	SampleIndex, SampleFrac, Step : LongInt;	
 	Period, PortaPeriod : SmallInt;
 	Volume, Panning, FineTune, Ampl : Byte;
+	SampleOffset, SampleIndex, SampleFrac, Step : LongInt;	
 	PortaSpeed, VTPhase, PLRow, FXCount, Instrument, Assigned, ID : Byte;
 	VibratoSpeed, VibratoDepth, TremoloSpeed, TremoloDepth : Byte;
 	TremoloAdd, VibratoAdd, ArpeggioAdd : ShortInt;
@@ -363,19 +363,24 @@ Begin
 	Ins := Channel.Note.Instrument;
 	If Ins > 0 Then Begin
 		Channel.Assigned := Ins;
+		Channel.SampleOffset := 0;
 		Channel.FineTune := Instruments[ Ins ].FineTune;
 		Channel.Volume := Instruments[ Ins ].Volume;
 		If ( Instruments[ Ins ].LoopLength > 0 ) And ( Channel.Instrument > 0 ) Then
 			Channel.Instrument := Ins;
 	End;
-	If Channel.Note.Effect = $15 Then Channel.FineTune := Channel.Note.Param;
+	If Channel.Note.Effect = $9 Then Begin
+		Channel.SampleOffset := ( Channel.Note.Param And $FF ) Shl 8;
+	End Else If Channel.Note.Effect = $15 Then Begin
+		Channel.FineTune := Channel.Note.Param;
+	End;
 	If Channel.Note.Key > 0 Then Begin
 		Period := ( Channel.Note.Key * FineTuning[ Channel.FineTune And $F ] ) Shr 11;
 		Channel.PortaPeriod := ( Period Shr 1 ) + ( Period And 1 );
 		If ( Channel.Note.Effect <> $3 ) And ( Channel.Note.Effect <> $5 ) Then Begin
 			Channel.Instrument := Channel.Assigned;
 			Channel.Period := Channel.PortaPeriod;
-			Channel.SampleIndex := 0;
+			Channel.SampleIndex := Channel.SampleOffset;
 			Channel.SampleFrac := 0;
 			Channel.VTPhase := 0;
 		End;
@@ -433,7 +438,10 @@ Var
 Begin	
 	Effect := Channel.Note.Effect;
 	Param := Channel.Note.Param;
-	If Effect <> $1D Then Trigger( Channel );
+	If Not ( ( Effect = $1D ) And ( Param > 0 ) ) Then Begin
+		{ Not Note Delay. }
+		Trigger( Channel );
+	End;
 	Channel.ArpeggioAdd := 0;
 	Channel.VibratoAdd := 0;
 	Channel.TremoloAdd := 0;
@@ -457,10 +465,6 @@ Begin
 			End;
 		$8 : Begin { Set Panning }
 				If NumChannels > 4 Then Channel.Panning := Param;
-			End;
-		$9 : Begin { Set Sample Position }
-				Channel.SampleIndex := Param Shl 8;
-				Channel.SampleFrac := 0;
 			End;
 		$B : Begin { Pattern Jump. }
 				If PLCount < 0 Then Begin
@@ -530,9 +534,6 @@ Begin
 			End;
 		$1C : Begin { Note Cut }
 				If Param <= 0 Then Channel.Volume := 0;
-			End;
-		$1D : Begin { Note Delay }
-				If Param <= 0 Then Trigger( Channel );
 			End;
 		$1E : Begin { Pattern Delay }
 				Tick := Speed + Speed * Param;

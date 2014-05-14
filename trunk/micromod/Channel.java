@@ -194,11 +194,11 @@ public class Channel {
 		if( noteIns > 0 && noteIns < 32 ) {
 			assigned = noteIns;
 			Instrument assignedIns = module.getInstrument( assigned );
+			sampleOffset = 0;
 			fineTune = ( assignedIns.getFineTune() + 8 ) & 0xF;
 			volume = assignedIns.getVolume() & 0x7F;
 			if( volume > 64 ) volume = 64;
 			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
-			sampleOffset = 0;
 		}
 		if( noteEffect == 0x09 ) {
 			sampleOffset = ( noteParam & 0xFF ) << 8;

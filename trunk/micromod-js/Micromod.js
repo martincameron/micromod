@@ -1,11 +1,11 @@
 
 /*
-	JavaScript ProTracker Replay (c)2013 mumart@gmail.com
+	JavaScript ProTracker Replay (c)2014 mumart@gmail.com
 */
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20130203 (c)2013 mumart@gmail.com";
+		return "20140514 (c)2014 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -322,8 +322,8 @@ function Channel( module, id ) {
 
 	var noteKey = 0, noteEffect = 0, noteParam = 0;
 	var noteIns = 0, instrument = 0, assigned = 0;
-	var sampleIdx = 0, sampleFra = 0, freq = 0;
 	var volume = 0, panning = 0, fineTune = 0, ampl = 0;
+	var sampleOffset = 0, sampleIdx = 0, sampleFra = 0, freq = 0;
 	var period = 0, portaPeriod = 0, portaSpeed = 0, fxCount = 0;
 	var vibratoType = 0, vibratoPhase = 0, vibratoSpeed = 0, vibratoDepth = 0;
 	var tremoloType = 0, tremoloPhase = 0, tremoloSpeed = 0, tremoloDepth = 0;
@@ -400,7 +400,10 @@ function Channel( module, id ) {
 		noteEffect = effect;
 		noteParam = param;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
-		if( effect != 0x1D ) trigger();
+		if( !( effect == 0x1D && param > 0 ) ) {
+			/* Not note delay. */
+			trigger();
+		}
 		switch( effect ) {
 			case 0x3: /* Tone Portamento.*/
 				if( param > 0 ) portaSpeed = param;
@@ -420,10 +423,6 @@ function Channel( module, id ) {
 				break;
 			case 0x8: /* Set Panning. Not for Protracker. */
 				if( module.c2Rate == Module.C2_NTSC ) panning = param;
-				break;
-			case 0x9: /* Set Sample Position.*/
-				sampleIdx = param << 8;
-				sampleFra = 0;
 				break;
 			case 0xC: /* Set Volume.*/
 				volume = param > 64 ? 64 : param;
@@ -452,9 +451,6 @@ function Channel( module, id ) {
 				break;
 			case 0x1C: /* Note Cut.*/
 				if( param <= 0 ) volume = 0;
-				break;
-			case 0x1D: /* Note Delay.*/
-				if( param <= 0 ) trigger();
 				break;
 		}
 		updateFrequency();
@@ -533,18 +529,24 @@ function Channel( module, id ) {
 		if( noteIns > 0 && noteIns <= module.numInstruments ) {
 			assigned = noteIns;
 			var assignedIns = module.instruments[ assigned ];
+			sampleOffset = 0;
 			fineTune = assignedIns.fineTune;
 			volume = assignedIns.volume >= 64 ? 64 : assignedIns.volume & 0x3F;
 			if( assignedIns.loopLength > 0 && instrument > 0 ) instrument = assigned;
 		}
-		if( noteEffect == 0x15 ) fineTune = noteParam;
+		if( noteEffect == 0x09 ) {
+			sampleOffset = ( noteParam & 0xFF ) << 8;
+		} else if( noteEffect == 0x15 ) {
+			fineTune = noteParam;
+		}
 		if( noteKey > 0 && noteKey <= 72 ) {
 			var per = ( keyToPeriod[ noteKey ] * fineTuning[ fineTune & 0xF ] ) >> 11;
 			portaPeriod = ( per >> 1 ) + ( per & 1 );
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;
 				period = portaPeriod;
-				sampleIdx = sampleFra = 0;
+				sampleIdx = sampleOffset;
+				sampleFra = 0;
 				if( vibratoType < 4 ) vibratoPhase = 0;
 				if( tremoloType < 4 ) tremoloPhase = 0;
 			}
