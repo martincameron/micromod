@@ -1,16 +1,16 @@
-package projacker;
+package micromod.tracker;
 
-public class Channels implements Element {
-	private Module parent;
-	private Sequence sibling;
+public class LoopStart implements Element {
+	private Instrument parent;
+	private LoopLength sibling;
 
-	public Channels( Module parent ) {
+	public LoopStart( Instrument parent ) {
 		this.parent = parent;
-		sibling = new Sequence( parent );
+		sibling = new LoopLength( parent );
 	}
 	
 	public String getToken() {
-		return "Channels";
+		return "LoopStart";
 	}
 	
 	public Element getParent() {
@@ -27,7 +27,7 @@ public class Channels implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setNumChannels( Parser.parseInteger( value ) );
+		parent.setLoopStart( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

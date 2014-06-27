@@ -1,4 +1,4 @@
-package projacker;
+package micromod.tracker;
 
 public class Sequence implements Element {
 	private Module parent;

@@ -1,4 +1,4 @@
-package projacker;
+package micromod.tracker;
 
 public class Waveform implements Element {
 	private Instrument parent;

@@ -1,16 +1,16 @@
-package projacker;
+package micromod.tracker;
 
-public class Octave implements Element {
-	private Waveform parent;
-	private Chorus sibling;
+public class FineTune implements Element {
+	private Instrument parent;
+	private Waveform sibling;
 
-	public Octave( Waveform parent ) {
+	public FineTune( Instrument parent ) {
 		this.parent = parent;
-		sibling = new Chorus( parent );
+		sibling = new Waveform( parent );
 	}
 	
 	public String getToken() {
-		return "Octave";
+		return "FineTune";
 	}
 	
 	public Element getParent() {
@@ -27,7 +27,7 @@ public class Octave implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setOctave( Parser.parseInteger( value ) );
+		parent.setFineTune( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

@@ -1,16 +1,17 @@
-package projacker;
 
-public class Gain implements Element {
-	private WaveFile parent;
-	private Pitch sibling;
+package micromod.tracker;
 
-	public Gain( WaveFile parent ) {
+public class Root implements Element {
+	private Macro parent;
+	private Note sibling;
+	
+	public Root( Macro parent ) {
 		this.parent = parent;
-		sibling = new Pitch( parent );
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
-		return "Gain";
+		return "Root";
 	}
 	
 	public Element getParent() {
@@ -27,7 +28,7 @@ public class Gain implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setGain( Parser.parseInteger( value ) );
+		parent.setRoot( value );
 	}
 	
 	public void end() {

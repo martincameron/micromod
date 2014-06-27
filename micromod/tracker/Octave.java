@@ -1,16 +1,16 @@
-package projacker;
+package micromod.tracker;
 
-public class Name implements Element {
-	private Instrument parent;
-	private Volume sibling;
+public class Octave implements Element {
+	private Waveform parent;
+	private Chorus sibling;
 
-	public Name( Instrument parent ) {
+	public Octave( Waveform parent ) {
 		this.parent = parent;
-		sibling = new Volume( parent );
+		sibling = new Chorus( parent );
 	}
 	
 	public String getToken() {
-		return "Name";
+		return "Octave";
 	}
 	
 	public Element getParent() {
@@ -27,7 +27,7 @@ public class Name implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setName( value );
+		parent.setOctave( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

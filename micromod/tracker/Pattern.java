@@ -1,4 +1,4 @@
-package projacker;
+package micromod.tracker;
 
 public class Pattern implements Element {
 	private Module parent;

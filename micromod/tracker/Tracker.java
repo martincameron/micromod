@@ -1,8 +1,8 @@
 
-package projacker;
+package micromod.tracker;
 
-/* A simple text format for Protracker MOD files. */
-public class ProJacker {
+/* A simple command-line "tracker" for Protracker MOD files. */
+public class Tracker {
 	public static void main( String[] args ) throws Exception {
 		if( args.length > 0 ) {
 			java.io.File inputFile = new java.io.File( args[ 0 ] );
@@ -23,7 +23,7 @@ public class ProJacker {
 				thread.join();
 			}
 		} else {
-			System.err.println( "Usage java " + ProJacker.class.getName() + " input.pj output.mod" );
+			System.err.println( "Usage java " + Tracker.class.getName() + " input.mt output.mod" );
 		}
 	}
 }

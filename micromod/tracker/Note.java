@@ -1,14 +1,16 @@
-package projacker;
 
-public class LoopLength implements Element {
-	private Instrument parent;
+package micromod.tracker;
 
-	public LoopLength( Instrument parent ) {
+public class Note implements Element {
+	private Macro parent;
+	private micromod.Note note = new micromod.Note();
+	
+	public Note( Macro parent ) {
 		this.parent = parent;
 	}
 	
 	public String getToken() {
-		return "LoopLength";
+		return "Note";
 	}
 	
 	public Element getParent() {
@@ -24,10 +26,10 @@ public class LoopLength implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
-		parent.setLoopLength( Parser.parseInteger( value ) );
+		note.fromString( value );
+		parent.nextNote( note );
 	}
 	
 	public void end() {
-	}
+	}	
 }

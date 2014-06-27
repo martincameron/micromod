@@ -1,5 +1,5 @@
 
-package projacker;
+package micromod.tracker;
 
 public class Macro implements Element {
 	private Module parent;
