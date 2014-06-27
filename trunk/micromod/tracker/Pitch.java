@@ -1,4 +1,4 @@
-package projacker;
+package micromod.tracker;
 
 public class Pitch implements Element {
 	private WaveFile parent;

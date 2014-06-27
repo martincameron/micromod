@@ -1,17 +1,16 @@
+package micromod.tracker;
 
-package projacker;
+public class Volume implements Element {
+	private Instrument parent;
+	private FineTune sibling;
 
-public class Root implements Element {
-	private Macro parent;
-	private Note sibling;
-	
-	public Root( Macro parent ) {
+	public Volume( Instrument parent ) {
 		this.parent = parent;
-		sibling = new Note( parent );
+		sibling = new FineTune( parent );
 	}
 	
 	public String getToken() {
-		return "Root";
+		return "Volume";
 	}
 	
 	public Element getParent() {
@@ -28,7 +27,7 @@ public class Root implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setRoot( value );
+		parent.setVolume( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

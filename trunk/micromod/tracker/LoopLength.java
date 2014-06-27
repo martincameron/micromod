@@ -1,16 +1,14 @@
-package projacker;
+package micromod.tracker;
 
-public class FineTune implements Element {
+public class LoopLength implements Element {
 	private Instrument parent;
-	private Waveform sibling;
 
-	public FineTune( Instrument parent ) {
+	public LoopLength( Instrument parent ) {
 		this.parent = parent;
-		sibling = new Waveform( parent );
 	}
 	
 	public String getToken() {
-		return "FineTune";
+		return "LoopLength";
 	}
 	
 	public Element getParent() {
@@ -18,7 +16,7 @@ public class FineTune implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -27,7 +25,7 @@ public class FineTune implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setFineTune( Parser.parseInteger( value ) );
+		parent.setLoopLength( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

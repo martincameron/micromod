@@ -1,14 +1,17 @@
-package projacker;
 
-public class Chorus implements Element {
-	private Waveform parent;
+package micromod.tracker;
 
-	public Chorus( Waveform parent ) {
+public class Scale implements Element {
+	private Macro parent;
+	private Root sibling;
+	
+	public Scale( Macro parent ) {
 		this.parent = parent;
+		sibling = new Root( parent );
 	}
 	
 	public String getToken() {
-		return "Chorus";
+		return "Scale";
 	}
 	
 	public Element getParent() {
@@ -16,7 +19,7 @@ public class Chorus implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
@@ -25,7 +28,7 @@ public class Chorus implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setNumCycles( Parser.parseInteger( value ) );
+		parent.setScale( value );
 	}
 	
 	public void end() {

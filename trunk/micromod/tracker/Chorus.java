@@ -1,16 +1,14 @@
-package projacker;
+package micromod.tracker;
 
-public class LoopStart implements Element {
-	private Instrument parent;
-	private LoopLength sibling;
+public class Chorus implements Element {
+	private Waveform parent;
 
-	public LoopStart( Instrument parent ) {
+	public Chorus( Waveform parent ) {
 		this.parent = parent;
-		sibling = new LoopLength( parent );
 	}
 	
 	public String getToken() {
-		return "LoopStart";
+		return "Chorus";
 	}
 	
 	public Element getParent() {
@@ -18,7 +16,7 @@ public class LoopStart implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -27,7 +25,7 @@ public class LoopStart implements Element {
 	
 	public void begin( String value ) {
 		System.out.println( getToken() + ": " + value );
-		parent.setLoopStart( Parser.parseInteger( value ) );
+		parent.setNumCycles( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

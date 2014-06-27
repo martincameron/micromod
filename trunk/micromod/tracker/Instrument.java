@@ -1,5 +1,5 @@
 
-package projacker;
+package micromod.tracker;
 
 public class Instrument implements Element {
 	private micromod.Instrument instrument;
