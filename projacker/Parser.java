@@ -2,15 +2,14 @@
 package projacker;
 
 public class Parser {
-	public static void parse( java.io.Reader input, Element element ) throws java.io.IOException {
-		Element context = null;
+	public static void parse( java.io.Reader input, Element context ) throws java.io.IOException {
 		char[] buf = new char[ 512 ];
 		int len, chr = input.read();
-		while( chr > 0 && chr <= 32 ) {
-			/* Skip whitespace.*/
-			chr = input.read();
-		}
-		while( chr > 0 ) {
+		while( true ) {
+			while( chr > 0 && chr <= 32 ) {
+				/* Skip whitespace.*/
+				chr = input.read();
+			}
 			while( chr == '(' ) {
 				/* Skip comments.*/
 				while( chr > 0 && chr != ')' ) {
@@ -24,17 +23,21 @@ public class Parser {
 				}
 			}
 			len = 0;
+			while( chr > 0 && chr <= 32 ) {
+				/* Skip whitespace.*/
+				chr = input.read();
+			}
 			while( chr > 32 ) {
 				/* Read token.*/
 				buf[ len++ ] = ( char ) chr;
 				chr = input.read();
 			}
+			String token = new String( buf, 0, len );
+			len = 0;
 			while( chr > 0 && chr <= 32 ) {
 				/* Skip whitespace.*/
 				chr = input.read();
 			}
-			String token = new String( buf, 0, len );
-			len = 0;
 			if( chr == '"' ) {
 				/* Quote-delimited value. */
 				chr = input.read();
@@ -52,40 +55,31 @@ public class Parser {
 					chr = input.read();
 				}
 			}
-			while( chr > 0 && chr <= 32 ) {
-				/* Skip whitespace.*/
-				chr = input.read();
-			}
 			String param = new String( buf, 0, len );
-			if( context == null ) {
-				context = element;
-			} else if( context.getChild() == null ) {
-				context.end();
-			} else {
-				context = context.getChild();
-			}
-			while( context != null && !token.equals( context.getToken() ) ) {
+			while( !token.equals( context.getToken() ) ) {
 				if( context.getSibling() != null ) {
 					context = context.getSibling();
 				} else {
-					context = context.getParent();
-					if( context != null ) {
+					if( context.getParent() != null ) {
+						context = context.getParent();
 						context.end();
+					} else if( token.length() > 0 ){
+						throw new IllegalArgumentException( "Invalid token: " + token );
+					} else {
+						/* Zero-length token means end of file.*/
+						return;
 					}
 				}
 			}
-			if( context != null ) {
-				context.begin( param );
-			} else if( token.length() > 0 ) {
-				throw new IllegalArgumentException( "Invalid token: " + token );
+			context.begin( param );
+			if( context.getChild() != null ) {
+				context = context.getChild();
+			} else {
+				context.end();
 			}
 		}
-		while( context != null ) {
-			context.end();
-			context = context.getParent();
-		}
 	}
-	
+
 	/* Split a string, separated by whitespace or separator. */
 	public static String[] split( String input, char separator ) {
 		String[] output = new String[ split( input, ',', null ) ];
