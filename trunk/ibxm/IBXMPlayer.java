@@ -30,6 +30,7 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -51,7 +52,7 @@ import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class IBXMPlayer extends JFrame {
-	private static final int SAMPLE_RATE = 48000;
+	private static final int SAMPLE_RATE = 48000, REVERB_MILLIS = 50;
 
 	private JLabel songLabel;
 	private JLabel timeLabel;
@@ -66,7 +67,9 @@ public class IBXMPlayer extends JFrame {
 	private Module module;
 	private IBXM ibxm;
 	private volatile boolean playing;
-	private int interpolation, sliderPos, samplePos, duration;
+	private int[] reverbBuf;
+	private int interpolation, reverbIdx, reverbLen;
+	private int sliderPos, samplePos, duration;
 	private Thread playThread;
 
 	public IBXMPlayer() {
@@ -249,6 +252,14 @@ public class IBXMPlayer extends JFrame {
 		} );
 		interpolationGroup.add( sincMenuItem );
 		optionsMenu.add( sincMenuItem );
+		optionsMenu.addSeparator();
+		final JCheckBoxMenuItem reverbMenuItem = new JCheckBoxMenuItem( "Reverb" );
+		reverbMenuItem.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				setReverb( reverbMenuItem.isSelected() ? REVERB_MILLIS : 0 );
+			}
+		} );
+		optionsMenu.add( reverbMenuItem );
 		menuBar.add( optionsMenu );
 		setJMenuBar( menuBar );
 		JPanel mainPanel = new JPanel();
@@ -311,6 +322,9 @@ public class IBXMPlayer extends JFrame {
 						audioLine.start();
 						while( playing ) {
 							int count = getAudio( mixBuf );
+							if( reverbLen > 0 ) {
+								reverb( mixBuf, count );
+							}
 							int outIdx = 0;
 							for( int mixIdx = 0, mixEnd = count * 2; mixIdx < mixEnd; mixIdx++ ) {
 								int ampl = mixBuf[ mixIdx ];
@@ -355,6 +369,12 @@ public class IBXMPlayer extends JFrame {
 		if( ibxm != null ) ibxm.setInterpolation( interpolation );
 	}
 
+	private synchronized void setReverb( int millis ) {
+		reverbLen = ( ( SAMPLE_RATE * millis ) >> 9 ) & -2;
+		reverbBuf = new int[ reverbLen ];
+		reverbIdx = 0;
+	}
+
 	private synchronized int getAudio( int[] mixBuf ) {
 		int count = ibxm.getAudio( mixBuf );
 		samplePos += count;
@@ -379,6 +399,22 @@ public class IBXMPlayer extends JFrame {
 		} finally {
 			if( fileOutputStream != null ) fileOutputStream.close();
 			seek( 0 );
+		}
+	}
+
+	private void reverb( int[] mixBuf, int count ) {
+		/* Simple cross-delay with feedback. */
+		int mixIdx = 0, mixEnd = count << 1;
+		while( mixIdx < mixEnd ) {
+			mixBuf[ mixIdx     ] = ( mixBuf[ mixIdx     ] * 3 + reverbBuf[ reverbIdx + 1 ] ) >> 2;
+			mixBuf[ mixIdx + 1 ] = ( mixBuf[ mixIdx + 1 ] * 3 + reverbBuf[ reverbIdx     ] ) >> 2;
+			reverbBuf[ reverbIdx     ] = mixBuf[ mixIdx ];
+			reverbBuf[ reverbIdx + 1 ] = mixBuf[ mixIdx + 1 ];
+			reverbIdx += 2;
+			if( reverbIdx >= reverbLen ) {
+				reverbIdx = 0;
+			}
+			mixIdx += 2;
 		}
 	}
 
