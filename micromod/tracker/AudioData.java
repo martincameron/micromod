@@ -11,12 +11,10 @@ public class AudioData {
 	
 	private int sampleRate;
 	private short[] sampleData;
-	private boolean noiseShaping;
 
 	public AudioData( short[] samples, int samplingRate ) {
 		this.sampleRate = samplingRate;
 		this.sampleData = samples;
-		this.noiseShaping = true;
 	}
 
 	public AudioData( byte[] samples, int samplingRate ) {
@@ -25,7 +23,6 @@ public class AudioData {
 		for( int idx = 0; idx < samples.length; idx++ ) {
 			this.sampleData[ idx ] = ( short ) ( samples[ idx ] << 8 );
 		}
-		this.noiseShaping = false;
 	}
 
 	public int getSamplingRate() {
@@ -95,21 +92,18 @@ public class AudioData {
 		int inputIdx = channel * bytesPerChannel, outputIdx = 0;
 		switch( bytesPerChannel ) {
 			case 1: // 8-bit unsigned.
-				this.noiseShaping = false;
 				while( outputIdx < outputEnd ) {
 					sampleData[ outputIdx++ ] = ( short ) ( ( ( inputBuf[ inputIdx ] & 0xFF ) - 128 ) << 8 );
 					inputIdx += bytesPerSample;
 				}
 				break;
 			case 2: // 16-bit signed little-endian.
-				this.noiseShaping = true;
 				while( outputIdx < outputEnd ) {
 					sampleData[ outputIdx++ ] = ( short ) ( ( inputBuf[ inputIdx ] & 0xFF ) | ( inputBuf[ inputIdx + 1 ] << 8 ) );
 					inputIdx += bytesPerSample;
 				}
 				break;
 			case 3: // 24-bit signed little-endian.
-				this.noiseShaping = true;
 				while( outputIdx < outputEnd ) {
 					sampleData[ outputIdx++ ] = ( short ) ( ( inputBuf[ inputIdx + 1 ] & 0xFF ) | ( inputBuf[ inputIdx + 2 ] << 8 ) );
 					inputIdx += bytesPerSample;
@@ -151,6 +145,11 @@ public class AudioData {
 	}
 
 	public byte[] quantize() {
+		boolean noiseShaping = false;
+		for( int idx = 0; idx < sampleData.length; idx++ ) {
+			/* Determine whether source is already quantized. */
+			noiseShaping |= ( sampleData[ idx ] & 0xFF ) > 0;
+		}
 		byte[] outputBuf = new byte[ sampleData.length ];
 		if( noiseShaping ) {
 			int rand = 0, s1 = 0, s2 = 0, s3 = 0;
