@@ -281,4 +281,44 @@ public class AudioData {
 		}
 		return inputIdx;
 	}
+
+	/* Simple converter program. */
+	public static void main( String[] args ) throws IOException {
+		boolean quantize = false;
+		String inputPath = null, outputPath = null;
+		int channel = 0, rate = 0, gain = 0, idx = 0;
+		while( idx < args.length ) {
+			String arg = args[ idx++ ];
+			if( "-chan".equals( arg ) ) {
+				channel = Integer.parseInt( args[ idx++ ] );
+			} else if( "-rate".equals( arg ) ) {
+				rate = Integer.parseInt( args[ idx++ ] );
+			} else if( "-gain".equals( arg ) ) {
+				gain = Integer.parseInt( args[ idx++ ] );
+			} else if( "-8bit".equals( arg ) ) {
+				quantize = true;
+			} else if( inputPath == null ) {
+				inputPath = arg;
+			} else if( outputPath == null ) {
+				outputPath = arg;
+			}
+		}
+		if( inputPath != null && outputPath != null ) {
+			AudioData audioData = new AudioData( new java.io.FileInputStream( inputPath ), channel );
+			if( rate > 0 && audioData.getSamplingRate() != rate ) {
+				audioData = audioData.resample( rate, false );
+			}
+			if( gain > 0 && gain != 64 ) {
+				audioData = audioData.scale( gain );
+			}
+			OutputStream outputStream = new java.io.FileOutputStream( outputPath );
+			try {
+				audioData.writeWav( outputStream, quantize );
+			} finally {
+				outputStream.close();
+			}
+		} else {
+			System.err.println( "Usage: java " + AudioData.class.getName() + " input.wav output.wav [-chan 0] [-rate 48000] [-gain 64] [-8bit]" );
+		}
+	}
 }
