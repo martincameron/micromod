@@ -296,7 +296,7 @@ public class AudioData {
 	public static void main( String[] args ) throws IOException {
 		boolean quantize = false;
 		String inputPath = null, outputPath = null;
-		int channel = 0, start = 0, end = 0, rate = 0, gain = 0, idx = 0;
+		int channel = 0, offset = 0, length = 0, rate = 0, gain = 0, idx = 0;
 		while( idx < args.length ) {
 			String arg = args[ idx++ ];
 			if( "-chan".equals( arg ) ) {
@@ -305,10 +305,10 @@ public class AudioData {
 				String str = args[ idx++ ];
 				int sep = str.indexOf( ',' );
 				if( sep < 0 ) {
-					end = Integer.parseInt( str );
+					length = Integer.parseInt( str );
 				} else {
-					start = Integer.parseInt( str.substring( 0, sep ) );
-					end = Integer.parseInt( str.substring( sep + 1 ) );
+					offset = Integer.parseInt( str.substring( 0, sep ) );
+					length = Integer.parseInt( str.substring( sep + 1 ) );
 				}
 			} else if( "-rate".equals( arg ) ) {
 				rate = Integer.parseInt( args[ idx++ ] );
@@ -326,8 +326,8 @@ public class AudioData {
 			AudioData audioData = new AudioData( new java.io.FileInputStream( inputPath ), channel );
 			System.out.println( "Input Length: " + audioData.getLength() + " samples.");
 			if( outputPath != null ) {
-				if( end > start ) {
-					audioData = audioData.crop( start, end - start + 1 );
+				if( length > 0 ) {
+					audioData = audioData.crop( offset, length );
 				}
 				if( rate > 0 && audioData.getSamplingRate() != rate ) {
 					audioData = audioData.resample( rate, false );
@@ -343,7 +343,7 @@ public class AudioData {
 				}
 			}
 		} else {
-			System.err.println( "Usage: java " + AudioData.class.getName() + " input.wav [output.wav] [-chan 0] [-crop 0,end] [-rate hz] [-gain 64] [-8bit]" );
+			System.err.println( "Usage: java " + AudioData.class.getName() + " input.wav [output.wav] [-chan 0] [-crop 0,len] [-rate hz] [-gain 64] [-8bit]" );
 		}
 	}
 }
