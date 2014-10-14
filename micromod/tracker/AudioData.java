@@ -206,10 +206,14 @@ public class AudioData {
 	}
 
 	public AudioData resample( int samplingRate ) {
-		return resample( samplingRate, false );
+		return resample( samplingRate, 0, false );
 	}
 
-	public AudioData resample( int samplingRate, boolean periodic ) {
+	/* Return an AudioData instance with the specified sampling rate,
+	   optionally adjusted in pitch by 96 per octave increments.
+	   If the waveform is short and periodic in nature, better results
+	   may be obtained if periodic is set to true. */
+	public AudioData resample( int samplingRate, int pitch, boolean periodic ) {
 		short[] inputBuf = new short[ sampleData.length + HTAPS * 2 ];
 		if( periodic ) {
 			for( int idx = 0; idx < inputBuf.length; idx++ ) {
@@ -220,7 +224,7 @@ public class AudioData {
 				inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
 			}
 		}
-		int step = ( this.sampleRate << FP_SHIFT ) / samplingRate;
+		int step = ( int ) Math.round( this.sampleRate * Math.pow( 2, pitch / 96.0 ) * FP_ONE / samplingRate );
 		int outputLen = ( sampleData.length << FP_SHIFT ) / step;
 		short[] outputBuf = new short[ outputLen ];
 		float[] sinc = sincTable( step > FP_ONE ? FP_ONE / ( double ) step : 1.0 );
@@ -296,7 +300,7 @@ public class AudioData {
 	public static void main( String[] args ) throws IOException {
 		boolean quantize = false;
 		String inputPath = null, outputPath = null;
-		int channel = 0, offset = 0, length = 0, rate = 0, gain = 0, idx = 0;
+		int channel = 0, offset = 0, length = 0, rate = 0, tune = 96, gain = 64, idx = 0;
 		while( idx < args.length ) {
 			String arg = args[ idx++ ];
 			if( "-chan".equals( arg ) ) {
@@ -310,6 +314,8 @@ public class AudioData {
 					offset = Integer.parseInt( str.substring( 0, sep ) );
 					length = Integer.parseInt( str.substring( sep + 1 ) );
 				}
+			} else if( "-tune".equals( arg ) ) {
+				tune = Integer.parseInt( args[ idx++ ] );
 			} else if( "-rate".equals( arg ) ) {
 				rate = Integer.parseInt( args[ idx++ ] );
 			} else if( "-gain".equals( arg ) ) {
@@ -329,8 +335,8 @@ public class AudioData {
 				if( length > 0 ) {
 					audioData = audioData.crop( offset, length );
 				}
-				if( rate > 0 && audioData.getSamplingRate() != rate ) {
-					audioData = audioData.resample( rate, false );
+				if( rate > 0 || tune != 96 ) {
+					audioData = audioData.resample( rate > 0 ? rate : audioData.getSamplingRate(), tune - 96, false );
 				}
 				if( gain > 0 && gain != 64 ) {
 					audioData = audioData.scale( gain );
@@ -343,7 +349,7 @@ public class AudioData {
 				}
 			}
 		} else {
-			System.err.println( "Usage: java " + AudioData.class.getName() + " input.wav [output.wav] [-chan 0] [-crop 0,len] [-rate hz] [-gain 64] [-8bit]" );
+			System.err.println( "Usage: java " + AudioData.class.getName() + " input.wav [output.wav] [-chan 0] [-crop 0,len] [-tune 96] [-rate hz] [-gain 64] [-8bit]" );
 		}
 	}
 }

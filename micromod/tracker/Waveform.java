@@ -77,6 +77,6 @@ public class Waveform implements Element {
 				}
 			}
 		}
-		return new AudioData( buf, 512 * 262 ).resample( ( 512 * 262 ) >> ( octave + 4 ), true );
+		return new AudioData( buf, 512 * 262 ).resample( ( 512 * 262 ) >> ( octave + 4 ), 0, true );
 	}
 }
