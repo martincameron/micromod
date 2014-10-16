@@ -3,7 +3,7 @@ package micromod.tracker;
 
 public class Instrument implements Element {
 	private micromod.Instrument instrument;
-	private int loopStart, loopLength;
+	private int instrumentIndex, loopStart, loopLength;
 	private AudioData audioData;
 	private Module parent;
 	private Macro sibling;
@@ -31,8 +31,8 @@ public class Instrument implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
-		instrument = parent.getInstrument( Parser.parseInteger( value ) );
+		instrumentIndex = Parser.parseInteger( value );
+		instrument = parent.getInstrument( instrumentIndex );
 		loopStart = loopLength = 0;
 		audioData = null;
 	}
@@ -41,7 +41,11 @@ public class Instrument implements Element {
 		if( audioData != null ) {
 			instrument.setSampleData( audioData.quantize(), loopStart, loopLength );
 		}
-		System.out.println( getToken() + " end." );
+		System.out.println( "Instrument " + instrumentIndex +
+			": Volume " + instrument.getVolume() +
+			", FineTune " + instrument.getFineTune() +
+			", LoopStart " + instrument.getLoopStart() +
+			", SampleEnd " + ( instrument.getLoopStart() + instrument.getLoopLength() ) );
 	}
 	
 	public void setName( String name ) {

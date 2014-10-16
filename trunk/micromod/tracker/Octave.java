@@ -26,7 +26,6 @@ public class Octave implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setOctave( Parser.parseInteger( value ) );
 	}
 	

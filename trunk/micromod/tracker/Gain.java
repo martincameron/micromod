@@ -26,7 +26,6 @@ public class Gain implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setGain( Parser.parseInteger( value ) );
 	}
 	

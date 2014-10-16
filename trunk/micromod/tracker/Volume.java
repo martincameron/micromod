@@ -26,7 +26,6 @@ public class Volume implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setVolume( Parser.parseInteger( value ) );
 	}
 	

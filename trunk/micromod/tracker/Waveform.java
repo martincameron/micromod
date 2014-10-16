@@ -29,7 +29,6 @@ public class Waveform implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		if( "Sawtooth".equals( value ) ) {
 			squareWave = false;
 		} else if( "Square".equals( value.toString() ) ) {

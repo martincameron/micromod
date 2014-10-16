@@ -31,7 +31,6 @@ public class Macro implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
 		rowIdx = 0;

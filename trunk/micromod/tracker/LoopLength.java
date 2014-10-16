@@ -24,7 +24,6 @@ public class LoopLength implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setLoopLength( Parser.parseInteger( value ) );
 	}
 	
