@@ -24,7 +24,6 @@ public class Pitch implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setPitch( Parser.parseInteger( value ) );
 	}
 	

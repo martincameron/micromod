@@ -28,7 +28,6 @@ public class Module implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		module = new micromod.Module();
 		module.setSongName( value );
 	}

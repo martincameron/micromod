@@ -28,7 +28,6 @@ public class WaveFile implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		try {
 			// Get the left/mono channel from the wav file.
 			java.io.InputStream inputStream = parent.getInputStream( value.toString() );

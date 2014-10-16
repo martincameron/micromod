@@ -26,7 +26,6 @@ public class Pattern implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		patterns = Parser.parseIntegerArray( value );
 		child.setRowIdx( 0 );
 	}

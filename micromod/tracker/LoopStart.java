@@ -26,7 +26,6 @@ public class LoopStart implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setLoopStart( Parser.parseInteger( value ) );
 	}
 	

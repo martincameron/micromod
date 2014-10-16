@@ -27,7 +27,6 @@ public class Root implements Element {
 	}
 	
 	public void begin( String value ) {
-		System.out.println( getToken() + ": " + value );
 		parent.setRoot( value );
 	}
 	
