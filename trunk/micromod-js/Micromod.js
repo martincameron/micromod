@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20140514 (c)2014 mumart@gmail.com";
+		return "20141021 (c)2014 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -422,7 +422,7 @@ function Channel( module, id ) {
 				tremolo();
 				break;
 			case 0x8: /* Set Panning. Not for Protracker. */
-				if( module.c2Rate == Module.C2_NTSC ) panning = param;
+				if( module.c2Rate == Module.C2_NTSC ) panning = ( param << 1 ) & 0xFF;
 				break;
 			case 0xC: /* Set Volume.*/
 				volume = param > 64 ? 64 : param;

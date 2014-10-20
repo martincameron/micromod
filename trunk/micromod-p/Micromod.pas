@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20140514';
+Const MICROMOD_VERSION : String = '20141021';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -464,7 +464,7 @@ Begin
 				Tremolo( Channel );
 			End;
 		$8 : Begin { Set Panning }
-				If NumChannels > 4 Then Channel.Panning := Param;
+				If NumChannels > 4 Then Channel.Panning := ( Param Shl 1 ) And $FF;
 			End;
 		$B : Begin { Pattern Jump. }
 				If PLCount < 0 Then Begin

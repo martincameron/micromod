@@ -147,7 +147,7 @@ public class Channel {
 				tremolo();
 				break;
 			case 0x08: /* Set Panning.*/
-				panning = noteParam & 0xFF;
+				panning = ( noteParam << 1 ) & 0xFF;
 				break;
 			case 0x0A: case 0x84: /* Vol Slide. */
 				if( noteParam > 0 ) vslideParam = noteParam;
