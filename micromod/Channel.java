@@ -90,7 +90,7 @@ public class Channel {
 				tremolo();
 				break;
 			case 0x8: /* Set Panning. Not for Protracker. */
-				if( module.getNumChannels() != 4 ) panning = param;
+				if( module.getNumChannels() != 4 ) panning = ( param << 1 ) & 0xFF;
 				break;
 			case 0xC: /* Set Volume.*/
 				volume = param > 64 ? 64 : param;
