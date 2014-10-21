@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20141021';
+Const MICROMOD_VERSION : String = '20141022';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -463,8 +463,10 @@ Begin
 				If ( Param And $F ) > 0 Then Channel.TremoloDepth := Param And $F;
 				Tremolo( Channel );
 			End;
-		$8 : Begin { Set Panning }
-				If NumChannels > 4 Then Channel.Panning := ( Param Shl 1 ) And $FF;
+		$8 : Begin { Set Panning. Not for 4-channel ProTracker. }
+				If NumChannels <> 4 Then Begin
+					If Param < 128 Then Channel.Panning := ( Param Shl 1 ) Else Channel.Panning := 255;
+				End;
 			End;
 		$B : Begin { Pattern Jump. }
 				If PLCount < 0 Then Begin

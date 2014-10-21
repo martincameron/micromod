@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20141021 (c)2014 mumart@gmail.com */
+/* fast protracker replay version 20141022 (c)2014 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define MAX_INSTRUMENTS 32
@@ -219,8 +219,10 @@ static void channel_row( struct channel *chan ) {
 			if( ( param & 0x0F ) > 0 ) chan->tremolo_depth = param & 0xF;
 			tremolo( chan );
 			break;
-		case 0x8: /* Set Panning.*/
-			if( num_channels > 4 ) chan->panning = ( param << 1 ) & 0xFF;
+		case 0x8: /* Set Panning. Not for 4-channel ProTracker. */
+			if( num_channels != 4 ) {
+				chan->panning = ( param < 128 ) ? ( param << 1 ) : 255;
+			}
 			break;
 		case 0xB: /* Pattern Jump.*/
 			if( pl_count < 0 ) {
