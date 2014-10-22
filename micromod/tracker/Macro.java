@@ -51,4 +51,8 @@ public class Macro implements Element {
 	public void nextNote( micromod.Note note ) {
 		pattern.setNote( rowIdx++, 0, note );
 	}
+
+	public micromod.Module getModule() {
+		return parent.getModule();
+	}
 }
