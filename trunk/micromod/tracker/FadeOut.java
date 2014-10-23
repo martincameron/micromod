@@ -1,17 +1,15 @@
 
 package micromod.tracker;
 
-public class Root implements Element {
-	private Macro parent;
-	private Repeat sibling;
+public class FadeOut implements Element {
+	private Note parent;
 	
-	public Root( Macro parent ) {
+	public FadeOut( Note parent ) {
 		this.parent = parent;
-		sibling = new Repeat( parent );
 	}
 	
 	public String getToken() {
-		return "Root";
+		return "FadeOut";
 	}
 	
 	public Element getParent() {
@@ -19,7 +17,7 @@ public class Root implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -27,9 +25,9 @@ public class Root implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setRoot( value );
+		parent.setFadeOut( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {
-	}
+	}	
 }

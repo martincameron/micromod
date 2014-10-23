@@ -1,17 +1,17 @@
 
 package micromod.tracker;
 
-public class Root implements Element {
+public class Repeat implements Element {
 	private Macro parent;
-	private Repeat sibling;
+	private Note sibling;
 	
-	public Root( Macro parent ) {
+	public Repeat( Macro parent ) {
 		this.parent = parent;
-		sibling = new Repeat( parent );
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
-		return "Root";
+		return "Repeat";
 	}
 	
 	public Element getParent() {
@@ -27,7 +27,7 @@ public class Root implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setRoot( value );
+		parent.setRepeat( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {
