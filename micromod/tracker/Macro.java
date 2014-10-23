@@ -6,7 +6,8 @@ public class Macro implements Element {
 	private Pattern sibling;
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
-	private int macroIdx, rowIdx;
+	private micromod.Note note = new micromod.Note();
+	private int macroIdx, rowIdx, repeatCount;
 	private String scale, root;
 	
 	public Macro( Module parent ) {
@@ -33,10 +34,17 @@ public class Macro implements Element {
 	public void begin( String value ) {
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
-		rowIdx = 0;
+		rowIdx = repeatCount = 0;
 	}
 	
 	public void end() {
+		int rows = rowIdx;
+		for( int idx = 0; idx < repeatCount; idx++ ) {
+			for( int row = 0; row < rows; row++ ) {
+				pattern.getNote( row, 0, note );
+				nextNote( note );
+			}
+		}
 		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern ) );
 	}
 	
@@ -48,6 +56,10 @@ public class Macro implements Element {
 		this.root = root;
 	}
 	
+	public void setRepeat( int count ) {
+		repeatCount = count;
+	}
+
 	public void nextNote( micromod.Note note ) {
 		pattern.setNote( rowIdx++, 0, note );
 	}
