@@ -1,15 +1,17 @@
 
 package micromod.tracker;
 
-public class Repeat implements Element {
+public class Decay implements Element {
 	private Macro parent;
+	private Note sibling;
 	
-	public Repeat( Macro parent ) {
+	public Decay( Macro parent ) {
 		this.parent = parent;
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
-		return "Repeat";
+		return "Decay";
 	}
 	
 	public Element getParent() {
@@ -17,7 +19,7 @@ public class Repeat implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
@@ -25,9 +27,9 @@ public class Repeat implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setRepeat( Parser.parseInteger( value ) );
+		parent.setDecay( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {
-	}
+	}	
 }

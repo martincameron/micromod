@@ -3,11 +3,11 @@ package micromod.tracker;
 
 public class Root implements Element {
 	private Macro parent;
-	private Repeat sibling;
+	private Attack sibling;
 	
 	public Root( Macro parent ) {
 		this.parent = parent;
-		sibling = new Repeat( parent );
+		sibling = new Attack( parent );
 	}
 	
 	public String getToken() {
