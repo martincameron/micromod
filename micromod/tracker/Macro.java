@@ -7,7 +7,8 @@ public class Macro implements Element {
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
 	private micromod.Note note = new micromod.Note();
-	private int macroIdx, rowIdx, repeatCount, attackRows, sustainRows, decayRows;
+	private int macroIdx, rowIdx, repeatCount;
+	private int attackRows, sustainRows, decayRows;
 	private String scale, root;
 	
 	public Macro( Module parent ) {
@@ -46,16 +47,21 @@ public class Macro implements Element {
 			}
 		}
 		if( ( attackRows + sustainRows + decayRows ) > 0 ) {
+			int xVol = 256, yVol = 64;
 			pattern.getNote( 0, 0, note );
-			int x0 = 0, y0 = note.parameter;
-			if( note.effect != 0xC ) {
-				y0 = parent.getModule().getInstrument( note.instrument ).getVolume();
+			if( note.effect == 0xC ) {
+				yVol = note.parameter;
+			} else if( note.instrument > 0 ) {
+				yVol = parent.getModule().getInstrument( note.instrument ).getVolume();
 			}
 			for( int x = 0; x < 257; x++ ) {
-				if( ( ( x * x ) >> 10 ) == y0 ) x0 = x;
+				/* Find value on x^2 volume curve.*/
+				if( ( ( x * x ) >> 10 ) == yVol ) {
+					xVol = x;
+				}
 			}
 			for( int row = 0; row < attackRows; row++ ) {
-				int x = x0 * ( row + 1 ) * 2 / attackRows;
+				int x = xVol * ( row + 1 ) * 2 / attackRows;
 				x = ( x >> 1 ) + ( x & 1 );
 				pattern.getNote( row, 0, note );
 				note.effect = 0xC;
@@ -65,11 +71,11 @@ public class Macro implements Element {
 			for( int row = 0; row < sustainRows; row++ ) {
 				pattern.getNote( attackRows + row, 0, note );
 				note.effect = 0xC;
-				note.parameter = y0;
+				note.parameter = yVol;
 				pattern.setNote( attackRows + row, 0, note );
 			}
 			for( int row = 0; row < decayRows; row++ ) {
-				int x = x0 * ( decayRows - row - 1 ) * 2 / decayRows;
+				int x = xVol * ( decayRows - row - 1 ) * 2 / decayRows;
 				x = ( x >> 1 ) + ( x & 1 );
 				pattern.getNote( attackRows + sustainRows + row, 0, note );
 				note.effect = 0xC;
