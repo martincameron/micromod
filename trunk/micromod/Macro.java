@@ -56,11 +56,14 @@ public class Macro {
 			}
 			int dstKey = scale.transpose( srcKey, distance );
 			int semitones = dstKey - srcKey;
-			if( effect == 0xC ) {
-				volume = param;
-			} else if( effect > 0 ) {
-				note.effect = effect;
-				note.parameter = param;
+			if( effect > 0 ) {
+				if( effect == 0xC ) {
+					volume = param;
+				}
+				if( effect != 0xC || param == 0 ) {
+					note.effect = effect;
+					note.parameter = param;
+				}
 			}
 			note.transpose( semitones, volume, module );
 			if( semitones != 0 && note.effect == 0 && note.parameter != 0 ) {
