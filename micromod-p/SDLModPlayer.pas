@@ -61,8 +61,8 @@ Var
 Begin
 	WriteLn( 'Song Name: ' + MicromodGetSongName );
 	For Idx := 1 To 31 Do Begin
-		InstrumentName := MicromodGetInstrumentName( Idx );
-		If InstrumentName[ 1 ] <> #0 Then Begin
+		InstrumentName := TrimRight( MicromodGetInstrumentName( Idx ) );
+		If Length( InstrumentName ) > 0 Then Begin
 			Write( 'Instrument ' );
 			If Idx < 10 Then Write( ' ' );
 			WriteLn( IntToStr( Idx ) + ': ' + InstrumentName );
