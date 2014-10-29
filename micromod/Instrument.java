@@ -43,7 +43,13 @@ public class Instrument {
 		}
 		this.fineTune = fineTune;
 	}
-	
+
+	public byte[] getSampleData() {
+		byte[] data = new byte[ loopStart + loopLength ];
+		System.arraycopy( sampleData, 0, data, 0, data.length );
+		return data;
+	}
+
 	public void setSampleData( byte[] sampleData, int loopStart, int loopLength ) {
 		setSampleData( sampleData, 0, sampleData.length, loopStart, loopLength );
 	}
