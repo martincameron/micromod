@@ -55,26 +55,35 @@ public class Instrument {
 	}
 	
 	public void setSampleData( byte[] sampleData, int sampleOffset, int sampleLength, int loopStart, int loopLength ) {
+		/* LoopStart and LoopLength must always be even. */
+		loopStart = loopStart & -2;
+		loopLength = loopLength & -2;
+		/* Correct loop points. */
+		if( loopStart + loopLength > sampleLength ) {
+			loopLength = ( sampleLength - loopStart ) & -2;
+		}
+		if( loopStart < 0 || loopStart >= sampleLength || loopLength < 4 ) {
+			loopStart = sampleLength & -2;
+			loopLength = 0;
+		}
+		sampleLength = loopStart + loopLength;
+		/* Maximum sample size is 128k. */
+		if( sampleLength > 0x1FFFE ) {
+			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + sampleLength );
+		}
+		this.loopStart = loopStart;
+		this.loopLength = loopLength;
+		this.sampleData = new byte[ sampleLength + 1 ];
+		/* Handle truncated sample data. */
+		if( sampleOffset > sampleData.length ) {
+			sampleOffset = sampleData.length;
+		}
 		if( sampleOffset + sampleLength > sampleData.length ) {
 			sampleLength = sampleData.length - sampleOffset;
 		}
-		if( loopStart + loopLength > sampleLength ) {
-			loopLength = sampleLength - loopStart;
-		}
-		if( loopStart < 0 || loopStart >= sampleLength || loopLength < 4 ) {
-			loopStart = sampleLength;
-			loopLength = 0;
-		}
-		int loopEnd = ( loopStart & -2 ) + ( loopLength & -2 );
-		if( loopEnd > 0x1FFFE ) {
-			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + loopEnd );
-		}
-		this.loopStart = loopStart & -2;
-		this.loopLength = loopLength & -2;
-		this.sampleData = new byte[ loopEnd + 1 ];
-		System.arraycopy( sampleData, sampleOffset, this.sampleData, 0, loopEnd );
+		System.arraycopy( sampleData, sampleOffset, this.sampleData, 0, sampleLength );
 		/* The sample after the loop end must be the same as the loop start for the interpolation algorithm. */
-		this.sampleData[ loopEnd ] = this.sampleData[ this.loopStart ];
+		this.sampleData[ loopStart + loopLength ] = this.sampleData[ loopStart ];
 	}
 	
 	public int getLoopStart() {
