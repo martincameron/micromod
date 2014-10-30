@@ -124,15 +124,15 @@ public class Module {
 			sample.c2Rate = c2Rate;
 			int loopStart = ushortbe( moduleData, instIdx * 30 + 16 ) * 2;
 			int loopLength = ushortbe( moduleData, instIdx * 30 + 18 ) * 2;
-			short[] sampleData = new short[ sampleLength ];
-			if( moduleDataIdx + sampleLength > moduleData.length )
-				sampleLength = moduleData.length - moduleDataIdx;
 			if( loopStart + loopLength > sampleLength )
 				loopLength = sampleLength - loopStart;
 			if( loopLength < 4 ) {
 				loopStart = sampleLength;
 				loopLength = 0;
 			}
+			short[] sampleData = new short[ sampleLength ];
+			if( moduleDataIdx + sampleLength > moduleData.length )
+				sampleLength = moduleData.length - moduleDataIdx;
 			for( int idx = 0, end = sampleLength; idx < end; idx++ )
 				sampleData[ idx ] = ( short ) ( moduleData[ moduleDataIdx++ ] << 8 );
 			sample.setSampleData( sampleData, loopStart, loopLength, false );
@@ -411,7 +411,7 @@ public class Module {
 				if( sixteenBit ) {
 					sampleDataLength /= 2;
 					sampleLoopStart /= 2;
-					sampleLoopLength /=2;
+					sampleLoopLength /= 2;
 				}
 				if( !looped || ( sampleLoopStart + sampleLoopLength ) > sampleDataLength ) {
 					sampleLoopStart = sampleDataLength;

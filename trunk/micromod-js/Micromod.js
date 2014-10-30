@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20141022 (c)2014 mumart@gmail.com";
+		return "20141030 (c)2014 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -729,25 +729,22 @@ function Module( module ) {
 		if( inst.volume > 64 ) {
 			inst.volume = 64;
 		}
-		var loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
-		var loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
-		var sampleData = new Int8Array( sampleLength + 1 );
+		inst.loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
+		inst.loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
+		if( inst.loopStart + inst.loopLength > sampleLength ) {
+			inst.loopLength = sampleLength - inst.loopStart;
+		}
+		if( inst.loopLength < 4 ) {
+			inst.loopStart = sampleLength;
+			inst.loopLength = 0;
+		}
+		inst.sampleData = new Int8Array( sampleLength + 1 );
 		if( modIdx + sampleLength > module.length ) {
 			sampleLength = module.length - modIdx;
 		}
-		sampleData.set( module.subarray( modIdx, modIdx + sampleLength ) );
+		inst.sampleData.set( module.subarray( modIdx, modIdx + sampleLength ) );
+		inst.sampleData[ inst.loopStart + inst.loopLength ] = inst.sampleData[ inst.loopStart ];
 		modIdx += sampleLength;
-		if( loopStart + loopLength > sampleLength ) {
-			loopLength = sampleLength - loopStart;
-		}
-		if( loopLength < 4 ) {
-			loopStart = sampleLength;
-			loopLength = 0;
-		}
-		sampleData[ loopStart + loopLength ] = sampleData[ loopStart ];
-		inst.loopStart = loopStart;
-		inst.loopLength = loopLength;
-		inst.sampleData = sampleData;
 		this.instruments[ instIdx ] = inst;
 	}
 }
