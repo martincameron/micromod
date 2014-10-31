@@ -22,6 +22,11 @@ public class Module {
 		}
 	}
 
+	public Module( java.io.InputStream inputStream ) throws java.io.IOException {
+		this();
+		load( inputStream );
+	}
+
 	public Module( byte[] module ) {
 		this();
 		load( module );
@@ -127,6 +132,14 @@ public class Module {
 		return instruments[ instIdx ];
 	}
 
+	public static int calculateModuleLength( byte[] moduleHeader ) {
+		int moduleLength = 1084 + 4 * calculateNumChannels( moduleHeader ) * 64 * calculateNumPatterns( moduleHeader );
+		for( int instIdx = 1; instIdx < 32; instIdx++ ) {
+			moduleLength += Instrument.calculateSampleDataLength( moduleHeader, instIdx );
+		}
+		return moduleLength;
+	}
+
 	public int load( byte[] module ) {
 		char[] name = new char[ 20 ];
 		for( int idx = 0; idx < name.length; idx++ ) {
@@ -139,29 +152,11 @@ public class Module {
 		if( restartPos >= sequenceLength ) {
 			restartPos = 0;
 		}
-		int numPatterns = 0;
 		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
-			int patIdx = module[ 952 + seqIdx ] & 0x7F;
-			setSequenceEntry( seqIdx, patIdx );
-			if( patIdx >= numPatterns ) {
-				numPatterns = patIdx + 1;
-			}
+			setSequenceEntry( seqIdx, module[ 952 + seqIdx ] & 0x7F );
 		}
-		switch( ( ( module[ 1082 ] & 0xFF ) << 8  ) | ( module[ 1083 ] & 0xFF ) ) {
-			case 0x4b2e: /* M.K. */
-			case 0x4b21: /* M!K! */
-			case 0x5434: /* FLT4 */
-				setNumChannels( 4 );
-				break;
-			case 0x484e: /* xCHN */
-				setNumChannels( module[ 1080 ] - '0' );
-				break;
-			case 0x4348: /* xxCH */
-				setNumChannels( ( module[ 1080 ] - '0' ) * 10 + module[ 1081 ] - '0' );
-				break;
-			default:
-				throw new IllegalArgumentException( "MOD Format not recognised!" );
-		}
+		setNumChannels( calculateNumChannels( module ) );
+		int numPatterns = calculateNumPatterns( module );
 		int moduleOffset = 1084;
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			moduleOffset = getPattern( patIdx ).load( module, moduleOffset );
@@ -170,6 +165,15 @@ public class Module {
 			moduleOffset = getInstrument( instIdx ).load( module, instIdx, moduleOffset );
 		}
 		return moduleOffset;
+	}
+
+	public int load( java.io.InputStream inputStream ) throws java.io.IOException {
+		byte[] header = new byte[ 1084 ];
+		readFully( inputStream, header, 0, header.length );
+		byte[] module = new byte[ calculateModuleLength( header ) ];
+		System.arraycopy( header, 0, module, 0, header.length );
+		readFully( inputStream, module, header.length, module.length - header.length );
+		return load( module );
 	}
 
 	public byte[] save() {
@@ -221,6 +225,40 @@ public class Module {
 		}
 		for( int idx = 0; idx < len; idx++ ) {
 			outBuf[ offset + idx ] = ( byte ) ( idx < text.length() ? text.charAt( idx ) : 32 );
+		}
+	}
+
+	private static int calculateNumChannels( byte[] header ) {
+		switch( ( ( header[ 1082 ] & 0xFF ) << 8  ) | ( header[ 1083 ] & 0xFF ) ) {
+			case 0x4b2e: /* M.K. */
+			case 0x4b21: /* M!K! */
+			case 0x5434: /* FLT4 */
+				return 4;
+			case 0x484e: /* xCHN */
+				return header[ 1080 ] - '0';
+			case 0x4348: /* xxCH */
+				return ( header[ 1080 ] - '0' ) * 10 + header[ 1081 ] - '0';
+			default:
+				throw new IllegalArgumentException( "MOD Format not recognised!" );
+		}
+	}
+
+	private static int calculateNumPatterns( byte[] header ) {
+		int numPatterns = 0;
+		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
+			int patIdx = header[ 952 + seqIdx ] & 0x7F;
+			if( patIdx >= numPatterns ) {
+				numPatterns = patIdx + 1;
+			}
+		}
+		return numPatterns;
+	}
+
+	private static void readFully( java.io.InputStream inputStream, byte[] buffer, int offset, int length ) throws java.io.IOException {
+		int read = 1, end = offset + length;
+		while( read > 0 ) {
+			read = inputStream.read( buffer, offset, end - offset );
+			offset += read;
 		}
 	}
 }
