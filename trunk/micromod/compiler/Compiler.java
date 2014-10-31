@@ -86,7 +86,7 @@ public class Compiler {
 			throw new IllegalArgumentException( "Output directory already exists!" );
 		}
 		outDir.mkdir();
-		micromod.Module module = micromod.Player.loadModule( modFile );
+		micromod.Module module = new micromod.Module( new java.io.FileInputStream( modFile ) );
 		for( int instIdx = 1; instIdx < 32; instIdx++ ) {
 			micromod.Instrument instrument = module.getInstrument( instIdx );
 			AudioData audioData = new AudioData( instrument.getSampleData(), module.getC2Rate() );
