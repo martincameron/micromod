@@ -74,13 +74,6 @@ public class Instrument {
 		this.loopStart = loopStart;
 		this.loopLength = loopLength;
 		this.sampleData = new byte[ sampleLength + 1 ];
-		/* Handle truncated sample data. */
-		if( sampleOffset > sampleData.length ) {
-			sampleOffset = sampleData.length;
-		}
-		if( sampleOffset + sampleLength > sampleData.length ) {
-			sampleLength = sampleData.length - sampleOffset;
-		}
 		System.arraycopy( sampleData, sampleOffset, this.sampleData, 0, sampleLength );
 		/* The sample after the loop end must be the same as the loop start for the interpolation algorithm. */
 		this.sampleData[ loopStart + loopLength ] = this.sampleData[ loopStart ];
@@ -156,13 +149,13 @@ public class Instrument {
 			name[ idx ] = chr > 32 ? ( char ) chr : 32;
 		}
 		setName( new String( name ) );
-		int sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
+		int sampleLength = calculateSampleDataLength( module, instIdx );
 		int fineTune = module[ instIdx * 30 + 14 ] & 0xF;
 		setFineTune( fineTune > 7 ? fineTune - 16 : fineTune );
 		int volume =  module[ instIdx * 30 + 15 ] & 0x7F;
 		setVolume( volume > 64 ? 64 : volume );
-		int loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
-		int loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
+		int loopStart = ubeShort( module, instIdx * 30 + 16 ) * 2;
+		int loopLength = ubeShort( module, instIdx * 30 + 18 ) * 2;
 		setSampleData( module, sampleDataOffset, sampleLength, loopStart, loopLength );
 		return sampleDataOffset + sampleLength;
 	}
@@ -186,8 +179,12 @@ public class Instrument {
 		}
 		return sampleDataOffset + sampleLength;
 	}
-	
-	private static int ushortbe( byte[] buf, int offset ) {
-		return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
+
+	public static int calculateSampleDataLength( byte[] moduleHeader, int instIdx ) {
+		return ubeShort( moduleHeader, instIdx * 30 + 12 ) * 2;
+	}
+
+	private static int ubeShort( byte[] buffer, int offset ) {
+		return ( ( buffer[ offset ] & 0xFF ) << 8 ) | ( buffer[ offset + 1 ] & 0xFF );
 	}
 }

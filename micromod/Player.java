@@ -1,11 +1,6 @@
 
 package micromod;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.Writer;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
@@ -79,41 +74,30 @@ public class Player implements Runnable {
 		}
 	}
 
-	public static Module loadModule( File modFile ) throws IOException {
-		byte[] moduleData = new byte[ ( int ) modFile.length() ];
-		FileInputStream inputStream = new FileInputStream( modFile );
-		try {
-			int offset = 0;
-			while( offset < moduleData.length ) {
-				int len = inputStream.read( moduleData, offset, moduleData.length - offset );
-				if( len < 0 ) throw new IOException( "Unexpected end of file." );
-				offset += len;
-			}
-		} finally {
-			inputStream.close();
-		}
-		return new Module( moduleData );
-	}
-
-	public static void main( String[] args ) throws Exception {
+	public static void main( String[] args ) throws java.io.IOException {
 		// Parse arguments.
-		File modFile = null;
+		String modFile = "";
 		boolean interpolation = false;
 		if( args.length == 2 && "-int".equals( args[ 0 ] ) ) {
 			interpolation = true;
-			modFile = new File( args[ 1 ] );
+			modFile = args[ 1 ];
 		} else if( args.length == 1 ) {
-			modFile = new File( args[ 0 ] );
+			modFile = args[ 0 ];
 		} else {
 			System.err.println( "Micromod Java ProTracker Replay " + Micromod.VERSION );
 			System.err.println( "Usage: java " + Player.class.getName() + " [-int] modfile" );
 			System.exit( 1 );
 		}
 		// Load and play module.
-		Player player = new Player( loadModule( modFile ), interpolation, false );
+		Module module = new Module( new java.io.FileInputStream( modFile ) );
+		Player player = new Player( module, interpolation, false );
 		System.out.println( player.getModuleInfo() );
 		Thread thread = new Thread( player );
 		thread.start();
-		thread.join();
+		try {
+			thread.join();
+		} catch( InterruptedException e ) {
+			System.err.println( "Interrupted!" );
+		}
 	}
 }
