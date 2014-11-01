@@ -103,16 +103,19 @@ public class IBXMPlayer extends JFrame {
 					Transferable transferable = dropTargetDropEvent.getTransferable();
 					DataFlavor dataFlavor = DataFlavor.javaFileListFlavor;
 					List fileList = ( List ) transferable.getTransferData( dataFlavor );
-					File file = ( File ) fileList.get( 0 );
-					try {
-						loadModule( file );
-					} catch( Exception e ) {
-						JOptionPane.showMessageDialog( IBXMPlayer.this,
-							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
+					if( fileList != null && fileList.size() > 0 ) {
+						File file = ( File ) fileList.get( 0 );
+						InputStream inputStream = new FileInputStream( file );
+						try {
+							loadModule( inputStream );
+						} finally {
+							inputStream.close();
+						}
 					}
 					dropTargetDropEvent.dropComplete( true );
 				} catch( Exception e ) {
-					System.out.println( e );
+					JOptionPane.showMessageDialog( IBXMPlayer.this,
+						e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
 				}
 			}
 		} );
@@ -175,7 +178,13 @@ public class IBXMPlayer extends JFrame {
 				int result = loadFileChooser.showOpenDialog( IBXMPlayer.this );
 				if( result == JFileChooser.APPROVE_OPTION ) {
 					try {
-						loadModule( loadFileChooser.getSelectedFile() );
+						File file = loadFileChooser.getSelectedFile();
+						InputStream inputStream = new FileInputStream( file );
+						try {
+							loadModule( inputStream );
+						} finally {
+							inputStream.close();
+						}
 					} catch( Exception e ) {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
@@ -273,17 +282,8 @@ public class IBXMPlayer extends JFrame {
 	}
 
 
-	private void loadModule( File modFile ) throws IOException {		
-		byte[] moduleData = new byte[ ( int ) modFile.length() ];
-		FileInputStream inputStream = new FileInputStream( modFile );
-		int offset = 0;
-		while( offset < moduleData.length ) {
-			int len = inputStream.read( moduleData, offset, moduleData.length - offset );
-			if( len < 0 ) throw new IOException( "Unexpected end of file." );
-			offset += len;
-		}
-		inputStream.close();
-		Module module = new Module( moduleData );
+	private void loadModule( InputStream modFile ) throws IOException {
+		Module module = new Module( modFile );
 		IBXM ibxm = new IBXM( module, SAMPLE_RATE );
 		ibxm.setInterpolation( interpolation );
 		duration = ibxm.calculateSongDuration();

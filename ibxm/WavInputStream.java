@@ -162,29 +162,22 @@ public class WavInputStream extends InputStream {
 			System.err.println( "Usage: java " + WavInputStream.class.getName() + " [int=nearest|sinc] modfile wavfile" );
 			System.exit( 1 );
 		}
-		// Load module data into array.
-		byte[] buf = new byte[ ( int ) modFile.length() ];
-		InputStream in = new java.io.FileInputStream( modFile );
-		int idx = 0;
-		while( idx < buf.length ) {
-			int len = in.read( buf, idx, buf.length - idx );
-			if( len < 0 ) throw new java.io.IOException( "Unexpected end of file." );
-			idx += len;
-		}
-		in.close();
 		// Write WAV file to output.
-		java.io.OutputStream out = new java.io.FileOutputStream( wavFile );
-		IBXM ibxm = new IBXM( new Module( buf ), 48000 );
+		IBXM ibxm = new IBXM( new Module( new java.io.FileInputStream( modFile ) ), 48000 );
 		ibxm.setInterpolation( interpolation );
-		in = new WavInputStream( ibxm );
-		buf = new byte[ ibxm.getSampleRate() * 4 ];
-		int remain = ( ( WavInputStream ) in ).getBytesRemaining();
-		while( remain > 0 ) {
-			int count = remain > buf.length ? buf.length : remain;
-			count = in.read( buf, 0, count );
-			out.write( buf, 0, count );
-			remain -= count;
-		}		
-		out.close();
+		WavInputStream in = new WavInputStream( ibxm );
+		java.io.OutputStream out = new java.io.FileOutputStream( wavFile );
+		try {
+			byte[] buf = new byte[ ibxm.getSampleRate() * 4 ];
+			int remain = in.getBytesRemaining();
+			while( remain > 0 ) {
+				int count = remain > buf.length ? buf.length : remain;
+				count = in.read( buf, 0, count );
+				out.write( buf, 0, count );
+				remain -= count;
+			}
+		} finally {
+			out.close();
+		}
 	}
 }
