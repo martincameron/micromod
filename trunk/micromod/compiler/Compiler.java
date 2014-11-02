@@ -14,7 +14,7 @@ public class Compiler {
 				outDir = args[ argsIdx++ ];
 			} else if( "-int".equals( arg ) ) {
 				interpolation = true;
-			} else if( "-ext".equals( arg ) || "-out".equals( arg ) ) {
+			} else if( "-dec".equals( arg ) || "-out".equals( arg ) ) {
 				modFile = args[ argsIdx++ ];
 			} else if( "-seq".equals( arg ) ) {
 				sequence = Parser.parseIntegerArray( args[ argsIdx++ ] );
@@ -36,12 +36,12 @@ public class Compiler {
 				}
 				outDir = outDir + ".ins";
 			}
-			extract( new java.io.File( modFile ), new java.io.File( outDir ) );
+			decompile( new micromod.Module( new java.io.FileInputStream( modFile ) ), new java.io.File( outDir ) );
 		} else {
 			System.err.println( "Micromod Compiler! (c)2014 mumart@gmail.com" );
 			System.err.println( "       Play: java " + Compiler.class.getName() + " input.mt [-int] [-seq 1,2,3]" );
 			System.err.println( "    Compile: java " + Compiler.class.getName() + " input.mt [-out output.mod]" );
-			System.err.println( "    Extract: java " + Compiler.class.getName() + " -ext input.mod [-dir outputdir]" );
+			System.err.println( "  Decompile: java " + Compiler.class.getName() + " -dec input.mod [-dir outputdir]" );
 		}
 	}
 
@@ -60,6 +60,7 @@ public class Compiler {
 		try {
 			thread.join();
 		} catch( InterruptedException e ) {
+			System.err.println( "Interrupted!" );
 		}
 	}
 
@@ -81,24 +82,87 @@ public class Compiler {
 		return module;
 	}
 
-	private static void extract( java.io.File modFile, java.io.File outDir ) throws java.io.IOException {
+	private static void decompile( micromod.Module module, java.io.File outDir ) throws java.io.IOException {
 		if( outDir.exists() ) {
 			throw new IllegalArgumentException( "Output directory already exists!" );
 		}
 		outDir.mkdir();
-		micromod.Module module = new micromod.Module( new java.io.FileInputStream( modFile ) );
-		for( int instIdx = 1; instIdx < 32; instIdx++ ) {
-			micromod.Instrument instrument = module.getInstrument( instIdx );
-			AudioData audioData = new AudioData( instrument.getSampleData(), module.getC2Rate() );
-			String fileName = ( instIdx < 10 ? "0" : "" ) + instIdx + ".wav";
-			if( audioData.getLength() > 1 ) {
-				java.io.OutputStream outputStream = new java.io.FileOutputStream( new java.io.File( outDir, fileName ) );
-				try {
-					audioData.writeWav( outputStream, true );
-				} finally {
-					outputStream.close();
+		java.io.Writer writer = new java.io.OutputStreamWriter( new java.io.FileOutputStream( new java.io.File( outDir, "module.mt" ) ) );
+		try {
+			writer.write( "Module \"" + nameString( module.getSongName() ) + "\"\n" );
+			int numChannels = module.getNumChannels();
+			writer.write( "Channels " + numChannels + "\n" );
+			writer.write( "Sequence \"" + module.getSequenceEntry( 0 ) );
+			int numPatterns = 1;
+			for( int idx = 1, len = module.getSequenceLength(); idx < len; idx++ ) {
+				int seqEntry = module.getSequenceEntry( idx );
+				if( seqEntry >= numPatterns ) {
+					numPatterns = seqEntry + 1;
+				}
+				writer.write( "," + seqEntry );
+			}
+			writer.write( "\"\n" );
+			for( int instIdx = 1; instIdx < 32; instIdx++ ) {
+				micromod.Instrument instrument = module.getInstrument( instIdx );
+				String name = nameString( instrument.getName() );
+				int volume = instrument.getVolume();
+				int fineTune = instrument.getFineTune();
+				int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
+				if( name.length() > 0 || volume > 0 || fineTune > 0 || sampleLength > 2 ) {
+					writer.write( "\tInstrument " + instIdx + " Name \"" + name + "\"\n" );
+					if( volume > 0 || fineTune > 0 ) {
+						writer.write( "\t\tVolume " + instrument.getVolume() + " FineTune " + instrument.getFineTune() + "\n" );
+					}
+					if( sampleLength > 2 ) {
+						String fileName = ( instIdx < 10 ? "0" : "" ) + instIdx + ".wav";
+						writer.write( "\t\tWaveFile \"" + fileName + "\"\n" );
+						AudioData audioData = new AudioData( instrument.getSampleData(), module.getC2Rate() );
+						java.io.OutputStream outputStream = new java.io.FileOutputStream( new java.io.File( outDir, fileName ) );
+						try {
+							audioData.writeWav( outputStream, true );
+						} finally {
+							outputStream.close();
+						}
+						if( instrument.getLoopLength() > 2 ) {
+							writer.write( "\t\tLoopStart " + instrument.getLoopStart() + " LoopLength " + instrument.getLoopLength() + "\n" );
+						}
+					}
 				}
 			}
+			micromod.Note note = new micromod.Note();
+			for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
+				micromod.Pattern pattern = module.getPattern( patIdx );
+				writer.write( "\tPattern " + patIdx + "\n" );
+				for( int rowIdx = 0; rowIdx < 64; rowIdx++ ) {
+					writer.write( "\t\tRow \"" + ( rowIdx > 9 ? "" : "0" ) + rowIdx );
+					for( int chanIdx = 0; chanIdx < numChannels; chanIdx++ ) {
+						pattern.getNote( rowIdx, chanIdx, note );
+						writer.write( " " + note.toString() );
+					}
+					writer.write( "\"\n" );
+				}
+			}
+			writer.write( "(End.)\n" );
+		} finally {
+			writer.close();
 		}
+	}
+
+	private static String nameString( String str ) {
+		int length = 0;
+		char[] out = str.toCharArray();
+		for( int idx = 0; idx < out.length; idx++ ) {
+			char chr = out[ idx ];
+			if( chr == '"' ) {
+				chr = '\'';
+			} else if( chr < 32 || ( chr > 126 && chr < 160 ) ) {
+				chr = 32;
+			}
+			if( chr > 32 ) {
+				length = idx + 1;
+			}
+			out[ idx ] = chr;
+		}
+		return new String( out, 0, length );
 	}
 }
