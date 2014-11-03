@@ -1,16 +1,16 @@
 package micromod.compiler;
 
-public class Octave implements Element {
+public class Detune implements Element {
 	private Waveform parent;
-	private Detune sibling;
+	private Chorus sibling;
 
-	public Octave( Waveform parent ) {
+	public Detune( Waveform parent ) {
 		this.parent = parent;
-		sibling = new Detune( parent );
+		sibling = new Chorus( parent );
 	}
 	
 	public String getToken() {
-		return "Octave";
+		return "Detune";
 	}
 	
 	public Element getParent() {
@@ -26,7 +26,7 @@ public class Octave implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setOctave( Parser.parseInteger( value ) );
+		parent.setDetune( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {

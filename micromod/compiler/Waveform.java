@@ -5,7 +5,7 @@ public class Waveform implements Element {
 	private WaveFile sibling;
 	private Octave child = new Octave( this );
 	private boolean squareWave;
-	private int octave, numCycles;
+	private int octave, detune, chorus;
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -37,11 +37,18 @@ public class Waveform implements Element {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
 		setOctave( 0 );
-		setNumCycles( 1 );
+		setDetune( 0 );
+		setChorus( 1 );
 	}
 	
 	public void end() {
-		AudioData audioData = generate( squareWave, numCycles, octave );
+		int cycles = 1;
+		if( chorus > 1 ) {
+			cycles = chorus;
+		} else if( detune != 0 ) {
+			cycles = 128;
+		}
+		AudioData audioData = generate( squareWave, cycles, octave, detune, chorus > 1 );
 		parent.setAudioData( audioData );
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getLength() );
@@ -54,25 +61,34 @@ public class Waveform implements Element {
 		this.octave = octave;
 	}
 	
-	public void setNumCycles( int cycles ) {
-		if( cycles < 1 ) {
-			throw new IllegalArgumentException( "Invalid number of cycles: " + cycles );
+	public void setDetune( int pitch ) {
+		if( pitch < -192 || pitch > 192 ) {
+			throw new IllegalArgumentException( "Invalid detune (-192 to 192): " + pitch );
 		}
-		this.numCycles = cycles;
+		this.detune = pitch;
 	}
-	
-	/* Generate a sawtooth or square waveform with phase-modulation chorus if cycles is greater than 1. */
-	public static AudioData generate( boolean square, int cycles, int octave ) {
+
+	public void setChorus( int cycles ) {
+		if( cycles < 1 || cycles > 1024 ) {
+			throw new IllegalArgumentException( "Invalid chorus length (1 to 1024): " + cycles );
+		}
+		this.chorus = cycles;
+	}
+
+	/* Generate the specified number of cycles of a sawtooth or square waveform
+	   at the specified octave with optional 2-oscillator detune and phase-modulation chorus.
+	   The cycles parameter determines the cycle length of the chorus and accuracy of the detune. */
+	public static AudioData generate( boolean square, int cycles, int octave, int detune, boolean chorus ) {
 		byte[] buf = new byte[ 512 * cycles ];
+		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
-			int phase = 256 + Math.round( ( float ) ( Math.cos( 2 * Math.PI * cycle / cycles ) * 256 ) );
-			if( square ) {
-				for( int idx = 0; idx < 512; idx++ ) {
-					buf[ cycle * 512 + idx ] = ( byte ) ( ( ( idx & 0x100 ) + ( ( idx + phase ) & 0x100 ) ) * 255 / 512 - 128 );
-				}
-			} else {
-				for( int idx = 0; idx < 512; idx++ ) {
-					buf[ cycle * 512 + idx ] = ( byte ) ( ( ( idx % 512 ) + ( idx + phase ) % 512 ) / 4 - 128 );
+			int mod = chorus ? 256 + Math.round( ( float ) ( Math.cos( 2 * Math.PI * cycle / cycles ) * 256 ) ) : 0;
+			for( int ph1 = 0; ph1 < 512; ph1++ ) {
+				int ph2 = ( cycle * 512 + ph1 ) * cycles2 / cycles;
+				if( square ) {
+					buf[ cycle * 512 + ph1 ] = ( byte ) ( ( ( ph1 & 0x100 ) + ( ( ph2 + mod ) & 0x100 ) ) * 255 / 512 - 128 );
+				} else {
+					buf[ cycle * 512 + ph1 ] = ( byte ) ( ( ( ph1 % 512 ) + ( ph2 + mod ) % 512 ) / 4 - 128 );
 				}
 			}
 		}
