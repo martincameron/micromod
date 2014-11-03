@@ -126,8 +126,8 @@ public class Note {
 		note[ 3 ] = ( instrument > 9 && instrument < 100 ) ? ( char ) ( '0' + instrument / 10 ) : '-';
 		note[ 4 ] = ( instrument > 0 && instrument < 100 ) ? ( char ) ( '0' + instrument % 10 ) : '-';
 		note[ 5 ] = ( effect > 0 && effect < 16 ) ? hexToString.charAt( effect ) : '-';
-		note[ 6 ] = ( ( parameter & 0xF0 ) > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
-		note[ 7 ] = ( ( parameter & 0xF ) > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
+		note[ 6 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
+		note[ 7 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
 		return new String( note );
 	}
 

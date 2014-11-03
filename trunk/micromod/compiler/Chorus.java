@@ -24,7 +24,7 @@ public class Chorus implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setNumCycles( Parser.parseInteger( value ) );
+		parent.setChorus( Parser.parseInteger( value ) );
 	}
 	
 	public void end() {
