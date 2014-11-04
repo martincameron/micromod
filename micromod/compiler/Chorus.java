@@ -2,9 +2,11 @@ package micromod.compiler;
 
 public class Chorus implements Element {
 	private Waveform parent;
+	private Point sibling;
 
 	public Chorus( Waveform parent ) {
 		this.parent = parent;
+		sibling = new Point( parent );
 	}
 	
 	public String getToken() {
@@ -16,7 +18,7 @@ public class Chorus implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
