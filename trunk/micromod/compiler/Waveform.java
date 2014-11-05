@@ -4,8 +4,9 @@ public class Waveform implements Element {
 	private Instrument parent;
 	private WaveFile sibling;
 	private Octave child = new Octave( this );
-	private byte[] waveform = new byte[ 512 ];
+	private byte[] envelope = new byte[ 512 ];
 	private int octave, detune, chorus, x0, y0;
+	private boolean spectral;
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -29,23 +30,26 @@ public class Waveform implements Element {
 	}
 	
 	public void begin( String value ) {
-		if( "Sine".equals( value ) ) {
-			for( int idx = 0; idx < 512; idx++ ) {
-				waveform[ idx ] = ( byte ) Math.round( Math.sin( Math.PI * idx / 256 ) * 127 );
-			}
-		} else if( "Sawtooth".equals( value ) ) {
-			setEnvelopePoint(   0, -128 );
-			setEnvelopePoint( 511,  127 );
+		if( "Sine".equals( value ) || "Harmonics".equals( value ) ) {
+			spectral = true;
+			setEnvelopePoint(   0,    0 );
+			setEnvelopePoint(   1, -128 );
+			setEnvelopePoint(   2,    0 );
+			setEnvelopePoint( 511,    0 );
+			setEnvelopePoint(   0,    0 );
+		} else if( "Sawtooth".equals( value ) || "Envelope".equals( value ) ) {
+			spectral = false;
+			setEnvelopePoint(   0,    0 );
+			setEnvelopePoint( 255,  127 );
+			setEnvelopePoint( 256, -128 );
+			setEnvelopePoint( 511,   -1 );
+			setEnvelopePoint(   0,    0 );
 		} else if( "Square".equals( value ) ) {
+			spectral = false;
 			setEnvelopePoint(   0, -128 );
 			setEnvelopePoint( 255, -128 );
 			setEnvelopePoint( 256,  127 );
 			setEnvelopePoint( 511,  127 );
-		} else if( "Envelope".equals( value ) ) {
-			setEnvelopePoint(   0,    0 );
-			for( int idx = 0; idx < 512; idx++ ) {
-				waveform[ idx ] = 0;
-			}
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
@@ -53,7 +57,7 @@ public class Waveform implements Element {
 		setDetune( 0 );
 		setChorus( 1 );
 	}
-	
+
 	public void end() {
 		int cycles = 1;
 		if( chorus > 1 ) {
@@ -61,8 +65,8 @@ public class Waveform implements Element {
 		} else if( detune != 0 ) {
 			cycles = 128;
 		}
-		AudioData audioData = generate( waveform, cycles, octave, detune, chorus > 1 );
-		parent.setAudioData( audioData );
+		byte[] waveform = spectral ? harmonics( envelope ) : envelope;
+		parent.setAudioData( generate( waveform, cycles, octave, detune, chorus > 1 ) );
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getLength() );
 	}
@@ -88,7 +92,7 @@ public class Waveform implements Element {
 		this.chorus = cycles;
 	}
 
-	/* Set the waveform from x0 to x1 (0 to 511) by interpolating y0 to y1 (-128 to 127).
+	/* Set the envelope from x0 to x1 (0 to 511) by interpolating y0 to y1 (-128 to 127).
 	   The values of x0 and y0 are taken from the previously set envelope point (unless x1 is 0). */
 	public void setEnvelopePoint( int x1, int y1 ) {
 		if( x1 < 0 || x1 > 511 ) {
@@ -98,13 +102,13 @@ public class Waveform implements Element {
 			throw new IllegalArgumentException( "Invalid envelope amplitude (-128 to 127): " + y1 );
 		}
 		if( x1 == 0 ) {
-			waveform[ 0 ] = ( byte ) y1;
+			envelope[ 0 ] = ( byte ) y1;
 		} else {
 			if( x1 <= x0 ) {
 				throw new IllegalArgumentException( "Invalid envelope index (must increase): " + x1 );
 			}
-			for( int x = x0; x <= x1; x++ ) {
-				waveform[ x ] = ( byte ) ( ( y1 - y0 ) * x / ( x1 - x0 ) + y0 );
+			for( int x = 0, dx = x1 - x0, dy = y1 - y0; x <= dx; x++ ) {
+				envelope[ x0 + x ] = ( byte ) ( dy * x / dx + y0 );
 			}
 		}
 		x0 = x1;
@@ -125,5 +129,24 @@ public class Waveform implements Element {
 			}
 		}
 		return new AudioData( buf, 512 * 262 ).resample( ( 512 * 262 ) >> ( octave + 4 ), 0, true );
+	}
+
+	/* Generate a 512-byte periodic waveform from the specified 256-harmonic spectrum. */
+	public static byte[] harmonics( byte[] spectrum ) {
+		byte[] sine = new byte[ 512 ];
+		for( int idx = 0; idx < 512; idx++ ) {
+			sine[ idx ] = ( byte ) Math.round( Math.sin( Math.PI * idx / 256 ) * 127 );
+		}
+		byte[] wave = new byte[ 512 ];
+		for( int idx = 0; idx < 512; idx++ ) {
+			int amp = 0;
+			for( int partial = 1; partial <= 256; partial++ ) {
+				amp = amp + sine[ ( idx * partial ) & 0x1FF ] * spectrum[ partial ];
+			}
+			if( amp < -16384 ) amp = -16384;
+			if( amp >  16383 ) amp =  16383;
+			wave[ idx ] = ( byte ) ( amp / 128 );
+		}
+		return wave;
 	}
 }
