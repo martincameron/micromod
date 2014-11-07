@@ -24,13 +24,22 @@ public class Point implements Element {
 	}
 	
 	public void begin( String value ) {
-		int[] point = Parser.parseIntegerArray( value );
-		if( point.length != 2 ) {
+		int[] points = Parser.parseIntegerArray( value );
+		if( points.length < 2 ) {
 			throw new IllegalArgumentException( "Invalid envelope point (x,y): " + value );
 		}
-		parent.setEnvelopePoint( point[ 0 ], point[ 1 ] );
+		int x = points[ 0 ];
+		int y = points[ 1 ];
+		parent.setEnvelopePoint( x, y );
+		for( int idx = 2; idx < points.length; idx++ ) {
+			parent.setEnvelopePoint( ++x, points[ idx ] );
+		}
 	}
 	
 	public void end() {
+	}
+
+	public String description() {
+		return "\"x,y\" (Set envelope point at x to y. The point at x+1 can also be set with \"x,y,y1\".)";
 	}
 }
