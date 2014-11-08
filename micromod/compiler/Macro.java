@@ -43,7 +43,7 @@ public class Macro implements Element {
 		for( int idx = 1; idx < repeatCount; idx++ ) {
 			for( int row = 0; row < rows; row++ ) {
 				pattern.getNote( row, 0, note );
-				nextNote( note );
+				nextNote( note, 0 );
 			}
 		}
 		if( ( attackRows + sustainRows + decayRows ) > 0 ) {
@@ -93,17 +93,23 @@ public class Macro implements Element {
 	public void setRoot( String root ) {
 		this.root = root;
 	}
-	
+
 	public void setRepeat( int count ) {
 		repeatCount = count;
 	}
 
-	public void nextNote( micromod.Note note ) {
+	public void nextNote( micromod.Note note, int timeStretchRows ) {
 		pattern.setNote( rowIdx++, 0, note );
-	}
-
-	public micromod.Module getModule() {
-		return parent.getModule();
+		if( timeStretchRows > 1 ) {
+			micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
+			int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
+			note.effect = 0x9;
+			for( int row = 1; row < timeStretchRows; row++ ) {
+				int offset = ( sampleLength * row ) / ( timeStretchRows << 7 );
+				note.parameter = ( offset >> 1 ) + ( offset & 1 );
+				pattern.setNote( rowIdx++, 0, note );
+			}
+		}
 	}
 
 	public void setAttack( int rows ) {

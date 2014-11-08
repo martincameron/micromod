@@ -30,22 +30,17 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		note.fromString( value );
 		timeStretchRows = 0;
-	}
-	
-	public void end() {
-		parent.nextNote( note );
-		if( timeStretchRows > 1 ) {
-			micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
-			int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
-			note.effect = 0x9;
-			for( int row = 1; row < timeStretchRows; row++ ) {
-				int offset = ( sampleLength * row ) / ( timeStretchRows << 7 );
-				note.parameter = ( offset >> 1 ) + ( offset & 1 );
-				parent.nextNote( note );
-			}
+		note.fromString( value );
+		if( note.effect == 0xC && note.parameter > 0x40 ) {
+			/* Apply x^2 volume-curve for effect C41 to C4F. */
+			int vol = ( note.parameter & 0xF ) + 1;
+			note.parameter = ( vol * vol ) >> 2;
 		}
+	}
+
+	public void end() {
+		parent.nextNote( note, timeStretchRows );
 	}
 
 	public void setTimeStretch( int rows ) {
