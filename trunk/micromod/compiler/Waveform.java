@@ -82,7 +82,7 @@ public class Waveform implements Element {
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getLength() );
 	}
-	
+
 	public void setOctave( int octave ) {
 		if( octave < -4 || octave > 4 ) {
 			throw new IllegalArgumentException( "Invalid octave (-4 to 4): " + octave );
@@ -150,7 +150,7 @@ public class Waveform implements Element {
 			window[ idx ] = 256;
 		}
 		byte[] output = new byte[ 512 ];
-		additive( sine(), spectrum, new int[ 512 ], window, output, 0, 511 );
+		additive( sine(), spectrum, new int[ 512 ], window, output, 0, 0x1FF );
 		return output;
 	}
 
@@ -168,9 +168,9 @@ public class Waveform implements Element {
 		for( int offset = 0; offset < 65536; offset += 256 ) {
 			for( int idx = 0; idx < 512; idx++ ) {
 				random = random * 65 + 17;
-				phase[ idx ] = ( random >> 24 ) & 511;
+				phase[ idx ] = ( random >> 24 ) & 0x1FF;
 			}
-			additive( sine, spectrum, phase, window, output, offset, 65535 );
+			additive( sine, spectrum, phase, window, output, offset, 0xFFFF );
 		}
 		return output;
 	}
@@ -180,7 +180,7 @@ public class Waveform implements Element {
 		for( int idx = 0; idx < 512; idx++ ) {
 			int amp = 0;
 			for( int partial = 1; partial <= 256; partial++ ) {
-				amp = amp + sine[ ( phase[ partial ] + idx * partial ) & 511 ] * spectrum[ partial ];
+				amp = amp + sine[ ( phase[ partial ] + idx * partial ) & 0x1FF ] * spectrum[ partial ];
 			}
 			int outIdx = ( offset + idx ) & mask;
 			amp = ( output[ outIdx ] * 32768 + amp * window[ idx ] ) / 32768;
