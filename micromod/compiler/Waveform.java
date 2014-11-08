@@ -68,7 +68,7 @@ public class Waveform implements Element {
 
 	public void end() {
 		if( noise ) {
-			parent.setAudioData( new AudioData( noise( envelope ), 48000 ) );
+			parent.setAudioData( new AudioData( noise( envelope ), 8363 ) );
 		} else {
 			int cycles = 1;
 			if( chorus > 1 ) {
@@ -145,46 +145,49 @@ public class Waveform implements Element {
 
 	/* Generate a 512-byte periodic waveform from the specified 256-harmonic spectrum. */
 	public static byte[] harmonics( byte[] spectrum ) {
-		byte[] sine = sine();
-		byte[] wave = new byte[ 512 ];
+		int[] window = new int[ 512 ];
 		for( int idx = 0; idx < 512; idx++ ) {
-			int amp = 0;
-			for( int partial = 1; partial <= 256; partial++ ) {
-				amp = amp + sine[ ( idx * partial ) & 0x1FF ] * spectrum[ partial ];
-			}
-			if( amp < -16384 ) amp = -16384;
-			if( amp >  16383 ) amp =  16383;
-			wave[ idx ] = ( byte ) ( amp / 128 );
+			window[ idx ] = 256;
 		}
-		return wave;
+		byte[] output = new byte[ 512 ];
+		additive( sine(), spectrum, new int[ 512 ], window, output, 0, 511 );
+		return output;
 	}
 
 	/* Generate a 65536-byte noise waveform from the specified 256-harmonic spectrum. */
 	public static byte[] noise( byte[] spectrum ) {
 		byte[] sine = sine();
-		int[] wave = new int[ 512 ];
-		byte[] out = new byte[ 65536 ];
+		int[] window = new int[ 512 ];
+		for( int idx = 0; idx < 256; idx++ ) {
+			window[ idx ] = idx;
+			window[ idx + 256 ] = 256 - idx;
+		}
 		int random = 0;
+		int[] phase = new int[ 512 ];
+		byte[] output = new byte[ 65536 ];
 		for( int offset = 0; offset < 65536; offset += 256 ) {
 			for( int idx = 0; idx < 512; idx++ ) {
-				wave[ idx ] = 0;
-			}
-			for( int partial = 1; partial <= 256; partial++ ) {
 				random = random * 65 + 17;
-				for( int idx = 0; idx < 512; idx++ ) {
-					wave[ idx ] += sine[ ( ( random >> 24 ) + idx * partial ) & 0x1FF ] * spectrum[ partial ];
-				}
+				phase[ idx ] = ( random >> 24 ) & 511;
 			}
-			for( int idx = 0; idx < 512; idx++ ) {
-				if( wave[ idx ] < -16384 ) wave[ idx ] = -16384;
-				if( wave[ idx ] >  16383 ) wave[ idx ] =  16383;
-			}
-			for( int idx = 0; idx < 256; idx++ ) {
-				out[ idx + offset ] += idx * wave[ idx ] / 32768;
-				out[ ( idx + offset + 256 ) & 0xFFFF ] += ( 256 - idx ) * wave[ idx + 256 ] / 32768;
-			}
+			additive( sine, spectrum, phase, window, output, offset, 65535 );
 		}
-		return out;
+		return output;
+	}
+
+	/* Simple additive synthesis. */
+	public static void additive( byte[] sine, byte[] spectrum, int[] phase, int[] window, byte[] output, int offset, int mask ) {
+		for( int idx = 0; idx < 512; idx++ ) {
+			int amp = 0;
+			for( int partial = 1; partial <= 256; partial++ ) {
+				amp = amp + sine[ ( phase[ partial ] + idx * partial ) & 511 ] * spectrum[ partial ];
+			}
+			int outIdx = ( offset + idx ) & mask;
+			amp = ( output[ outIdx ] * 32768 + amp * window[ idx ] ) / 32768;
+			if( amp < -128 ) amp = -128;
+			if( amp >  127 ) amp =  127;
+			output[ outIdx ] = ( byte ) amp;
+		}
 	}
 
 	/* Generate a 512-byte sine table. */
