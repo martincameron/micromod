@@ -30,27 +30,26 @@ public class Waveform implements Element {
 	}
 	
 	public void begin( String value ) {
-		if( "Sine".equals( value ) || "Harmonics".equals( value ) ) {
-			noise = false;
+		spectral = noise = false;
+		if( "Sawtooth".equals( value ) ) {
+			setEnvelopePoint(   0, -128 );
+			setEnvelopePoint( 511,  127 );
+		} else if( "Square".equals( value ) ) {
+			setEnvelopePoint(   0, -128 );
+			setEnvelopePoint( 255, -128 );
+			setEnvelopePoint( 256,  127 );
+			setEnvelopePoint( 511,  127 );
+		} else if( "Envelope".equals( value ) ) {
+			setEnvelopePoint(   0, 0 );
+			setEnvelopePoint( 511, 0 );
+			setEnvelopePoint(   0, 0 );			
+		} else if( "Sine".equals( value ) || "Harmonics".equals( value ) ) {
 			spectral = true;
 			setEnvelopePoint(   0,    0 );
 			setEnvelopePoint(   1, -128 );
 			setEnvelopePoint(   2,    0 );
 			setEnvelopePoint( 511,    0 );
 			setEnvelopePoint(   0,    0 );
-		} else if( "Sawtooth".equals( value ) || "Envelope".equals( value ) ) {
-			spectral = noise = false;
-			setEnvelopePoint(   0,    0 );
-			setEnvelopePoint( 255,  127 );
-			setEnvelopePoint( 256, -128 );
-			setEnvelopePoint( 511,   -1 );
-			setEnvelopePoint(   0,    0 );
-		} else if( "Square".equals( value ) ) {
-			spectral = noise = false;
-			setEnvelopePoint(   0, -128 );
-			setEnvelopePoint( 255, -128 );
-			setEnvelopePoint( 256,  127 );
-			setEnvelopePoint( 511,  127 );
 		} else if( "Noise".equals( value ) ) {
 			spectral = noise = true;
 			setEnvelopePoint( 0, 0 );
