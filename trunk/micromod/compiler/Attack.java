@@ -2,12 +2,12 @@
 package micromod.compiler;
 
 public class Attack implements Element {
-	private Macro parent;
-	private Sustain sibling;
+	private Envelope parent;
+	private Element sibling;
 	
-	public Attack( Macro parent ) {
+	public Attack( Envelope parent, Element sibling ) {
 		this.parent = parent;
-		sibling = new Sustain( parent );
+		this.sibling = sibling;
 	}
 	
 	public String getToken() {
