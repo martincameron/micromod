@@ -1,13 +1,13 @@
 
 package micromod.compiler;
 
-public class Note implements Element {
+public class Note implements Envelope {
 	private Macro parent;
 	private Repeat sibling;
-	private TimeStretch child = new TimeStretch( this );
+	private Attack child = new Attack( this, new Decay( this, new TimeStretch( this ) ) );
 	private micromod.Note note = new micromod.Note();
-	private int timeStretchRows;
-	
+	private int attackRows, decayRows, timeStretchRows;
+
 	public Note( Macro parent ) {
 		this.parent = parent;
 		sibling = new Repeat( parent );
@@ -30,7 +30,7 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		timeStretchRows = 0;
+		attackRows = decayRows = timeStretchRows = 0;
 		note.fromString( value );
 		if( note.effect == 0xC && note.parameter > 0x40 ) {
 			/* Apply x^2 volume-curve for effect C41 to C4F. */
@@ -40,10 +40,18 @@ public class Note implements Element {
 	}
 
 	public void end() {
-		parent.nextNote( note, timeStretchRows );
+		parent.nextNote( note, attackRows, decayRows, timeStretchRows );
 	}
 
 	public void setTimeStretch( int rows ) {
 		timeStretchRows = rows;
+	}
+
+	public void setAttack( int rows ) {
+		attackRows = rows;
+	}
+
+	public void setDecay( int rows ) {	
+		decayRows = rows;
 	}
 }

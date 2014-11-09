@@ -2,12 +2,12 @@
 package micromod.compiler;
 
 public class Decay implements Element {
-	private Macro parent;
-	private Note sibling;
+	private Envelope parent;
+	private Element sibling;
 	
-	public Decay( Macro parent ) {
+	public Decay( Envelope parent, Element sibling ) {
 		this.parent = parent;
-		sibling = new Note( parent );
+		this.sibling = sibling;
 	}
 	
 	public String getToken() {
