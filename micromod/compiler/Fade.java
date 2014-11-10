@@ -1,17 +1,17 @@
 
 package micromod.compiler;
 
-public class Repeat implements Element {
+public class Fade implements Element {
 	private Note parent;
-	private Fade sibling;
+	private TimeStretch sibling;
 	
-	public Repeat( Note parent ) {
+	public Fade( Note parent ) {
 		this.parent = parent;
-		sibling = new Fade( parent );
+		sibling = new TimeStretch( parent );
 	}
 	
 	public String getToken() {
-		return "Repeat";
+		return "Fade";
 	}
 	
 	public Element getParent() {
@@ -28,12 +28,14 @@ public class Repeat implements Element {
 	
 	public void begin( String value ) {
 		if( "Begin".equals( value ) ) {
-			parent.beginRepeat();
+			parent.beginFade();
+		} else if( "End".equals( value ) ) {
+			parent.endFade();
 		} else {
-			parent.endRepeat( Parser.parseInteger( value ) );
+			throw new IllegalArgumentException( "Invalid fade parameter (Begin or End): " + value );
 		}
 	}
-
+	
 	public void end() {
 	}
 }

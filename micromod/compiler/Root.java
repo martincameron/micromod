@@ -7,7 +7,7 @@ public class Root implements Element {
 	
 	public Root( Macro parent ) {
 		this.parent = parent;
-		sibling = new Attack( parent, new Decay( parent, new Note( parent ) ) );
+		sibling = new Attack( parent );
 	}
 	
 	public String getToken() {

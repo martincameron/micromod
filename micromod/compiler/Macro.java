@@ -1,12 +1,12 @@
 
 package micromod.compiler;
 
-public class Macro implements Envelope {
+public class Macro implements Element {
 	private Module parent;
 	private Pattern sibling;
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
-	private int macroIdx, rowIdx, repeatCount, attackRows, decayRows;
+	private int macroIdx, rowIdx, fadeRow, repeatRow, attackRows, decayRows;
 	private String scale, root;
 	
 	public Macro( Module parent ) {
@@ -33,20 +33,16 @@ public class Macro implements Envelope {
 	public void begin( String value ) {
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
-		rowIdx = repeatCount = attackRows = decayRows = 0;
+		rowIdx = fadeRow = repeatRow = attackRows = decayRows = 0;
 	}
 	
 	public void end() {
-		int rows = rowIdx;
-		micromod.Note note = new micromod.Note();
-		for( int idx = 1; idx < repeatCount; idx++ ) {
-			for( int row = 0; row < rows; row++ ) {
-				pattern.getNote( row, 0, note );
-				nextNote( note, 0, 0, 0 );
-			}
+		int volume = getNoteVolume( parent.getModule(), pattern, 0 );
+		if( attackRows > 0 ) {
+			volumeFade( pattern, 0, attackRows - 1, 0, volume );
 		}
-		if( attackRows > 0 || decayRows > 0 ) {
-			volumeEnvelope( parent.getModule(), pattern, 0, attackRows, decayRows );
+		if( attackRows >= 0 && decayRows > 0 ) {
+			volumeFade( pattern, attackRows, attackRows + decayRows - 1, volume, 0 );
 		}
 		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern ) );
 	}
@@ -59,26 +55,35 @@ public class Macro implements Envelope {
 		this.root = root;
 	}
 
-	public void setRepeat( int count ) {
-		repeatCount = count;
-	}
-
-	public void nextNote( micromod.Note note, int noteAttackRows, int noteDecayRows, int timeStretchRows ) {
-		if( noteAttackRows > 0 || noteDecayRows > 0 ) {
-			pattern.setNote( rowIdx, 0, note );
-			rowIdx += volumeEnvelope( parent.getModule(), pattern, rowIdx, noteAttackRows, noteDecayRows );
-		} else {
-			pattern.setNote( rowIdx++, 0, note );
-			if( timeStretchRows > 1 ) {
-				micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
-				int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
-				note.effect = 0x9;
-				for( int row = 1; row < timeStretchRows; row++ ) {
-					int offset = ( sampleLength * row ) / ( timeStretchRows << 7 );
-					note.parameter = ( offset >> 1 ) + ( offset & 1 );
+	public void nextNote( micromod.Note note, int fadeParam, int repeatParam, int timeStretchRows ) {
+		pattern.setNote( rowIdx++, 0, note );
+		if( timeStretchRows > 1 ) {
+			micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
+			int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
+			note.effect = 0x9;
+			for( int row = 1; row < timeStretchRows; row++ ) {
+				int offset = ( sampleLength * row ) / ( timeStretchRows << 7 );
+				note.parameter = ( offset >> 1 ) + ( offset & 1 );
+				pattern.setNote( rowIdx++, 0, note );
+			}
+		}
+		if( repeatParam == 1 ) {
+			repeatRow = rowIdx;
+		} else if( repeatParam > 1 ) {
+			int repeatEnd = rowIdx;
+			for( int idx = 1; idx < repeatParam; idx++ ) {
+				for( int row = repeatRow; row < repeatEnd; row++ ) {
+					pattern.getNote( row, 0, note );
 					pattern.setNote( rowIdx++, 0, note );
 				}
 			}
+		}
+		if( fadeParam == 1 ) {
+			fadeRow = rowIdx;
+		} else if( fadeParam == 2 ) {
+			int startVol = getNoteVolume( parent.getModule(), pattern, fadeRow );
+			int endVol = getNoteVolume( parent.getModule(), pattern, rowIdx -1 );
+			volumeFade( pattern, fadeRow, rowIdx - 1, startVol, endVol );
 		}
 	}
 
@@ -90,43 +95,45 @@ public class Macro implements Envelope {
 		decayRows = rows;
 	}
 
-	private static int volumeEnvelope( micromod.Module module, micromod.Pattern pattern, int row, int attackRows, int decayRows ) {
-		if( attackRows < 1 ) {
-			attackRows = 0;
+	private static void volumeFade( micromod.Pattern pattern, int startRow, int endRow, int startVol, int endVol ) {
+		int v0 = sqrt( startVol );
+		int v1 = sqrt( endVol );
+		int rows = endRow - startRow + 1;
+		int vm = ( v1 - v0 ) * 2 / rows;
+		for( int row = 0; row < rows; row++ ) {
+			int volume = vm * ( row + 1 ) + v0 * 2;
+			volume = ( volume >> 1 ) + ( volume & 1 );
+			setNoteVolume( pattern, startRow + row, ( volume * volume ) >> 10 );
 		}
-		if( decayRows < 1 ) {
-			decayRows = 0;
-		}
+	}
+
+	private static int getNoteVolume( micromod.Module module, micromod.Pattern pattern, int rowIdx ) {
 		micromod.Note note = new micromod.Note();
-		int xVol = 256, yVol = 64;
-		pattern.getNote( row, 0, note );
+		pattern.getNote( rowIdx, 0, note );
+		int volume = 0;
 		if( note.effect == 0xC ) {
-			yVol = note.parameter;
+			volume = note.parameter;
 		} else if( note.instrument > 0 ) {
-			yVol = module.getInstrument( note.instrument ).getVolume();
+			volume = module.getInstrument( note.instrument ).getVolume();
 		}
+		return volume;
+	}
+
+	private static void setNoteVolume( micromod.Pattern pattern, int rowIdx, int volume ) {
+		micromod.Note note = new micromod.Note();
+		pattern.getNote( rowIdx, 0, note );
+		note.effect = 0xC;
+		note.parameter = volume;
+		pattern.setNote( rowIdx, 0, note );
+	}
+
+	private static int sqrt( int y ) {
+		/* Returns 32 * sqrt(x) for x in the range 0 to 64. */
 		for( int x = 0; x < 257; x++ ) {
-			/* Find value on x^2 volume curve.*/
-			if( ( ( x * x ) >> 10 ) == yVol ) {
-				xVol = x;
+			if( ( ( x * x ) >> 10 ) == y ) {
+				return x;
 			}
 		}
-		for( int idx = 0; idx < attackRows; idx++ ) {
-			int x = xVol * ( idx + 1 ) * 2 / attackRows;
-			x = ( x >> 1 ) + ( x & 1 );
-			pattern.getNote( row + idx, 0, note );
-			note.effect = 0xC;
-			note.parameter = ( ( x * x ) >> 10 );
-			pattern.setNote( row + idx, 0, note );
-		}
-		for( int idx = 0; idx < decayRows; idx++ ) {
-			int x = xVol * ( decayRows - idx - 1 ) * 2 / decayRows;
-			x = ( x >> 1 ) + ( x & 1 );
-			pattern.getNote( row + attackRows + idx, 0, note );
-			note.effect = 0xC;
-			note.parameter = ( ( x * x ) >> 10 );
-			pattern.setNote( row + attackRows + idx, 0, note );
-		}
-		return attackRows + decayRows;
+		return 256;
 	}
 }
