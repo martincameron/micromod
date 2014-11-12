@@ -6,7 +6,7 @@ public class Waveform implements Element {
 	private Octave child = new Octave( this );
 	private byte[] envelope = new byte[ 512 ];
 	private int octave, detune, chorus, x0, y0;
-	private boolean spectral, noise;
+	private boolean spectral, noise, pwm;
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -30,7 +30,7 @@ public class Waveform implements Element {
 	}
 	
 	public void begin( String value ) {
-		spectral = noise = false;
+		spectral = noise = pwm = false;
 		if( "Sawtooth".equals( value ) ) {
 			setEnvelopePoint(   0, -128 );
 			setEnvelopePoint( 511,  127 );
@@ -62,21 +62,30 @@ public class Waveform implements Element {
 		}
 		setOctave( 0 );
 		setDetune( 0 );
-		setChorus( 1 );
+		setChorus( 1, false );
 	}
 
 	public void end() {
 		if( noise ) {
 			parent.setAudioData( new AudioData( noise( envelope ), 8363 ) );
 		} else {
-			int cycles = 1;
+			int cycles = 2;
 			if( chorus > 1 ) {
 				cycles = chorus;
 			} else if( detune != 0 ) {
 				cycles = 128;
 			}
 			byte[] waveform = spectral ? harmonics( envelope ) : envelope;
-			parent.setAudioData( generate( waveform, cycles, octave, detune, chorus > 1 ) );
+			if( chorus > 1 && pwm ) {
+				waveform = generatePwm( waveform, cycles / 2, octave, detune );
+			} else {
+				waveform = generate( waveform, cycles, octave, detune, chorus > 1 );
+			}
+			AudioData audioData = new AudioData( waveform, 512 * 262 );
+			if( octave > -4 ) {
+				audioData = audioData.resample( audioData.getSamplingRate() >> ( octave + 4 ), 0, true );
+			}
+			parent.setAudioData( audioData );
 		}
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getLength() );
@@ -96,11 +105,12 @@ public class Waveform implements Element {
 		this.detune = pitch;
 	}
 
-	public void setChorus( int cycles ) {
+	public void setChorus( int cycles, boolean pwm ) {
 		if( cycles < 1 || cycles > 1024 ) {
 			throw new IllegalArgumentException( "Invalid chorus length (1 to 1024): " + cycles );
 		}
 		this.chorus = cycles;
+		this.pwm = pwm;
 	}
 
 	/* Set the envelope from x0 to x1 (0 to 511) by interpolating y0 to y1 (-128 to 127).
@@ -129,7 +139,7 @@ public class Waveform implements Element {
 	/* Generate the specified number of cycles of the specified 512-byte waveform.
 	   at the specified octave with optional 2-oscillator detune and phase-modulation chorus.
 	   The cycles parameter determines the cycle length of the chorus and accuracy of the detune. */
-	public static AudioData generate( byte[] waveform, int cycles, int octave, int detune, boolean chorus ) {
+	public static byte[] generate( byte[] waveform, int cycles, int octave, int detune, boolean chorus ) {
 		byte[] buf = new byte[ 512 * cycles ];
 		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
@@ -139,7 +149,27 @@ public class Waveform implements Element {
 				buf[ cycle * 512 + ph1 ] = ( byte ) ( ( waveform[ ph1 ] + waveform[ ( ph2 + mod ) & 0x1FF ] ) / 2 );
 			}
 		}
-		return new AudioData( buf, 512 * 262 ).resample( ( 512 * 262 ) >> ( octave + 4 ), 0, true );
+		return buf;
+	}
+
+	/* Generate the specified number of 1024-byte cycles by frequency-modulating the specified 512-byte waveform
+	   and mixing it with the non-modulated waveform detuned by the specified number of 96ths of an octave.
+	   The cycles parameter determines the cycle length of the modulation effect and accuracy of the detune. */
+	public static byte[] generatePwm( byte[] waveform, int cycles, int octave, int detune ) {
+		byte[] buf = new byte[ cycles * 1024 ];
+		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
+		for( int cycle = 0; cycle < cycles; cycle++ ) {
+			int pw1 = Math.round( 512 * ( float ) Math.pow( 2, ( Math.cos( 2 * Math.PI * cycle / cycles ) - 1 ) / 2 ) );
+			for( int ph1 = 0; ph1 < pw1; ph1++ ) {
+				int ph2 = ( cycle * 1024 + ph1 ) * cycles2 / cycles;
+				buf[ cycle * 1024 + ph1 ] = ( byte ) ( ( waveform[ ph1 * 512 / pw1 ] + waveform[ ph2 & 0x1FF ] ) / 2 );
+			}
+			for( int ph1 = 0, pw2 = ( 1024 - pw1 ); ph1 < pw2; ph1++ ) {
+				int ph2 = ( cycle * 1024 + ph1 + pw1 ) * cycles2 / cycles;
+				buf[ cycle * 1024 + ph1 + pw1 ] = ( byte ) ( ( waveform[ ph1 * 512 / pw2 ] + waveform[ ph2 & 0x1FF ] ) / 2 );
+			}
+		}
+		return buf;
 	}
 
 	/* Generate a 512-byte periodic waveform from the specified 256-harmonic spectrum. */

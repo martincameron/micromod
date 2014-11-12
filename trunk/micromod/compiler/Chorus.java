@@ -3,6 +3,9 @@ package micromod.compiler;
 public class Chorus implements Element {
 	private Waveform parent;
 	private Point sibling;
+	private Type child = new Type( this );
+	private int chorus;
+	private boolean type;
 
 	public Chorus( Waveform parent ) {
 		this.parent = parent;
@@ -22,13 +25,19 @@ public class Chorus implements Element {
 	}
 	
 	public Element getChild() {
-		return null;
+		return child;
 	}
 	
 	public void begin( String value ) {
-		parent.setChorus( Parser.parseInteger( value ) );
+		chorus = Parser.parseInteger( value );
+		type = false;
 	}
 	
 	public void end() {
+		parent.setChorus( chorus, type );
+	}
+
+	public void setChorusType( boolean pwm ) {
+		this.type = pwm;
 	}
 }
