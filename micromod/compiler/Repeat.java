@@ -3,11 +3,11 @@ package micromod.compiler;
 
 public class Repeat implements Element {
 	private Note parent;
-	private Fade sibling;
+	private End sibling;
 	
 	public Repeat( Note parent ) {
 		this.parent = parent;
-		sibling = new Fade( parent );
+		sibling = new End( parent );
 	}
 	
 	public String getToken() {
@@ -27,11 +27,7 @@ public class Repeat implements Element {
 	}
 	
 	public void begin( String value ) {
-		if( "Begin".equals( value ) ) {
-			parent.beginRepeat();
-		} else {
-			parent.endRepeat( Parser.parseInteger( value ) );
-		}
+		parent.endRepeat( Parser.parseInteger( value ) );
 	}
 
 	public void end() {

@@ -19,11 +19,7 @@ public class Note {
 	};
 
 	public int getPeriod() {
-		int period = 0;
-		if( key > 0 && key < 73 ) {
-			period = keyToPeriod[ key ];
-		}
-		return period;
+		return keyToPeriod( key );
 	}
 
 	/* Adjust the pitch by the specified number of semitones and reduce the volume (0 to 64).
@@ -129,6 +125,15 @@ public class Note {
 		note[ 6 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
 		note[ 7 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
 		return new String( note );
+	}
+
+	/* Convert key to period, returns zero if key out of range. */
+	public static int keyToPeriod( int key ) {
+		int period = 0;
+		if( key > 0 && key < 73 ) {
+			period = keyToPeriod[ key ];
+		}
+		return period;
 	}
 
 	/* Key of the form "C-2", or 3-char note number such as "025". */

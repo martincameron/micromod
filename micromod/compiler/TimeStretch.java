@@ -3,9 +3,11 @@ package micromod.compiler;
 
 public class TimeStretch implements Element {
 	private Note parent;
+	private Repeat sibling;
 	
 	public TimeStretch( Note parent ) {
 		this.parent = parent;
+		sibling = new Repeat( parent );
 	}
 	
 	public String getToken() {
@@ -17,7 +19,7 @@ public class TimeStretch implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {
