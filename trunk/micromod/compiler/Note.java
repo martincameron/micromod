@@ -3,9 +3,9 @@ package micromod.compiler;
 
 public class Note implements Element {
 	private Macro parent;
-	private Repeat child = new Repeat( this );
+	private Porta child = new Porta( this );
 	private micromod.Note note = new micromod.Note();
-	private int fade, repeat, timeStretch;
+	private int fade, repeat, porta, timeStretch;
 
 	public Note( Macro parent ) {
 		this.parent = parent;
@@ -28,7 +28,7 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		fade = repeat = timeStretch = 0;
+		fade = repeat = porta = timeStretch = 0;
 		note.fromString( value );
 		if( note.effect == 0xC && note.parameter > 0x40 ) {
 			/* Apply x^2 volume-curve for effect C41 to C4F. */
@@ -38,19 +38,33 @@ public class Note implements Element {
 	}
 
 	public void end() {
-		parent.nextNote( note, fade, repeat, timeStretch );
+		parent.nextNote( note, fade, repeat, porta, timeStretch );
 	}
 
-	public void beginFade() {
-		fade = 1;
+	public void setPorta( int semitones ) {
+		porta = semitones;
 	}
 
-	public void endFade() {
-		fade = 2;
+	public void setTimeStretch( int rows ) {
+		timeStretch = rows;
 	}
 
-	public void beginRepeat() {
-		repeat = 1;
+	public void beginEffect( String token ) {
+		if( "Repeat".equals( token ) ) {
+			repeat = Macro.BEGIN;
+		} else if( "Fade".equals( token ) ) {
+			fade = Macro.BEGIN;
+		} else {
+			throw new IllegalArgumentException( "Unknown command: Begin " + token );
+		}
+	}
+
+	public void endEffect( String token ) {
+		if( "Fade".equals( token ) ) {
+			fade = Macro.END;
+		} else {
+			throw new IllegalArgumentException( "Unknown command: End " + token );
+		}
 	}
 
 	public void endRepeat( int count ) {
@@ -58,9 +72,5 @@ public class Note implements Element {
 			throw new IllegalArgumentException( "Invalid repeat count (2 or more): " + count );
 		}
 		repeat = count;
-	}
-
-	public void setTimeStretch( int rows ) {
-		timeStretch = rows;
 	}
 }

@@ -2,13 +2,17 @@
 package micromod.compiler;
 
 public class Macro implements Element {
+	public static final int BEGIN = 1, END = 2;
+
 	private Module parent;
 	private Pattern sibling;
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
-	private int macroIdx, rowIdx, fadeRow, repeatRow, attackRows, decayRows;
+	private int macroIdx, rowIdx;
+	private int fadeRow, repeatRow, modulationRow;
+	private int attackRows, decayRows, speed;
 	private String scale, root;
-	
+
 	public Macro( Module parent ) {
 		this.parent = parent;
 		sibling = new Pattern( parent );
@@ -33,9 +37,11 @@ public class Macro implements Element {
 	public void begin( String value ) {
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
-		rowIdx = fadeRow = repeatRow = attackRows = decayRows = 0;
+		rowIdx = fadeRow = repeatRow = modulationRow = 0;
+		attackRows = decayRows = 0;
+		speed = 6;
 	}
-	
+
 	public void end() {
 		int volume = getNoteVolume( parent.getModule(), pattern, 0 );
 		if( attackRows > 0 ) {
@@ -55,7 +61,18 @@ public class Macro implements Element {
 		this.root = root;
 	}
 
-	public void nextNote( micromod.Note note, int fadeParam, int repeatParam, int timeStretchRows ) {
+	public void nextNote( micromod.Note note, int fadeParam, int repeatParam, int portaSemitones, int timeStretchRows ) {
+		if( portaSemitones != 0 && note.key > 0 ) {
+			int period = note.keyToPeriod( note.key + portaSemitones ) - note.getPeriod();
+			if( period < 0 ) { // Porta Up.
+				note.effect = 0x1;
+				period = -period;
+			} else { // Porta Down.
+				note.effect = 0x2;
+			}
+			int delta = ( speed > 1 ) ? period * 2 / ( speed - 1 ) : 0;
+			note.parameter = ( delta >> 1 ) + ( delta & 1 );
+		}
 		pattern.setNote( rowIdx++, 0, note );
 		if( timeStretchRows > 1 ) {
 			micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
@@ -67,7 +84,7 @@ public class Macro implements Element {
 				pattern.setNote( rowIdx++, 0, note );
 			}
 		}
-		if( repeatParam == 1 ) {
+		if( repeatParam == BEGIN ) {
 			repeatRow = rowIdx;
 		} else if( repeatParam > 1 ) {
 			int repeatEnd = rowIdx;
@@ -78,13 +95,17 @@ public class Macro implements Element {
 				}
 			}
 		}
-		if( fadeParam == 1 ) {
+		if( fadeParam == BEGIN ) {
 			fadeRow = rowIdx;
-		} else if( fadeParam == 2 ) {
+		} else if( fadeParam == END ) {
 			int startVol = getNoteVolume( parent.getModule(), pattern, fadeRow );
 			int endVol = getNoteVolume( parent.getModule(), pattern, rowIdx -1 );
 			volumeFade( pattern, fadeRow, rowIdx - 1, startVol, endVol );
 		}
+	}
+
+	public void setSpeed( int ticksPerRow ) {
+		speed = ticksPerRow;
 	}
 
 	public void setAttack( int rows ) {

@@ -1,17 +1,15 @@
 
 package micromod.compiler;
 
-public class Root implements Element {
-	private Macro parent;
-	private Speed sibling;
+public class Begin implements Element {
+	private Note parent;
 	
-	public Root( Macro parent ) {
+	public Begin( Note parent ) {
 		this.parent = parent;
-		sibling = new Speed( parent );
 	}
 	
 	public String getToken() {
-		return "Root";
+		return "Begin";
 	}
 	
 	public Element getParent() {
@@ -19,7 +17,7 @@ public class Root implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -27,9 +25,9 @@ public class Root implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setRoot( value );
+		parent.beginEffect( value );
 	}
-	
+
 	public void end() {
 	}
 }

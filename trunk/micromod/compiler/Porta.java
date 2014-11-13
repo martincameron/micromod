@@ -1,17 +1,17 @@
 
 package micromod.compiler;
 
-public class Fade implements Element {
+public class Porta implements Element {
 	private Note parent;
 	private TimeStretch sibling;
 	
-	public Fade( Note parent ) {
+	public Porta( Note parent ) {
 		this.parent = parent;
 		sibling = new TimeStretch( parent );
 	}
 	
 	public String getToken() {
-		return "Fade";
+		return "Porta";
 	}
 	
 	public Element getParent() {
@@ -27,15 +27,9 @@ public class Fade implements Element {
 	}
 	
 	public void begin( String value ) {
-		if( "Begin".equals( value ) ) {
-			parent.beginFade();
-		} else if( "End".equals( value ) ) {
-			parent.endFade();
-		} else {
-			throw new IllegalArgumentException( "Invalid fade parameter (Begin or End): " + value );
-		}
+		parent.setPorta( Parser.parseInteger( value ) );
 	}
-	
+
 	public void end() {
 	}
 }
