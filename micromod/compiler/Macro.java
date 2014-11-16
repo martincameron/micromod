@@ -62,12 +62,14 @@ public class Macro implements Element {
 	}
 
 	public void nextNote( micromod.Note note, int fadeParam, int repeatParam, int portaSemitones, int timeStretchRows ) {
+		micromod.Module module = parent.getModule();
 		if( portaSemitones != 0 && note.key > 0 ) {
-			int period = note.keyToPeriod( note.key + portaSemitones ) - note.getPeriod();
-			if( period < 0 ) { // Porta Up.
+			int fineTune = ( note.instrument > 0 ) ? module.getInstrument( note.instrument ).getFineTune() : 0;
+			int period = note.keyToPeriod( note.key + portaSemitones, fineTune ) - note.keyToPeriod( note.key, fineTune );
+			if( period < 0 ) { /* Porta Up. */
 				note.effect = 0x1;
 				period = -period;
-			} else { // Porta Down.
+			} else { /* Porta Down. */
 				note.effect = 0x2;
 			}
 			int delta = ( speed > 1 ) ? period * 2 / ( speed - 1 ) : 0;
@@ -75,7 +77,7 @@ public class Macro implements Element {
 		}
 		pattern.setNote( rowIdx++, 0, note );
 		if( timeStretchRows > 1 ) {
-			micromod.Instrument instrument = parent.getModule().getInstrument( note.instrument );
+			micromod.Instrument instrument = module.getInstrument( note.instrument );
 			int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
 			note.effect = 0x9;
 			for( int row = 1; row < timeStretchRows; row++ ) {
@@ -98,8 +100,8 @@ public class Macro implements Element {
 		if( fadeParam == BEGIN ) {
 			fadeRow = rowIdx;
 		} else if( fadeParam == END ) {
-			int startVol = getNoteVolume( parent.getModule(), pattern, fadeRow );
-			int endVol = getNoteVolume( parent.getModule(), pattern, rowIdx -1 );
+			int startVol = getNoteVolume( module, pattern, fadeRow );
+			int endVol = getNoteVolume( module, pattern, rowIdx -1 );
 			volumeFade( pattern, fadeRow, rowIdx - 1, startVol, endVol );
 		}
 	}

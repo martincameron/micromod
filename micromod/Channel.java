@@ -2,11 +2,6 @@
 package micromod;
 
 public class Channel {
-	private static final short[] fineTuning = {
-		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
-		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
-	};
-
 	private static final short[] arpTuning = {
 		4096, 4340, 4598, 4871, 5161, 5468, 5793, 6137,
 		6502, 6889, 7298, 7732, 8192, 8679, 9195, 9742
@@ -18,7 +13,7 @@ public class Channel {
 	};
 
 	private Module module;
-	private int notePeriod, noteEffect, noteParam;
+	private int noteKey, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
 	private int sampleOffset, sampleIdx, sampleFra, freq;
 	private int volume, panning, fineTune;
@@ -62,8 +57,8 @@ public class Channel {
 		}
 	}
 
-	public void row( int period, int ins, int effect, int param ) {
-		notePeriod = period;
+	public void row( int key, int ins, int effect, int param ) {
+		noteKey = key;
 		noteIns = ins;
 		noteEffect = effect;
 		noteParam = param;
@@ -197,7 +192,7 @@ public class Channel {
 			assigned = noteIns;
 			Instrument assignedIns = module.getInstrument( assigned );
 			sampleOffset = 0;
-			fineTune = ( assignedIns.getFineTune() + 8 ) & 0xF;
+			fineTune = assignedIns.getFineTune();
 			volume = assignedIns.getVolume() & 0x7F;
 			if( volume > 64 ) volume = 64;
 			if( assignedIns.getLoopLength() > 0 && instrument > 0 ) instrument = assigned;
@@ -205,11 +200,10 @@ public class Channel {
 		if( noteEffect == 0x09 ) {
 			sampleOffset = ( noteParam & 0xFF ) << 8;
 		} else if( noteEffect == 0x15 ) {
-			fineTune = ( noteParam > 7 ? noteParam - 8 : noteParam + 8 ) & 0xF;
+			fineTune = ( noteParam & 0x7 ) - ( noteParam & 0x8 );
 		}
-		if( notePeriod > 0 ) {
-			int per = ( notePeriod * fineTuning[ fineTune & 0xF ] ) >> 11;
-			portaPeriod = ( per >> 1 ) + ( per & 1 );
+		if( noteKey > 0 ) {
+			portaPeriod = Note.keyToPeriod( noteKey, fineTune );
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;
 				period = portaPeriod;
@@ -220,7 +214,7 @@ public class Channel {
 			}
 		}
 	}
-	
+
 	private void volumeSlide( int param ) {
 		int vol = volume + ( param >> 4 ) - ( param & 0xF );
 		if( vol > 64 ) vol = 64;
