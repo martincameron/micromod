@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2014 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20141031 (c)2014 mumart@gmail.com";
+	public static final String VERSION = "20141116 (c)2014 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -205,7 +205,7 @@ public class Micromod {
 				param &= 0xF;
 			}
 			if( effect == 0 && param > 0 ) effect = 0xE;
-			channel.row( note.getPeriod(), note.instrument, effect, param );
+			channel.row( note.key, note.instrument, effect, param );
 			switch( effect ) {
 				case 0xB: /* Pattern Jump.*/
 					if( plCount < 0 ) {
