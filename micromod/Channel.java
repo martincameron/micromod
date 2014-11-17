@@ -2,11 +2,6 @@
 package micromod;
 
 public class Channel {
-	private static final short[] arpTuning = {
-		4096, 4340, 4598, 4871, 5161, 5468, 5793, 6137,
-		6502, 6889, 7298, 7732, 8192, 8679, 9195, 9742
-	};
-
 	private static final short[] sineTable = {
 		   0,  24,  49,  74,  97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253,
 		 255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120,  97,  74,  49,  24
@@ -178,10 +173,9 @@ public class Channel {
 	}
 
 	private void updateFrequency() {
-		int period = this.period + vibratoAdd;
+		int period = Note.transpose( this.period + vibratoAdd, arpeggioAdd );
 		if( period < 7 ) period = 6848;
 		freq = module.getC2Rate() * 428 / period;
-		freq = ( freq * arpTuning[ arpeggioAdd ] >> 12 ) & 0x7FFFF;
 		int volume = this.volume + tremoloAdd;
 		if( volume > 64 ) volume = 64;
 		if( volume < 0 ) volume = 0;
