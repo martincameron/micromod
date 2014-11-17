@@ -130,6 +130,11 @@ public class Macro implements Element {
 		}
 	}
 
+	private static int getNotePeriod( micromod.Module module, micromod.Pattern pattern, int rowIdx ) {
+		int period = 0;
+		return period;
+	}
+
 	private static int getNoteVolume( micromod.Module module, micromod.Pattern pattern, int rowIdx ) {
 		micromod.Note note = new micromod.Note();
 		pattern.getNote( rowIdx, 0, note );

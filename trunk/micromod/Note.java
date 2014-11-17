@@ -139,6 +139,12 @@ public class Note {
 		return key;
 	}
 
+	/* Adjust period from -12 to 60 semitones. */
+	public static int transpose( int period, int semitones ) {
+		period = period * keyToPeriod[ semitones + 13 ] * 2 / 856;
+		return ( period >> 1 ) + ( period & 1 );
+	}
+
 	/* Key of the form "C-2", or 3-char note number such as "025". */
 	public static int parseKey( String note ) {
 		int key = 0;
