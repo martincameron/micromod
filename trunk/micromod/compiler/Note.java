@@ -3,9 +3,9 @@ package micromod.compiler;
 
 public class Note implements Element {
 	private Macro parent;
-	private Porta child = new Porta( this );
+	private TimeStretch child = new TimeStretch( this );
 	private micromod.Note note = new micromod.Note();
-	private int fade, repeat, porta, timeStretch;
+	private int fade, repeat, timeStretch;
 
 	public Note( Macro parent ) {
 		this.parent = parent;
@@ -28,7 +28,7 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		fade = repeat = porta = timeStretch = 0;
+		fade = repeat = timeStretch = 0;
 		note.fromString( value );
 		if( note.effect == 0xC && note.parameter > 0x40 ) {
 			/* Apply x^2 volume-curve for effect C41 to C4F. */
@@ -38,11 +38,7 @@ public class Note implements Element {
 	}
 
 	public void end() {
-		parent.nextNote( note, fade, repeat, porta, timeStretch );
-	}
-
-	public void setPorta( int semitones ) {
-		porta = semitones;
+		parent.nextNote( note, fade, repeat, timeStretch );
 	}
 
 	public void setTimeStretch( int rows ) {
