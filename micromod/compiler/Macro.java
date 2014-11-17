@@ -156,15 +156,15 @@ public class Macro implements Element {
 			} else if( note.key > 0 ) {
 				period = portaPeriod;
 			}
-			if( note.effect == 0x1 && note.parameter >= 0xF0 ) {
+			if( note.effect == 0x1 && note.parameter > 0xF0 ) {
 				trans = micromod.Note.transpose( period, note.parameter & 0xF );
 				delta = ( speed > 1 ) ? ( period - trans ) * 2 / ( speed - 1 ) : 0;
 				note.parameter = ( delta >> 1 ) + ( delta & 1 );
-			} else if( note.effect == 0x2 && note.parameter >= 0xF0 ) {
+			} else if( note.effect == 0x2 && note.parameter > 0xF0 && note.parameter < 0xFE ) {
 				trans = micromod.Note.transpose( period, -( note.parameter & 0xF ) );
 				delta = ( speed > 1 ) ? ( trans - period ) * 2 / ( speed - 1 ) : 0;
 				note.parameter = ( delta >> 1 ) + ( delta & 1 );
-			} else if( note.effect == 0x3 && note.parameter >= 0xF0 ) {
+			} else if( note.effect == 0x3 && note.parameter > 0xF0 && note.parameter < 0xFE ) {
 				if( portaPeriod < period ) {
 					trans = micromod.Note.transpose( period, note.parameter & 0xF );
 					delta = ( speed > 1 ) ? ( period - trans ) * 2 / ( speed - 1 ) : 0;

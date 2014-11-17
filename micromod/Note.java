@@ -139,7 +139,7 @@ public class Note {
 		return key;
 	}
 
-	/* Adjust period from -12 to 60 semitones. */
+	/* Adjust period from -13 to 60 semitones. */
 	public static int transpose( int period, int semitones ) {
 		period = period * keyToPeriod[ semitones + 13 ] * 2 / 856;
 		return ( period >> 1 ) + ( period & 1 );
