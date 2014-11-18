@@ -3,11 +3,9 @@ package micromod.compiler;
 
 public class Repeat implements Element {
 	private Note parent;
-	private End sibling;
 	
 	public Repeat( Note parent ) {
 		this.parent = parent;
-		sibling = new End( parent );
 	}
 	
 	public String getToken() {
@@ -19,7 +17,7 @@ public class Repeat implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -27,7 +25,11 @@ public class Repeat implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.endRepeat( Parser.parseInteger( value ) );
+		if( "Begin".equals( value ) ) {
+			parent.setRepeat( Macro.BEGIN );
+		} else {
+			parent.setRepeat( Parser.parseInteger( value ) );
+		}
 	}
 
 	public void end() {

@@ -9,8 +9,7 @@ public class Macro implements Element {
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
 	private int macroIdx, rowIdx;
-	private int fadeRow, repeatRow, modulationRow;
-	private int attackRows, decayRows, speed;
+	private int repeatRow, attackRows, decayRows, speed;
 	private String scale, root;
 
 	public Macro( Module parent ) {
@@ -37,8 +36,7 @@ public class Macro implements Element {
 	public void begin( String value ) {
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
-		rowIdx = fadeRow = repeatRow = modulationRow = 0;
-		attackRows = decayRows = 0;
+		rowIdx = repeatRow = attackRows = decayRows = 0;
 		speed = 6;
 	}
 
@@ -51,7 +49,7 @@ public class Macro implements Element {
 		if( attackRows >= 0 && decayRows > 0 ) {
 			volumeFade( pattern, attackRows, attackRows + decayRows - 1, volume, 0 );
 		}
-		calculatePorta( module, pattern, speed );
+		calculateSlide( module, pattern, speed );
 		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern ) );
 	}
 
@@ -63,7 +61,7 @@ public class Macro implements Element {
 		this.root = root;
 	}
 
-	public void nextNote( micromod.Note note, int fadeParam, int repeatParam, int timeStretchRows ) {
+	public void nextNote( micromod.Note note, int repeatParam, int timeStretchRows ) {
 		pattern.setNote( rowIdx++, 0, note );
 		micromod.Module module = parent.getModule();
 		if( timeStretchRows > 1 ) {
@@ -86,13 +84,6 @@ public class Macro implements Element {
 					pattern.setNote( rowIdx++, 0, note );
 				}
 			}
-		}
-		if( fadeParam == BEGIN ) {
-			fadeRow = rowIdx;
-		} else if( fadeParam == END ) {
-			int startVol = getNoteVolume( module, pattern, fadeRow );
-			int endVol = getNoteVolume( module, pattern, rowIdx -1 );
-			volumeFade( pattern, fadeRow, rowIdx - 1, startVol, endVol );
 		}
 	}
 
@@ -120,29 +111,35 @@ public class Macro implements Element {
 		}
 	}
 
-	private static void calculatePorta( micromod.Module module, micromod.Pattern pattern, int speed ) {
-		int period = 0, fineTune = 0, portaPeriod = 0, portaSpeed = 0, trans, delta;
+	private static void calculateSlide( micromod.Module module, micromod.Pattern pattern, int speed ) {
+		int volume = 0, period = 0, fineTune = 0, portaPeriod = 0, portaSpeed = 0, trans, delta;
 		micromod.Note note = new micromod.Note();
 		for( int row = 0; row < 64; row++ ) {
-			switch( note.effect ) {
-				case 0x1: period = period - note.parameter * ( speed - 1 ); break;
-				case 0x2: period = period + note.parameter * ( speed - 1 ); break;
-				case 0x3: case 0x5:
-					if( period < portaPeriod ) {
-						period = period + portaSpeed * ( speed - 1 );
-						if( period > portaPeriod ) {
-							period = portaPeriod;
-						}
-					} else {
-						period = period - portaSpeed * ( speed - 1 );
-						if( period < portaPeriod ) {
-							period = portaPeriod;
-						}
+			if( note.effect == 0x1 ) {
+				period = clampPeriod( period - note.parameter * ( speed - 1 ) );
+			} else if( note.effect == 0x2 ) {
+				period = clampPeriod( period + note.parameter * ( speed - 1 ) );
+			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
+				if( period < portaPeriod ) {
+					period = clampPeriod( period + portaSpeed * ( speed - 1 ) );
+					if( period > portaPeriod ) {
+						period = portaPeriod;
 					}
-					break;
+				} else {
+					period = clampPeriod( period - portaSpeed * ( speed - 1 ) );
+					if( period < portaPeriod ) {
+						period = portaPeriod;
+					}
+				}
+			}
+			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
+				volume = clampVolume( volume + ( ( ( note.parameter >> 4 ) & 0xF ) - ( note.parameter & 0xF ) ) * ( speed - 1 ) );
 			}
 			pattern.getNote( row, 0, note );
 			if( note.instrument > 0 ) {
+				if( note.effect != 0xC ) {
+					volume = module.getInstrument( note.instrument ).getVolume();
+				}
 				fineTune = module.getInstrument( note.instrument ).getFineTune();
 			}
 			if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x50 ) {
@@ -174,13 +171,45 @@ public class Macro implements Element {
 				}
 				note.parameter = ( delta >> 1 ) + ( delta & 1 );
 				portaSpeed = note.parameter;
-			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x10 ) {
-				period = period - ( note.parameter & 0xF );
-			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x20 ) {
-				period = period + ( note.parameter & 0xF );
+			} else if( note.effect == 0xC ) {
+				if( note.parameter >= 0xF0 ) {
+					volume = clampVolume( volume - ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 ) );
+					note.parameter = volume;
+				} else if( note.parameter >= 0xE0 ) {
+					volume = clampVolume( volume + ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 ) );
+					note.parameter = volume;
+				} else {
+					volume = note.parameter;
+				}
+			} else if( note.effect == 0xE ) {
+				if( ( note.parameter & 0xF0 ) == 0x10 ) {
+					period = clampPeriod( period - ( note.parameter & 0xF ) );
+				} else if( ( note.parameter & 0xF0 ) == 0x20 ) {
+					period = clampPeriod( period + ( note.parameter & 0xF ) );
+				} else if( ( note.parameter & 0xF0 ) == 0xA0 ) {
+					volume = clampVolume( volume + ( note.parameter & 0xF ) );
+				} else if( ( note.parameter & 0xF0 ) == 0xB0 ) {
+					volume = clampVolume( volume - ( note.parameter & 0xF ) );
+				}
 			}
 			pattern.setNote( row, 0, note );
 		}
+	}
+
+	private static int clampVolume( int volume ) {
+		if( volume < 0 ) {
+			volume = 0;
+		} else if( volume > 64 ) {
+			volume = 64;
+		}
+		return volume;
+	}
+
+	private static int clampPeriod( int period ) {
+		if( period < 7 ) {
+			period = 6848;
+		}
+		return period;
 	}
 
 	private static int getNoteVolume( micromod.Module module, micromod.Pattern pattern, int rowIdx ) {
