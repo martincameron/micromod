@@ -179,7 +179,7 @@ public class Macro implements Element {
 					volume = clampVolume( volume + ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 ) );
 					note.parameter = volume;
 				} else {
-					volume = note.parameter;
+					volume = clampVolume( note.parameter );
 				}
 			} else if( note.effect == 0xE ) {
 				if( ( note.parameter & 0xF0 ) == 0x10 ) {
