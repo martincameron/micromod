@@ -26,7 +26,7 @@ public class Repeat implements Element {
 	
 	public void begin( String value ) {
 		if( "Begin".equals( value ) ) {
-			parent.setRepeat( Macro.BEGIN );
+			parent.setRepeat( 1 );
 		} else {
 			parent.setRepeat( Parser.parseInteger( value ) );
 		}
