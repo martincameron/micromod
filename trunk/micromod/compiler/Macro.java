@@ -2,8 +2,6 @@
 package micromod.compiler;
 
 public class Macro implements Element {
-	public static final int BEGIN = 1, END = 2;
-
 	private Module parent;
 	private Pattern sibling;
 	private Scale child = new Scale( this );
@@ -74,9 +72,7 @@ public class Macro implements Element {
 				pattern.setNote( rowIdx++, 0, note );
 			}
 		}
-		if( repeatParam == BEGIN ) {
-			repeatRow = rowIdx;
-		} else if( repeatParam > 1 ) {
+		if( repeatParam > 0 ) {
 			int repeatEnd = rowIdx;
 			for( int idx = 1; idx < repeatParam; idx++ ) {
 				for( int row = repeatRow; row < repeatEnd; row++ ) {
@@ -84,6 +80,7 @@ public class Macro implements Element {
 					pattern.setNote( rowIdx++, 0, note );
 				}
 			}
+			repeatRow = rowIdx;
 		}
 	}
 
@@ -100,26 +97,63 @@ public class Macro implements Element {
 	}
 
 	private static void volumeFade( micromod.Pattern pattern, int startRow, int endRow, int startVol, int endVol ) {
-		int v0 = sqrt( startVol );
-		int v1 = sqrt( endVol );
+		int v0 = sqrt( startVol << 10 );
+		int v1 = sqrt( endVol << 10 );
 		int rows = endRow - startRow + 1;
-		int vm = ( v1 - v0 ) * 2 / rows;
+		int vm = ( v1 - v0 ) / rows;
 		for( int row = 0; row < rows; row++ ) {
-			int volume = vm * ( row + 1 ) + v0 * 2;
-			volume = ( volume >> 1 ) + ( volume & 1 );
-			setNoteVolume( pattern, startRow + row, ( volume * volume ) >> 10 );
+			int volume = vm * ( row + 1 ) + v0;
+			volume = ( volume * volume ) >> 9;
+			setNoteVolume( pattern, startRow + row, ( volume >> 1 ) + ( volume & 1 ) );
 		}
 	}
 
 	private static void calculateSlide( micromod.Module module, micromod.Pattern pattern, int speed ) {
-		int volume = 0, period = 0, fineTune = 0, portaPeriod = 0, portaSpeed = 0, trans, delta;
+		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0, delta;
 		micromod.Note note = new micromod.Note();
 		for( int row = 0; row < 64; row++ ) {
+			pattern.getNote( row, 0, note );
+			if( note.instrument > 0 ) {
+				volume = module.getInstrument( note.instrument ).getVolume();
+				fineTune = module.getInstrument( note.instrument ).getFineTune();
+			}
+			if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x50 ) {
+				fineTune = ( note.parameter & 0x7 ) - ( note.parameter & 0x8 );
+			}
+			if( note.key > 0 ) {
+				portaPeriod = micromod.Note.keyToPeriod( note.key, fineTune );
+				if( note.effect != 0x3 && note.effect != 0x5 ) {
+					period = portaPeriod;
+				}
+			}
 			if( note.effect == 0x1 ) {
+				if( note.parameter > 0xF0 ) {
+					delta = note.transpose( period, ( note.parameter & 0xF ) );
+					delta = ( speed > 1 ) ? ( period - delta ) * 2 / ( speed - 1 ) : 0;
+					note.parameter = ( delta >> 1 ) + ( delta & 1 );
+				}
 				period = clampPeriod( period - note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x2 ) {
+				if( note.parameter > 0xF0 ) {
+					delta = note.transpose( period, -( note.parameter & 0xF ) );
+					delta = ( speed > 1 ) ? ( delta - period ) * 2 / ( speed - 1 ) : 0;
+					note.parameter = ( delta >> 1 ) + ( delta & 1 );
+				}
 				period = clampPeriod( period + note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
+				if( note.effect == 0x3 ) {
+					if( note.parameter > 0xF0 ) {
+						if( portaPeriod < period ) {
+							delta = note.transpose( period, ( note.parameter & 0xF ) );
+							delta = ( speed > 1 ) ? ( period - delta ) * 2 / ( speed - 1 ) : 0;
+						} else {
+							delta = note.transpose( period, -( note.parameter & 0xF ) );
+							delta = ( speed > 1 ) ? ( delta - period ) * 2 / ( speed - 1 ) : 0;
+						}
+						note.parameter = ( delta >> 1 ) + ( delta & 1 );
+					}
+					portaSpeed = note.parameter;
+				}
 				if( period < portaPeriod ) {
 					period = clampPeriod( period + portaSpeed * ( speed - 1 ) );
 					if( period > portaPeriod ) {
@@ -133,54 +167,29 @@ public class Macro implements Element {
 				}
 			}
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
+				if( ( note.parameter & 0xF ) == 0xF ) {
+					delta = ( ( note.parameter & 0xF0 ) >> 4 ) * ( volume > 24 ? 2 : 1 );
+					if( delta < ( speed - 1 ) || speed < 2 ) {
+						note.effect = 0xC;
+						note.parameter = clampVolume( volume + delta );
+					} else {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( ( ( delta >> 1 ) + ( delta & 1 ) ) & 0xF ) << 4;
+					}
+				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
+					delta = ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 );
+					if( delta < ( speed - 1 ) || speed < 2 ) {
+						note.effect = 0xC;
+						note.parameter = clampVolume( volume - delta );
+					} else {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( ( delta >> 1 ) + ( delta & 1 ) ) & 0xF;
+					}
+				}
 				volume = clampVolume( volume + ( ( ( note.parameter >> 4 ) & 0xF ) - ( note.parameter & 0xF ) ) * ( speed - 1 ) );
 			}
-			pattern.getNote( row, 0, note );
-			if( note.instrument > 0 ) {
-				if( note.effect != 0xC ) {
-					volume = module.getInstrument( note.instrument ).getVolume();
-				}
-				fineTune = module.getInstrument( note.instrument ).getFineTune();
-			}
-			if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x50 ) {
-				fineTune = ( note.parameter & 0x7 ) - ( note.parameter & 0x8 );
-			}
-			if( note.key > 0 ) {
-				portaPeriod = micromod.Note.keyToPeriod( note.key, fineTune );
-			}
-			if( note.effect == 0x3 || note.effect == 0x5 ) {
-				portaSpeed = note.parameter;
-			} else if( note.key > 0 ) {
-				period = portaPeriod;
-			}
-			if( note.effect == 0x1 && note.parameter > 0xF0 ) {
-				trans = micromod.Note.transpose( period, note.parameter & 0xF );
-				delta = ( speed > 1 ) ? ( period - trans ) * 2 / ( speed - 1 ) : 0;
-				note.parameter = ( delta >> 1 ) + ( delta & 1 );
-			} else if( note.effect == 0x2 && note.parameter > 0xF0 && note.parameter < 0xFE ) {
-				trans = micromod.Note.transpose( period, -( note.parameter & 0xF ) );
-				delta = ( speed > 1 ) ? ( trans - period ) * 2 / ( speed - 1 ) : 0;
-				note.parameter = ( delta >> 1 ) + ( delta & 1 );
-			} else if( note.effect == 0x3 && note.parameter > 0xF0 && note.parameter < 0xFE ) {
-				if( portaPeriod < period ) {
-					trans = micromod.Note.transpose( period, note.parameter & 0xF );
-					delta = ( speed > 1 ) ? ( period - trans ) * 2 / ( speed - 1 ) : 0;
-				} else {
-					trans = micromod.Note.transpose( period, -( note.parameter & 0xF ) );
-					delta = ( speed > 1 ) ? ( trans - period ) * 2 / ( speed - 1 ) : 0;
-				}
-				note.parameter = ( delta >> 1 ) + ( delta & 1 );
-				portaSpeed = note.parameter;
-			} else if( note.effect == 0xC ) {
-				if( note.parameter >= 0xF0 ) {
-					volume = clampVolume( volume - ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 ) );
-					note.parameter = volume;
-				} else if( note.parameter >= 0xE0 ) {
-					volume = clampVolume( volume + ( note.parameter & 0xF ) * ( volume > 24 ? 2 : 1 ) );
-					note.parameter = volume;
-				} else {
-					volume = clampVolume( note.parameter );
-				}
+			if( note.effect == 0xC ) {
+				volume = clampVolume( note.parameter );
 			} else if( note.effect == 0xE ) {
 				if( ( note.parameter & 0xF0 ) == 0x10 ) {
 					period = clampPeriod( period - ( note.parameter & 0xF ) );
@@ -233,12 +242,11 @@ public class Macro implements Element {
 	}
 
 	private static int sqrt( int y ) {
-		/* Returns 32 * sqrt(x) for x in the range 0 to 64. */
-		for( int x = 0; x < 257; x++ ) {
-			if( ( ( x * x ) >> 10 ) == y ) {
-				return x;
-			}
+		int x = 16;
+		for( int n = 0; n < 6; n++ ) {
+			x = ( x + y / x );
+			x = ( x >> 1 ) + ( x & 1 );
 		}
-		return 256;
+		return x;
 	}
 }

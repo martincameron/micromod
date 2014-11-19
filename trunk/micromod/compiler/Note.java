@@ -41,6 +41,10 @@ public class Note implements Element {
 	}
 
 	public void setRepeat( int count ) {
-		repeat = count;
+		if( repeat < 1 ) {
+			repeat = count;
+		} else {
+			repeat *= count;
+		}
 	}
 }
