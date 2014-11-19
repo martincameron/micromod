@@ -134,7 +134,7 @@ public class Macro implements Element {
 				}
 				period = clampPeriod( period - note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x2 ) {
-				if( note.parameter > 0xF0 ) {
+				if( note.parameter > 0xF0 && ( ( note.parameter & 0xF ) < 0xE ) ) {
 					delta = note.transpose( period, -( note.parameter & 0xF ) );
 					delta = ( speed > 1 ) ? ( delta - period ) * 2 / ( speed - 1 ) : 0;
 					note.parameter = ( delta >> 1 ) + ( delta & 1 );
@@ -142,7 +142,7 @@ public class Macro implements Element {
 				period = clampPeriod( period + note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
 				if( note.effect == 0x3 ) {
-					if( note.parameter > 0xF0 ) {
+					if( note.parameter > 0xF0 && ( ( note.parameter & 0xF ) < 0xE ) ) {
 						if( portaPeriod < period ) {
 							delta = note.transpose( period, ( note.parameter & 0xF ) );
 							delta = ( speed > 1 ) ? ( period - delta ) * 2 / ( speed - 1 ) : 0;
