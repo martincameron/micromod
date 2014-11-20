@@ -59,19 +59,9 @@ public class Macro implements Element {
 		this.root = root;
 	}
 
-	public void nextNote( micromod.Note note, int repeatParam, int timeStretchRows ) {
+	public void nextNote( micromod.Note note, int repeatParam ) {
 		pattern.setNote( rowIdx++, 0, note );
 		micromod.Module module = parent.getModule();
-		if( timeStretchRows > 1 ) {
-			micromod.Instrument instrument = module.getInstrument( note.instrument );
-			int sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
-			note.effect = 0x9;
-			for( int row = 1; row < timeStretchRows; row++ ) {
-				int offset = ( sampleLength * row ) / ( timeStretchRows << 7 );
-				note.parameter = ( offset >> 1 ) + ( offset & 1 );
-				pattern.setNote( rowIdx++, 0, note );
-			}
-		}
 		if( repeatParam > 0 ) {
 			int repeatEnd = rowIdx;
 			for( int idx = 1; idx < repeatParam; idx++ ) {
@@ -109,13 +99,16 @@ public class Macro implements Element {
 	}
 
 	private static void calculateSlide( micromod.Module module, micromod.Pattern pattern, int speed ) {
-		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0, delta;
+		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0;
+		int sampleOffset = 0, sampleLength = 0, delta;
 		micromod.Note note = new micromod.Note();
 		for( int row = 0; row < 64; row++ ) {
 			pattern.getNote( row, 0, note );
 			if( note.instrument > 0 ) {
-				volume = module.getInstrument( note.instrument ).getVolume();
-				fineTune = module.getInstrument( note.instrument ).getFineTune();
+				micromod.Instrument instrument = module.getInstrument( note.instrument );
+				volume = instrument.getVolume();
+				fineTune = instrument.getFineTune();
+				sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
 			}
 			if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x50 ) {
 				fineTune = ( note.parameter & 0x7 ) - ( note.parameter & 0x8 );
@@ -124,6 +117,9 @@ public class Macro implements Element {
 				portaPeriod = micromod.Note.keyToPeriod( note.key, fineTune );
 				if( note.effect != 0x3 && note.effect != 0x5 ) {
 					period = portaPeriod;
+				}
+				if( note.effect != 0x9 ) {
+					sampleOffset = 0;
 				}
 			}
 			if( note.effect == 0x1 ) {
@@ -187,6 +183,11 @@ public class Macro implements Element {
 					}
 				}
 				volume = clampVolume( volume + ( ( ( note.parameter >> 4 ) & 0xF ) - ( note.parameter & 0xF ) ) * ( speed - 1 ) );
+			} else if( note.effect == 0x9 ) {
+				if( note.parameter > 0xF0 ) {
+					sampleOffset = sampleOffset + sampleLength * ( note.parameter & 0xF ) / 16;
+					note.parameter = ( ( sampleOffset + ( sampleOffset & 0x80 ) ) >> 8 ) & 0xFF;
+				}
 			}
 			if( note.effect == 0xC ) {
 				volume = clampVolume( note.parameter );

@@ -3,9 +3,9 @@ package micromod.compiler;
 
 public class Note implements Element {
 	private Macro parent;
-	private TimeStretch child = new TimeStretch( this );
+	private Repeat child = new Repeat( this );
 	private micromod.Note note = new micromod.Note();
-	private int repeat, timeStretch;
+	private int repeatCount;
 
 	public Note( Macro parent ) {
 		this.parent = parent;
@@ -28,23 +28,19 @@ public class Note implements Element {
 	}
 	
 	public void begin( String value ) {
-		repeat = timeStretch = 0;
+		repeatCount = 0;
 		note.fromString( value );
 	}
 
 	public void end() {
-		parent.nextNote( note, repeat, timeStretch );
-	}
-
-	public void setTimeStretch( int rows ) {
-		timeStretch = rows;
+		parent.nextNote( note, repeatCount );
 	}
 
 	public void setRepeat( int count ) {
-		if( repeat < 1 ) {
-			repeat = count;
+		if( repeatCount < 1 ) {
+			repeatCount = count;
 		} else {
-			repeat *= count;
+			repeatCount *= count;
 		}
 	}
 }
