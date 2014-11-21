@@ -95,29 +95,40 @@ public class Macro implements Element {
 				}
 			}
 			if( note.effect == 0x1 ) {
-				if( note.parameter > 0xF0 ) {
-					delta = note.transpose( period, ( note.parameter & 0xF ) );
-					delta = ( speed > 1 ) ? ( period - delta ) * 2 / ( speed - 1 ) : 0;
-					note.parameter = ( delta >> 1 ) + ( delta & 1 );
+				if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
+					delta = period - note.transpose( period, note.parameter & 0xF );
+					if( delta >= ( speed - 1 ) && speed > 1 ) {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( delta >> 1 ) + ( delta & 1 );
+						period = clampPeriod( period - note.parameter * ( speed - 1 ) );
+					} else {
+						note.effect = 0xE;
+						note.parameter = 0x10 + ( delta & 0xF );
+						period = clampPeriod( period - ( delta & 0xF ) );
+					}
 				}
-				period = clampPeriod( period - note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x2 ) {
-				if( note.parameter > 0xF0 && ( ( note.parameter & 0xF ) < 0xE ) ) {
-					delta = note.transpose( period, -( note.parameter & 0xF ) );
-					delta = ( speed > 1 ) ? ( delta - period ) * 2 / ( speed - 1 ) : 0;
-					note.parameter = ( delta >> 1 ) + ( delta & 1 );
+				if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
+					delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
+					if( delta >= ( speed - 1 ) && speed > 1 ) {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( delta >> 1 ) + ( delta & 1 );
+						period = clampPeriod( period + note.parameter * ( speed - 1 ) );
+					} else {
+						note.effect = 0xE;
+						note.parameter = 0x20 + ( delta & 0xF );
+						period = clampPeriod( period + ( delta & 0xF ) );
+					}
 				}
-				period = clampPeriod( period + note.parameter * ( speed - 1 ) );
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
 				if( note.effect == 0x3 ) {
-					if( note.parameter > 0xF0 && ( ( note.parameter & 0xF ) < 0xE ) ) {
+					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						if( portaPeriod < period ) {
-							delta = note.transpose( period, ( note.parameter & 0xF ) );
-							delta = ( speed > 1 ) ? ( period - delta ) * 2 / ( speed - 1 ) : 0;
+							delta = period - note.transpose( period, note.parameter & 0xF );
 						} else {
-							delta = note.transpose( period, -( note.parameter & 0xF ) );
-							delta = ( speed > 1 ) ? ( delta - period ) * 2 / ( speed - 1 ) : 0;
+							delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
 						}
+						delta = ( speed > 1 ) ? delta * 2 / ( speed - 1 ) : 0;
 						note.parameter = ( delta >> 1 ) + ( delta & 1 );
 					}
 					portaSpeed = note.parameter;
@@ -134,15 +145,17 @@ public class Macro implements Element {
 					}
 				}
 			} else if( note.effect == 0x9 ) {
-				if( note.parameter > 0xF0 ) {
+				if( note.parameter >= 0xF0 ) {
 					sampleOffset = sampleOffset + sampleLength * ( note.parameter & 0xF ) / 16;
 					note.parameter = ( ( sampleOffset + ( sampleOffset & 0x80 ) ) >> 8 ) & 0xFF;
+				} else {
+					sampleOffset = ( note.parameter & 0xFF ) << 8;
 				}
 			} else if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				if( ( note.parameter & 0xF ) == 0xF || ( note.parameter & 0xF0 ) == 0xF0 ) {
 					note.effect = 0xC;
 					delta = ( ( note.parameter & 0xF ) == 0xF ) ? ( ( note.parameter & 0xF0 ) >> 4 ) : ( note.parameter & 0xF );
-					delta = 256 * ( ( volume > 384 ) ? 2 : 1 ) / ( 16 - delta );
+					delta = 128 * ( volume > 512 ? 4 : ( volume > 128 ? 2 : 1 ) ) / ( 16 - delta );
 					volume = clampVolume( volume + ( ( ( note.parameter & 0xF ) == 0xF ) ? delta : -delta ) );
 					note.parameter = volume / 16;
 				} else {
