@@ -3,11 +3,11 @@ package micromod.compiler;
 
 public class Speed implements Element {
 	private Macro parent;
-	private Attack sibling;
+	private Note sibling;
 	
 	public Speed( Macro parent ) {
 		this.parent = parent;
-		sibling = new Attack( parent );
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
