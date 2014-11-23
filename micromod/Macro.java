@@ -90,22 +90,21 @@ public class Macro {
 				if( delta > 15 ) delta = ( delta - 3 ) % 12 + 3;
 				note.parameter = ( note.parameter & 0xF0 ) + delta;
 			} else if( note.effect == 0x1 || ( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x10 ) ) {
-				/* Portamento up. */
 				if( note.effect == 0x1 ) {
+					/* Portamento up. */
 					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						delta = period - note.transpose( period, note.parameter & 0xF );
-						if( delta >= ( speed - 1 ) && speed > 1 ) {
-							delta = delta * 2 / ( speed - 1 );
-							note.parameter = ( delta >> 1 ) + ( delta & 1 );
-							period = clampPeriod( period - note.parameter * ( speed - 1 ) );
-						} else {
-							note.effect = 0xE;
-							note.parameter = 0x10 + ( delta & 0xF );
-							period = clampPeriod( period - ( delta & 0xF ) );
-						}
 					} else {
-						note.parameter = transpose( note.parameter & 0xFF, dstKey - srcKey, 0xFF );
+						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
+					}
+					if( delta >= ( speed - 1 ) && speed > 1 ) {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( delta >> 1 ) + ( delta & 1 );
 						period = clampPeriod( period - note.parameter * ( speed - 1 ) );
+					} else {
+						note.effect = 0xE;
+						note.parameter = 0x10 + ( delta & 0xF );
+						period = clampPeriod( period - ( delta & 0xF ) );
 					}
 				} else {
 					/* Fine portamento up. */
@@ -117,18 +116,17 @@ public class Macro {
 					/* Portamento down. */
 					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
-						if( delta >= ( speed - 1 ) && speed > 1 ) {
-							delta = delta * 2 / ( speed - 1 );
-							note.parameter = ( delta >> 1 ) + ( delta & 1 );
-							period = clampPeriod( period + note.parameter * ( speed - 1 ) );
-						} else {
-							note.effect = 0xE;
-							note.parameter = 0x20 + ( delta & 0xF );
-							period = clampPeriod( period + ( delta & 0xF ) );
-						}
 					} else {
-						note.parameter = transpose( note.parameter & 0xFF, dstKey - srcKey, 0xFF );
+						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
+					}
+					if( delta >= ( speed - 1 ) && speed > 1 ) {
+						delta = delta * 2 / ( speed - 1 );
+						note.parameter = ( delta >> 1 ) + ( delta & 1 );
 						period = clampPeriod( period + note.parameter * ( speed - 1 ) );
+					} else {
+						note.effect = 0xE;
+						note.parameter = 0x20 + ( delta & 0xF );
+						period = clampPeriod( period + ( delta & 0xF ) );
 					}
 				} else {
 					/* Fine portamento down. */
