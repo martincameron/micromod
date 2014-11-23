@@ -22,61 +22,6 @@ public class Note {
 		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
 	};
 
-	/* Adjust the pitch by the specified number of semitones and reduce the volume (0 to 64).
-	/* If the volume is less than 64, the effect command may be replaced and a Module must be specified. */
-	public void transpose( int semitones, int volume, Module module ) {
-		if( semitones > 36 ) semitones = 24 + semitones % 12;
-		if( semitones < -36 ) semitones = -24 - (-semitones) % 12;
-		if( key > 0 ) {
-			key = key + semitones;
-			if( key <= 0 || key >= 118 ) key = 0;
-		}
-		if( volume < 0 ) volume = 0;
-		if( volume > 64 ) volume = 64;
-		if( instrument > 0 && volume < 64 && effect != 0xC ) {
-			/* Setting an instrument sets the volume. */
-			effect = 0xC;
-			parameter = module.getInstrument( instrument ).getVolume();
-		}
-		switch( effect ) {
-			case 0x1: case 0x2: case 0x3:
-				/* Adjust portamento rate.*/
-				parameter = divide( ( parameter & 0xFF ) * keyToPeriod[ semitones + 37 ], 214, 255 );
-				break;
-			case 0x4:
-				/* Adjust vibrato depth.*/
-				int depth = divide( ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ], 214, 15 );
-				parameter = ( parameter & 0xF0 ) + depth;
-				break;
-			case 0x5: case 0x6: case 0xA:
-				/* Adjust volume slide rate.*/
-				int slideUp = divide( ( ( parameter >> 4 ) & 0xF ) * volume, 64, 15 );
-				parameter = ( slideUp << 4 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
-				break;
-			case 0x7:
-				/* Adjust tremolo depth.*/
-				parameter = ( parameter & 0xF0 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
-				break;
-			case 0xC:
-				/* Set volume. */
-				parameter = divide( parameter * volume, 64, 64 );
-				break;
-			case 0xE:
-				switch( parameter & 0xF0 ) {
-					case 0x10: case 0x20:
-						/* Adjust fine portamento rate.*/
-						int rate = divide( ( parameter & 0xF ) * keyToPeriod[ semitones + 37 ], 214, 15 );
-						parameter = ( parameter & 0xF0 ) + rate;
-						break;
-					case 0xA0: case 0xB0:
-						/* Adjust fine volume slide rate.*/
-						parameter = ( parameter & 0xF0 ) + divide( ( parameter & 0xF ) * volume, 64, 15 );
-						break;
-				}
-				break;
-		}
-	}
-
 	public int load( byte[] input, int offset ) {
 		key = periodToKey( ( ( input[ offset ] & 0xF ) << 8 ) | ( input[ offset + 1 ] & 0xFF ) );
 		instrument = ( input[ offset ] & 0x10 ) | ( ( input[ offset + 2 ] & 0xF0 ) >> 4 );
@@ -189,12 +134,5 @@ public class Note {
 			throw new IllegalArgumentException( "Invalid character: " + chr );
 		}
 		return value;
-	}
-	
-	private static int divide( int dividend, int divisor, int maximum ) {
-		/* Divide positive integers with rounding and clipping. */
-		int quotient = ( dividend << 1 ) / divisor;
-		quotient = ( quotient >> 1 ) + ( quotient & 1 );
-		return quotient < maximum ? quotient : maximum;
 	}
 }
