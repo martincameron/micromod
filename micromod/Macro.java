@@ -144,18 +144,19 @@ public class Macro {
 				}
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
 				/* Tone portamento. */
-				if( note.effect == 0x3 ) {
+				if( note.effect == 0x3 && note.parameter > 0 ) {
 					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						if( portaPeriod < period ) {
 							delta = period - note.transpose( period, note.parameter & 0xF );
 						} else {
 							delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
 						}
-						delta = ( speed > 1 ) ? delta * 2 / ( speed - 1 ) : 0;
-						delta = ( delta >> 1 ) + ( delta & 1 );
-						note.parameter = ( delta > 0 ) ? delta : 1;
+						note.parameter = divide( delta, ( speed > 1 ) ? ( speed - 1 ) : 1, 0xFF );
 					} else {
 						note.parameter = transpose( note.parameter & 0xFF, dstKey - srcKey, 0xFF );
+					}
+					if( note.parameter < 1 ) {
+						note.parameter = 1;
 					}
 					portaSpeed = note.parameter;
 				}
