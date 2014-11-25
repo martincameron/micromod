@@ -68,13 +68,4 @@ public class Macro implements Element {
 			repeatRow = rowIdx;
 		}
 	}
-
-	private static int sqrt( int y ) {
-		int x = 16;
-		for( int n = 0; n < 6; n++ ) {
-			x = ( x + y / x );
-			x = ( x >> 1 ) + ( x & 1 );
-		}
-		return x;
-	}
 }
