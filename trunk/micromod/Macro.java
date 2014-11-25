@@ -106,19 +106,18 @@ public class Macro {
 					} else {
 						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
 					}
-					if( delta >= ( speed - 1 ) && speed > 1 ) {
-						delta = delta * 2 / ( speed - 1 );
-						note.parameter = ( delta >> 1 ) + ( delta & 1 );
-						period = clampPeriod( period - note.parameter * ( speed - 1 ) );
+					if( speed > 1 && delta >= speed ) {
+						note.parameter = divide( delta, speed - 1, 0xFF );
+						period = period - note.parameter * ( speed - 1 );
 					} else {
 						note.effect = 0xE;
 						note.parameter = 0x10 + ( delta & 0xF );
-						period = clampPeriod( period - ( delta & 0xF ) );
+						period = period - ( delta & 0xF );
 					}
 				} else {
 					/* Fine portamento up. */
 					note.parameter = 0x10 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
-					period = clampPeriod( period - ( note.parameter & 0xF ) );
+					period = period - ( note.parameter & 0xF );
 				}
 			} else if( note.effect == 0x2 || ( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x20 ) ) {
 				if( note.effect == 0x2 ) {
@@ -128,19 +127,18 @@ public class Macro {
 					} else {
 						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
 					}
-					if( delta >= ( speed - 1 ) && speed > 1 ) {
-						delta = delta * 2 / ( speed - 1 );
-						note.parameter = ( delta >> 1 ) + ( delta & 1 );
-						period = clampPeriod( period + note.parameter * ( speed - 1 ) );
+					if( speed > 1 && delta >= speed ) {
+						note.parameter = divide( delta, speed - 1, 0xFF );
+						period = period + note.parameter * ( speed - 1 );
 					} else {
 						note.effect = 0xE;
 						note.parameter = 0x20 + ( delta & 0xF );
-						period = clampPeriod( period + ( delta & 0xF ) );
+						period = period + ( delta & 0xF );
 					}
 				} else {
 					/* Fine portamento down. */
 					note.parameter = 0x20 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
-					period = clampPeriod( period + ( note.parameter & 0xF ) );
+					period = period + ( note.parameter & 0xF );
 				}
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
 				/* Tone portamento. */
@@ -236,13 +234,6 @@ public class Macro {
 			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
 		return rowIdx;
-	}
-
-	private static int clampPeriod( int period ) {
-		if( period < 7 ) {
-			period = 6848;
-		}
-		return period;
 	}
 
 	private static int transpose( int period, int semitones, int maximum ) {
