@@ -53,7 +53,7 @@ public class Macro {
 			}
 			if( note.instrument > 0 ) {
 				Instrument instrument = module.getInstrument( note.instrument );
-				volume = instrument.getVolume() * 16;
+				volume = instrument.getVolume() * 64;
 				fineTune = instrument.getFineTune();
 				sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
 				if( amplitude < 64 && note.effect != 0xC ) {
@@ -69,13 +69,22 @@ public class Macro {
 				srcKey = note.key;
 				dstKey = scale.transpose( srcKey, distance );
 				note.key = dstKey;
-				portaPeriod = clampPeriod( Note.keyToPeriod( note.key, fineTune ) );
+				portaPeriod = Note.keyToPeriod( note.key, fineTune );
 				if( note.effect != 0x3 && note.effect != 0x5 ) {
 					period = portaPeriod;
 				}
 				if( note.effect != 0x9 ) {
 					sampleOffset = 0;
 				}
+			}
+			if( volume < 0 ) {
+				volume = 0;
+			}
+			if( volume > 4096 ) {
+				volume = 4096;
+			}
+			if( period < 7 ) {
+				period = 6848;
 			}
 			if( note.effect == 0 && note.parameter != 0 ) {
 				/* Arpeggio.*/
@@ -179,42 +188,53 @@ public class Macro {
 			}
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				/* Volume slide. */
-				if( ( note.parameter & 0xF ) == 0xF || ( note.parameter & 0xF0 ) == 0xF0 ) {
-					note.effect = 0xC;
-					delta = ( ( note.parameter & 0xF ) == 0xF ) ? ( ( note.parameter & 0xF0 ) >> 4 ) : ( note.parameter & 0xF );
-					delta = 128 * ( volume > 512 ? 4 : ( volume > 128 ? 2 : 1 ) ) / ( 16 - delta );
-					volume = clampVolume( volume + ( ( ( note.parameter & 0xF ) == 0xF ) ? delta : -delta ) );
-					note.parameter = ( volume + ( volume & 0x8 ) ) >> 4;
+				if( ( note.parameter & 0xF ) == 0xF ) {
+					delta = ( note.parameter & 0xF0 ) >> 4;
+					delta = sqrt( volume << 12 ) + 1024 / ( 16 - delta );
+					delta = ( ( delta * delta ) >> 12 ) - volume;
+				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
+					delta = note.parameter & 0xF;
+					delta = sqrt( volume << 12 ) - 1024 / ( 16 - delta );
+					if( delta < 0 ) {
+						delta = 0;
+					}
+					delta = ( ( delta * delta ) >> 12 ) - volume;
 				} else {
-					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * amplitude, 64, 0xF );
-					note.parameter = ( delta << 4 ) + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
-					volume = clampVolume( volume + ( ( ( note.parameter & 0xF0 ) >> 4 ) - ( note.parameter & 0xF ) ) * ( speed - 1 ) * 16 );
+					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
+					delta = delta - divide( ( note.parameter & 0xF ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
+				}
+				note.parameter = 0;
+				if( speed > 1 ) {
+					if( delta > 0 ) {
+						note.parameter = divide( delta, ( speed - 1 ) * 64, 15 ) << 4;
+					} else {
+						note.parameter = divide( -delta, ( speed - 1 ) * 64, 15 );
+					}
+				}
+				if( note.parameter == 0 && delta != 0 ) {
+					volume += delta;
+					note.effect = 0xC;
+					note.parameter = divide( volume, 64, 64 );
+				} else {
+					volume = volume + ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64;
+					volume = volume - ( note.parameter & 0xF ) * ( speed - 1 ) * 64;
 				}
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
 				note.parameter = divide( note.parameter * amplitude, 64, 64 );
-				volume = note.parameter * 16;
+				volume = note.parameter * 64;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xA0 ) {
 				/* Fine volume slide up. */
-				note.parameter = 0xA0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 15 );
-				volume = clampVolume( volume + ( note.parameter & 0xF ) * 16 );
+				note.parameter = 0xA0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
+				volume = volume + ( note.parameter & 0xF ) * 64;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xB0 ) {
 				/* Fine volume slide down. */
-				note.parameter = 0xB0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 15 );
-				volume = clampVolume( volume - ( note.parameter & 0xF ) * 16 );
+				note.parameter = 0xB0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
+				volume = volume - ( note.parameter & 0xF ) * 64;
 			}
 			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
 		return rowIdx;
-	}
-
-	private static int clampVolume( int volume ) {
-		if( volume < 0 ) {
-			volume = 0;
-		} else if( volume > 1024 ) {
-			volume = 1024;
-		}
-		return volume;
 	}
 
 	private static int clampPeriod( int period ) {
@@ -231,8 +251,23 @@ public class Macro {
 
 	private static int divide( int dividend, int divisor, int maximum ) {
 		/* Divide positive integers with rounding and clipping. */
-		int quotient = ( dividend << 1 ) / divisor;
-		quotient = ( quotient >> 1 ) + ( quotient & 1 );
-		return quotient < maximum ? quotient : maximum;
+		int quotient = 0;
+		if( dividend > 0 ) {
+			quotient = ( dividend << 1 ) / divisor;
+			quotient = ( quotient >> 1 ) + ( quotient & 1 );
+			if( quotient > maximum ) {
+				quotient = maximum;
+			}
+		}
+		return quotient;
+	}
+
+	private static int sqrt( int y ) {
+		int x = 4096;
+		for( int n = 0; n < 12; n++ ) {
+			x = ( x + y / x );
+			x = ( x >> 1 ) + ( x & 1 );
+		}
+		return x;
 	}
 }
