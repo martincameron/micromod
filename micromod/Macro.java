@@ -212,7 +212,7 @@ public class Macro {
 					note.parameter = 0;
 				}
 				if( note.parameter == 0 ) {
-					if( effect == 0xA ) {
+					if( note.effect == 0xA ) {
 						volume = volume + delta;
 						note.effect = 0xC;
 						note.parameter = divide( volume, 64, 64 );
