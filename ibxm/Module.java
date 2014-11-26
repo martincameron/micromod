@@ -12,11 +12,6 @@ public class Module {
 	public Pattern[] patterns = { new Pattern( 4, 64 ) };
 	public Instrument[] instruments = { new Instrument(), new Instrument() };
 
-	private static final int[] keyToPeriod = {
-		29020, 27392, 25855, 24403, 23034, 21741, 20521,
-		19369, 18282, 17256, 16287, 15373, 14510, 13696
-	};
-
 	public Module() {}
 	
 	public Module( java.io.InputStream inputStream ) throws java.io.IOException {
@@ -31,6 +26,10 @@ public class Module {
 		} else {
 			loadMod( moduleData );
 		}
+	}
+
+	public Module( byte[] moduleData ) throws java.io.IOException {
+		this( new Data( moduleData ) );
 	}
 
 	private void loadMod( Data moduleData ) throws java.io.IOException {
@@ -82,23 +81,7 @@ public class Module {
 			for( int patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
 				int period = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
 				period = ( period | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
-				if( period > 112 ) {
-					int key = 0, oct = 0;
-					while( period < 14510 ) {
-						period *= 2;
-						oct++;
-					}
-					while( key < 12 ) {
-						int d1 = keyToPeriod[ key ] - period;
-						int d2 = period - keyToPeriod[ key + 1 ];
-						if( d2 >= 0 ) {
-							if( d2 < d1 ) key++;
-							break;
-						}
-						key++;
-					}
-					pattern.data[ patDataIdx ] = ( byte ) ( oct * 12 + key );
-				}
+				if( period > 112 ) pattern.data[ patDataIdx ] = ( byte ) Channel.periodToKey( period );
 				int ins = ( moduleData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
 				ins = ins | moduleData.uByte( moduleDataIdx ) & 0x10;
 				pattern.data[ patDataIdx + 1 ] = ( byte ) ins;

@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20141030 (c)2014 mumart@gmail.com";
+		return "20141126 (c)2014 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -295,24 +295,9 @@ function Micromod( module, samplingRate ) {
 function Channel( module, id ) {
 	var FP_SHIFT = 15, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1;
 
-	var keyToPeriod = new Int16Array([ 1814,
-	/*   C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
-		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
-		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
-		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
-		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
-		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
-		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28
-	]);
-
 	var fineTuning = new Int16Array([
 		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
 		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
-	]);
-
-	var arpTuning = new Int16Array([
-		4096, 4340, 4598, 4871, 5161, 5468, 5793, 6137,
-		6502, 6889, 7298, 7732, 8192, 8679, 9195, 9742
 	]);
 
 	var sineTable = new Int16Array([
@@ -516,11 +501,12 @@ function Channel( module, id ) {
 
 	var updateFrequency = function() {
 		var per = period + vibratoAdd;
+		per = per * module.keyToPeriod[ arpeggioAdd ] * 2 / module.keyToPeriod[ 0 ];
+		per = ( per >> 1 ) + ( per & 1 );
 		if( per < 7 ) {
 			 per = 6848;
 		}
 		freq = ( module.c2Rate * 428 / per ) | 0;
-		freq = ( ( freq * arpTuning[ arpeggioAdd ] ) >> 12 ) & 0x7FFFF;
 		var vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
@@ -542,7 +528,7 @@ function Channel( module, id ) {
 			fineTune = noteParam;
 		}
 		if( noteKey > 0 && noteKey <= 72 ) {
-			var per = ( keyToPeriod[ noteKey ] * fineTuning[ fineTune & 0xF ] ) >> 11;
+			var per = ( module.keyToPeriod[ noteKey ] * fineTuning[ fineTune & 0xF ] ) >> 11;
 			portaPeriod = ( per >> 1 ) + ( per & 1 );
 			if( noteEffect != 0x3 && noteEffect != 0x5 ) {
 				instrument = assigned;
@@ -631,9 +617,14 @@ function Module() {
 }
 
 function Module( module ) {
-	var keyToPeriod = new Int16Array([
-		/*     C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
-		1814, 1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907
+	this.keyToPeriod = new Int16Array([ 1814,
+	/*	 C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
+		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
+		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
+		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
+		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
+		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
+		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28
 	]);
 
 	var ushortbe = function( buf, offset ) {
@@ -701,8 +692,8 @@ function Module( module ) {
 				oct++;
 			}
 			while( key < 12 ) {
-				var d1 = keyToPeriod[ key ] - period;
-				var d2 = period - keyToPeriod[ key + 1 ];
+				var d1 = this.keyToPeriod[ key ] - period;
+				var d2 = period - this.keyToPeriod[ key + 1 ];
 				if( d2 >= 0 ) {
 					if( d2 < d1 ) key++;
 					break;
