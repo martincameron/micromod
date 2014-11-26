@@ -202,18 +202,27 @@ public class Macro {
 					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
 					delta = delta - divide( ( note.parameter & 0xF ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
 				}
-				note.parameter = 0;
 				if( speed > 1 ) {
 					if( delta > 0 ) {
 						note.parameter = divide( delta, ( speed - 1 ) * 64, 15 ) << 4;
 					} else {
 						note.parameter = divide( -delta, ( speed - 1 ) * 64, 15 );
 					}
+				} else {
+					note.parameter = 0;
 				}
-				if( note.parameter == 0 && delta != 0 ) {
-					volume += delta;
-					note.effect = 0xC;
-					note.parameter = divide( volume, 64, 64 );
+				if( note.parameter == 0 ) {
+					if( effect == 0xA ) {
+						volume = volume + delta;
+						note.effect = 0xC;
+						note.parameter = divide( volume, 64, 64 );
+					} else if( delta > 0 ) {
+						note.parameter = 0x10;
+						volume = volume + ( speed - 1 ) * 64;
+					} else if( delta < 0 ) {
+						note.parameter = 0x1;
+						volume = volume - ( speed - 1 ) * 64;
+					}
 				} else {
 					volume = volume + ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64;
 					volume = volume - ( note.parameter & 0xF ) * ( speed - 1 ) * 64;
