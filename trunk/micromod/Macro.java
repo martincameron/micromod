@@ -83,8 +83,8 @@ public class Macro {
 			if( volume > 4096 ) {
 				volume = 4096;
 			}
-			if( period < 7 ) {
-				period = 6848;
+			if( period < 0 ) {
+				period = 0;
 			}
 			if( note.effect == 0 && note.parameter != 0 ) {
 				/* Arpeggio.*/
