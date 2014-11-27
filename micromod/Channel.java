@@ -10,8 +10,8 @@ public class Channel {
 	private Module module;
 	private int noteKey, noteEffect, noteParam;
 	private int noteIns, instrument, assigned;
-	private int sampleOffset, sampleIdx, sampleFra, freq;
-	private int volume, panning, fineTune;
+	private int sampleOffset, sampleIdx, sampleFra;
+	private int volume, panning, fineTune, freq, ampl;
 	private int period, portaPeriod, portaSpeed, fxCount;
 	private int vibratoType, vibratoPhase, vibratoSpeed, vibratoDepth;
 	private int tremoloType, tremoloPhase, tremoloSpeed, tremoloDepth;
@@ -30,15 +30,12 @@ public class Channel {
 	}
 	
 	public void resample( int[] mixBuf, int offset, int count, int sampleRate, boolean interpolation ) {
-		if( instrument > 0 ) {
-			int ampl = ( volume * module.getGain() * Instrument.FP_ONE ) >> 13;
-			if( ampl > 0 ) {
-				int leftGain = ( ampl * panning ) >> 8;
-				int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
-				int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-				module.getInstrument( instrument ).getAudio( sampleIdx, sampleFra, step,
-					leftGain, rightGain, mixBuf, offset, count, interpolation );
-			}
+		if( instrument > 0 && ampl > 0 ) {
+			int leftGain = ( ampl * panning ) >> 8;
+			int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
+			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+			module.getInstrument( instrument ).getAudio( sampleIdx, sampleFra, step,
+				leftGain, rightGain, mixBuf, offset, count, interpolation );
 		}
 	}
 
@@ -173,12 +170,13 @@ public class Channel {
 	}
 
 	private void updateFrequency() {
-		int period = Note.transpose( this.period + vibratoAdd, arpeggioAdd );
-		if( period < 7 ) period = 6848;
-		freq = module.getC2Rate() * 428 / period;
-		int volume = this.volume + tremoloAdd;
-		if( volume > 64 ) volume = 64;
-		if( volume < 0 ) volume = 0;
+		int per = Note.transpose( this.period + vibratoAdd, arpeggioAdd );
+		if( per < 7 ) per = 6848;
+		freq = module.getC2Rate() * 428 / per;
+		int vol = this.volume + tremoloAdd;
+		if( vol > 64 ) vol = 64;
+		if( vol < 0 ) vol = 0;
+		ampl = ( vol * module.getGain() * Instrument.FP_ONE ) >> 13;
 	}
 
 	private void trigger() {
