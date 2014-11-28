@@ -53,7 +53,7 @@ public class Macro {
 			}
 			if( note.instrument > 0 ) {
 				Instrument instrument = module.getInstrument( note.instrument );
-				volume = instrument.getVolume() * 64;
+				volume = instrument.getVolume();
 				fineTune = instrument.getFineTune();
 				sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
 				if( amplitude < 64 && note.effect != 0xC ) {
@@ -80,8 +80,8 @@ public class Macro {
 			if( volume < 0 ) {
 				volume = 0;
 			}
-			if( volume > 4096 ) {
-				volume = 4096;
+			if( volume > 64 ) {
+				volume = 64;
 			}
 			if( period < 0 ) {
 				period = 0;
@@ -188,57 +188,52 @@ public class Macro {
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				/* Volume slide. */
 				if( ( note.parameter & 0xF ) == 0xF ) {
-					delta = ( note.parameter & 0xF0 ) >> 4;
-					delta = sqrt( volume << 12 ) + 1024 / ( 16 - delta );
-					delta = ( ( delta * delta ) >> 12 ) - volume;
+					delta = ( ( note.parameter & 0xF0 ) >> 4 ) + 2;
+					delta = divide( volume * 8, delta * delta, 64 );
+					if( delta < 1 ) {
+						delta = 1;
+					}
 				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
-					delta = note.parameter & 0xF;
-					delta = sqrt( volume << 12 ) - 1024 / ( 16 - delta );
-					if( delta < 0 ) {
-						delta = 0;
+					delta = ( note.parameter & 0xF ) + 2;
+					delta = -divide( volume * 8, delta * delta, 64 );
+					if( delta > -1 ) {
+						delta = -1;
 					}
-					delta = ( ( delta * delta ) >> 12 ) - volume;
 				} else {
-					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
-					delta = delta - divide( ( note.parameter & 0xF ) * ( speed - 1 ) * 64 * amplitude, 64, 32768 );
+					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * amplitude, 64, 512 );
+					delta = delta - divide( ( note.parameter & 0xF ) * ( speed - 1 ) * amplitude, 64, 512 );
 				}
-				if( speed > 1 ) {
-					if( delta > 0 ) {
-						note.parameter = divide( delta, ( speed - 1 ) * 64, 15 ) << 4;
-					} else {
-						note.parameter = divide( -delta, ( speed - 1 ) * 64, 15 );
-					}
-				} else {
-					note.parameter = 0;
-				}
-				if( note.parameter == 0 ) {
-					if( note.effect == 0xA ) {
-						volume = volume + delta;
-						note.effect = 0xC;
-						note.parameter = divide( volume, 64, 64 );
-					} else if( delta > 0 ) {
-						note.parameter = 0x10;
-						volume = volume + ( speed - 1 ) * 64;
-					} else if( delta < 0 ) {
-						note.parameter = 0x1;
-						volume = volume - ( speed - 1 ) * 64;
-					}
-				} else {
-					volume = volume + ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * 64;
-					volume = volume - ( note.parameter & 0xF ) * ( speed - 1 ) * 64;
+				if( speed > 1 && divide( delta, speed - 1, 0xF ) > 1 ) {
+					delta = divide( delta, speed - 1, 0xF );
+					note.parameter = delta << 4;
+					volume = volume + delta * ( speed - 1 );
+				} else if( speed > 1 && divide( -delta, speed - 1, 0xF ) > 1 ) {
+					delta = divide( -delta, speed - 1, 0xF );
+					note.parameter = delta;
+					volume = volume - delta * ( speed - 1 );
+				} else if( note.effect == 0xA ) {
+					volume = volume + delta;
+					note.effect = 0xC;
+					note.parameter = divide( volume, 1, 64 );
+				} else if( delta > 0 ) {
+					note.parameter = 0x10;
+					volume = volume + ( speed - 1 );
+				} else if( delta < 0 ) {
+					note.parameter = 0x1;
+					volume = volume - ( speed - 1 );
 				}
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
 				note.parameter = divide( note.parameter * amplitude, 64, 64 );
-				volume = note.parameter * 64;
+				volume = note.parameter;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xA0 ) {
 				/* Fine volume slide up. */
 				note.parameter = 0xA0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
-				volume = volume + ( note.parameter & 0xF ) * 64;
+				volume = volume + ( note.parameter & 0xF );
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xB0 ) {
 				/* Fine volume slide down. */
 				note.parameter = 0xB0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
-				volume = volume - ( note.parameter & 0xF ) * 64;
+				volume = volume - ( note.parameter & 0xF );
 			}
 			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
