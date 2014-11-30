@@ -53,7 +53,7 @@ public class Macro {
 			}
 			if( note.instrument > 0 ) {
 				Instrument instrument = module.getInstrument( note.instrument );
-				volume = instrument.getVolume();
+				volume = instrument.getVolume() * 4;
 				fineTune = instrument.getFineTune();
 				sampleLength = instrument.getLoopStart() + instrument.getLoopLength();
 				if( amplitude < 64 && note.effect != 0xC ) {
@@ -80,8 +80,8 @@ public class Macro {
 			if( volume < 0 ) {
 				volume = 0;
 			}
-			if( volume > 64 ) {
-				volume = 64;
+			if( volume > 256 ) {
+				volume = 256;
 			}
 			if( period < 0 ) {
 				period = 0;
@@ -188,52 +188,57 @@ public class Macro {
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				/* Volume slide. */
 				if( ( note.parameter & 0xF ) == 0xF ) {
-					delta = ( ( note.parameter & 0xF0 ) >> 4 ) + 2;
-					delta = divide( volume * 8, delta * delta, 64 );
+					delta = ( note.parameter & 0xF0 ) >> 4;
+					delta = divide( volume * 16, delta * 16, 256 );
 					if( delta < 1 ) {
 						delta = 1;
 					}
 				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
-					delta = ( note.parameter & 0xF ) + 2;
-					delta = -divide( volume * 8, delta * delta, 64 );
+					delta = ( note.parameter & 0xF );
+					delta = -divide( volume * 16, delta * 16, 256 );
 					if( delta > -1 ) {
 						delta = -1;
 					}
 				} else {
-					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * ( speed - 1 ) * amplitude, 64, 512 );
-					delta = delta - divide( ( note.parameter & 0xF ) * ( speed - 1 ) * amplitude, 64, 512 );
+					delta = divide( ( ( note.parameter & 0xF0 ) >> 4 ) * 4 * amplitude, 64, 256 );
+					delta = delta - divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
+					delta = delta * ( speed - 1 );
 				}
-				if( speed > 1 && divide( delta, speed - 1, 0xF ) > 1 ) {
-					delta = divide( delta, speed - 1, 0xF );
+				if( speed > 1 && divide( delta, ( speed - 1 ) * 4, 0xF ) > 1 ) {
+					delta = divide( delta, ( speed - 1 ) * 4, 0xF );
 					note.parameter = delta << 4;
-					volume = volume + delta * ( speed - 1 );
-				} else if( speed > 1 && divide( -delta, speed - 1, 0xF ) > 1 ) {
-					delta = divide( -delta, speed - 1, 0xF );
+					volume = volume + delta * ( speed - 1 ) * 4;
+				} else if( speed > 1 && divide( -delta, ( speed - 1 ) * 4, 0xF ) > 1 ) {
+					delta = divide( -delta, ( speed - 1 ) * 4, 0xF );
 					note.parameter = delta;
-					volume = volume - delta * ( speed - 1 );
+					volume = volume - delta * ( speed - 1 ) * 4;
 				} else if( note.effect == 0xA ) {
 					volume = volume + delta;
 					note.effect = 0xC;
-					note.parameter = divide( volume, 1, 64 );
+					note.parameter = divide( volume, 4, 64 );
 				} else if( delta > 0 ) {
 					note.parameter = 0x10;
-					volume = volume + ( speed - 1 );
+					volume = volume + ( speed - 1 ) * 4;
 				} else if( delta < 0 ) {
 					note.parameter = 0x1;
-					volume = volume - ( speed - 1 );
+					volume = volume - ( speed - 1 ) * 4;
 				}
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
 				note.parameter = divide( note.parameter * amplitude, 64, 64 );
-				volume = note.parameter;
+				volume = note.parameter * 4;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xA0 ) {
 				/* Fine volume slide up. */
-				note.parameter = 0xA0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
-				volume = volume + ( note.parameter & 0xF );
+				delta = divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
+				volume = volume + delta;
+				note.effect = 0xC;
+				note.parameter = divide( volume, 4, 64 );
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xB0 ) {
 				/* Fine volume slide down. */
-				note.parameter = 0xB0 + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
-				volume = volume - ( note.parameter & 0xF );
+				delta = divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
+				volume = volume - delta;
+				note.effect = 0xC;
+				note.parameter = divide( volume, 4, 64 );
 			}
 			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
