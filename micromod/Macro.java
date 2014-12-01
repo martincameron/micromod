@@ -189,13 +189,19 @@ public class Macro {
 				/* Volume slide. */
 				if( ( note.parameter & 0xF ) == 0xF ) {
 					delta = ( ( note.parameter & 0xF0 ) >> 4 ) + 1;
-					delta = divide( volume * 16, delta * 16, 256 );
+					delta = sqrt( volume * 256 ) + divide( 256, delta * 4, 256 );
+					delta = divide( delta * delta, 256, 256 ) - volume;
 					if( delta < 1 ) {
 						delta = 1;
 					}
 				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
 					delta = ( note.parameter & 0xF ) + 1;
-					delta = -divide( volume * 16, delta * 16, 256 );
+					delta = sqrt( volume * 256 ) - divide( 256, delta * 4, 256 );
+					if( delta < 0 ) {
+						delta = -divide( delta * delta, 256, 256 ) - volume;
+					} else {
+						delta = divide( delta * delta, 256, 256 ) - volume;
+					}
 					if( delta > -1 ) {
 						delta = -1;
 					}
@@ -264,8 +270,8 @@ public class Macro {
 	}
 
 	private static int sqrt( int y ) {
-		int x = 4096;
-		for( int n = 0; n < 12; n++ ) {
+		int x = 256;
+		for( int n = 0; n < 8; n++ ) {
 			x = ( x + y / x );
 			x = ( x >> 1 ) + ( x & 1 );
 		}
