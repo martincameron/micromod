@@ -188,13 +188,13 @@ public class Macro {
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				/* Volume slide. */
 				if( ( note.parameter & 0xF ) == 0xF ) {
-					delta = ( note.parameter & 0xF0 ) >> 4;
+					delta = ( ( note.parameter & 0xF0 ) >> 4 ) + 1;
 					delta = divide( volume * 16, delta * 16, 256 );
 					if( delta < 1 ) {
 						delta = 1;
 					}
 				} else if( ( note.parameter & 0xF0 ) == 0xF0 ) {
-					delta = ( note.parameter & 0xF );
+					delta = ( note.parameter & 0xF ) + 1;
 					delta = -divide( volume * 16, delta * 16, 256 );
 					if( delta > -1 ) {
 						delta = -1;
