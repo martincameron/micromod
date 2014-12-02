@@ -50,11 +50,11 @@ public class Instrument {
 		return data;
 	}
 
-	public void setSampleData( byte[] sampleData, int loopStart, int loopLength ) {
-		setSampleData( sampleData, 0, sampleData.length, loopStart, loopLength );
+	public void setSampleData( byte[] sampleData, int loopStart, int loopLength, boolean pingPong ) {
+		setSampleData( sampleData, 0, sampleData.length, loopStart, loopLength, pingPong );
 	}
 	
-	public void setSampleData( byte[] sampleData, int sampleOffset, int sampleLength, int loopStart, int loopLength ) {
+	public void setSampleData( byte[] sampleData, int sampleOffset, int sampleLength, int loopStart, int loopLength, boolean pingPong ) {
 		/* LoopStart and LoopLength must always be even. */
 		loopStart = loopStart & -2;
 		loopLength = loopLength & -2;
@@ -67,14 +67,22 @@ public class Instrument {
 			loopLength = 0;
 		}
 		sampleLength = loopStart + loopLength;
+		if( pingPong ) {
+			loopLength = loopLength * 2;
+		}
 		/* Maximum sample size is 128k. */
-		if( sampleLength > 0x1FFFE ) {
+		if( loopStart + loopLength > 0x1FFFE ) {
 			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + sampleLength );
 		}
 		this.loopStart = loopStart;
 		this.loopLength = loopLength;
-		this.sampleData = new byte[ sampleLength + 1 ];
+		this.sampleData = new byte[ loopStart + loopLength + 1 ];
 		System.arraycopy( sampleData, sampleOffset, this.sampleData, 0, sampleLength );
+		if( pingPong ) {
+			for( int idx = 0, end = loopLength / 2; idx < end; idx++ ) {
+				this.sampleData[ sampleLength + idx ] = this.sampleData[ sampleLength - idx - 1 ];
+			}
+		}
 		/* The sample after the loop end must be the same as the loop start for the interpolation algorithm. */
 		this.sampleData[ loopStart + loopLength ] = this.sampleData[ loopStart ];
 	}
@@ -156,7 +164,7 @@ public class Instrument {
 		setVolume( volume > 64 ? 64 : volume );
 		int loopStart = ubeShort( module, instIdx * 30 + 16 ) * 2;
 		int loopLength = ubeShort( module, instIdx * 30 + 18 ) * 2;
-		setSampleData( module, sampleDataOffset, sampleLength, loopStart, loopLength );
+		setSampleData( module, sampleDataOffset, sampleLength, loopStart, loopLength, false );
 		return sampleDataOffset + sampleLength;
 	}
 	
