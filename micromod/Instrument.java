@@ -72,7 +72,7 @@ public class Instrument {
 		}
 		/* Maximum sample size is 128k. */
 		if( loopStart + loopLength > 0x1FFFE ) {
-			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + sampleLength );
+			throw new IllegalArgumentException( "Sample data length out of range (0-131070): " + ( loopStart + loopLength ) );
 		}
 		this.loopStart = loopStart;
 		this.loopLength = loopLength;

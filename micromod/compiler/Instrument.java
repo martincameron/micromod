@@ -4,6 +4,7 @@ package micromod.compiler;
 public class Instrument implements Element {
 	private micromod.Instrument instrument;
 	private int instrumentIndex, loopStart, loopLength;
+	private boolean pingPong;
 	private AudioData audioData;
 	private Module parent;
 	private Macro sibling;
@@ -39,7 +40,7 @@ public class Instrument implements Element {
 	
 	public void end() {
 		if( audioData != null ) {
-			instrument.setSampleData( audioData.quantize(), loopStart, loopLength );
+			instrument.setSampleData( audioData.quantize(), loopStart, loopLength, pingPong );
 		}
 		System.out.println( "Instrument " + instrumentIndex +
 			": Volume " + instrument.getVolume() +
@@ -75,7 +76,11 @@ public class Instrument implements Element {
 	public void setLoopLength( int loopLength ) {
 		this.loopLength = loopLength;
 	}
-	
+
+	public void setPingPong( boolean enabled ) {
+		this.pingPong = enabled;
+	}
+
 	public java.io.InputStream getInputStream( String path ) throws java.io.IOException {
 		return parent.getInputStream( path );
 	}

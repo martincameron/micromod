@@ -1,16 +1,14 @@
 package micromod.compiler;
 
-public class LoopLength implements Element {
+public class PingPong implements Element {
 	private Instrument parent;
-	private PingPong sibling;
 
-	public LoopLength( Instrument parent ) {
+	public PingPong( Instrument parent ) {
 		this.parent = parent;
-		sibling = new PingPong( parent );
 	}
 	
 	public String getToken() {
-		return "LoopLength";
+		return "PingPong";
 	}
 	
 	public Element getParent() {
@@ -18,7 +16,7 @@ public class LoopLength implements Element {
 	}
 	
 	public Element getSibling() {
-		return sibling;
+		return null;
 	}
 	
 	public Element getChild() {
@@ -26,7 +24,7 @@ public class LoopLength implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setLoopLength( Parser.parseInteger( value ) );
+		parent.setPingPong( "On".equals( value ) );
 	}
 	
 	public void end() {
