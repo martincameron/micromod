@@ -77,9 +77,9 @@ public class Waveform implements Element {
 			}
 			byte[] waveform = spectral ? harmonics( envelope ) : envelope;
 			if( chorus > 1 && pwm ) {
-				waveform = generatePwm( waveform, cycles / 2, octave, detune );
+				waveform = genPulseMod( waveform, cycles / 2, octave, detune );
 			} else {
-				waveform = generate( waveform, cycles, octave, detune, chorus > 1 );
+				waveform = genPhaseMod( waveform, cycles, octave, detune, chorus > 1 );
 			}
 			AudioData audioData = new AudioData( waveform, 512 * 262 );
 			if( octave > -4 ) {
@@ -139,7 +139,7 @@ public class Waveform implements Element {
 	/* Generate the specified number of cycles of the specified 512-byte waveform.
 	   at the specified octave with optional 2-oscillator detune and phase-modulation chorus.
 	   The cycles parameter determines the cycle length of the chorus and accuracy of the detune. */
-	public static byte[] generate( byte[] waveform, int cycles, int octave, int detune, boolean chorus ) {
+	public static byte[] genPulseMod( byte[] waveform, int cycles, int octave, int detune, boolean chorus ) {
 		byte[] buf = new byte[ 512 * cycles ];
 		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
@@ -155,7 +155,7 @@ public class Waveform implements Element {
 	/* Generate the specified number of 1024-byte cycles by frequency-modulating the specified 512-byte waveform
 	   and mixing it with the non-modulated waveform detuned by the specified number of 96ths of an octave.
 	   The cycles parameter determines the cycle length of the modulation effect and accuracy of the detune. */
-	public static byte[] generatePwm( byte[] waveform, int cycles, int octave, int detune ) {
+	public static byte[] genPhaseMod( byte[] waveform, int cycles, int octave, int detune ) {
 		byte[] buf = new byte[ cycles * 1024 ];
 		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
 		for( int cycle = 0; cycle < cycles; cycle++ ) {
