@@ -210,6 +210,9 @@ public class Macro {
 					delta = delta - divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
 					delta = delta * ( speed - 1 );
 				}
+				if( volume + delta > amplitude * 4 ) {
+					delta = amplitude * 4 - volume;
+				}
 				if( speed > 1 && divide( delta, ( speed - 1 ) * 4, 0xF ) > 1 ) {
 					delta = divide( delta, ( speed - 1 ) * 4, 0xF );
 					note.parameter = delta << 4;
@@ -231,20 +234,20 @@ public class Macro {
 				}
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
-				note.parameter = divide( note.parameter * amplitude, 64, 64 );
+				note.parameter = divide( note.parameter * amplitude, 64, amplitude );
 				volume = note.parameter * 4;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xA0 ) {
 				/* Fine volume slide up. */
 				delta = divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
 				volume = volume + delta;
 				note.effect = 0xC;
-				note.parameter = divide( volume, 4, 64 );
+				note.parameter = divide( volume, 4, amplitude );
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xB0 ) {
 				/* Fine volume slide down. */
 				delta = divide( ( note.parameter & 0xF ) * 4 * amplitude, 64, 256 );
 				volume = volume - delta;
 				note.effect = 0xC;
-				note.parameter = divide( volume, 4, 64 );
+				note.parameter = divide( volume, 4, amplitude );
 			}
 			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
 		}
