@@ -35,6 +35,7 @@ public class Instrument implements Element {
 		instrumentIndex = Parser.parseInteger( value );
 		instrument = parent.getInstrument( instrumentIndex );
 		loopStart = loopLength = 0;
+		pingPong = false;
 		audioData = null;
 	}
 	
