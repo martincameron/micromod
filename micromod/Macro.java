@@ -172,8 +172,8 @@ public class Macro {
 			} else if( note.effect == 0x9 ) {
 				/* Set sample offset. */
 				if( note.parameter >= 0xF0 ) {
-					sampleOffset = sampleOffset + sampleLength * ( note.parameter & 0xF ) / 16;
-					note.parameter = ( ( sampleOffset + ( sampleOffset & 0x80 ) ) >> 8 ) & 0xFF;
+					sampleOffset = sampleOffset + sampleLength * ( note.parameter & 0xF ) / 64;
+					note.parameter = divide( sampleOffset, 256, 0xFF );
 				} else {
 					sampleOffset = ( note.parameter & 0xFF ) << 8;
 				}

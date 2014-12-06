@@ -24,7 +24,13 @@ public class PingPong implements Element {
 	}
 	
 	public void begin( String value ) {
-		parent.setPingPong( "On".equals( value ) );
+		if( "On".equals( value ) ) {
+			parent.setPingPong( true );
+		} else if( "Off".equals( value ) ) {
+			parent.setPingPong( false );
+		} else {
+			throw new IllegalArgumentException( "Invalid PingPong parameter (On or Off): " + value );
+		}
 	}
 	
 	public void end() {

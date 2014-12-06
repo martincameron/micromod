@@ -4,7 +4,7 @@ public class WaveFile implements Element {
 	private Instrument parent;
 	private LoopStart sibling;
 	private Crop child = new Crop( this );
-	private int offset, length, gain, pitch;
+	private int offset, count, divisions, gain, pitch;
 
 	public WaveFile( Instrument parent ) {
 		this.parent = parent;
@@ -29,10 +29,10 @@ public class WaveFile implements Element {
 	
 	public void begin( String value ) {
 		try {
-			// Get the left/mono channel from the wav file.
+			/* Get the left/mono channel from the wav file. */
 			java.io.InputStream inputStream = parent.getInputStream( value.toString() );
 			parent.setAudioData( new AudioData( inputStream, 0 ) );
-			setCrop( 0, 0 );
+			setCrop( 0, 0, 0 );
 			setGain( 64 );
 			setPitch( 0 );
 		} catch( java.io.IOException e ) {
@@ -42,8 +42,12 @@ public class WaveFile implements Element {
 	
 	public void end() {
 		AudioData audioData = parent.getAudioData();
-		if( length > 0 ) {
-			audioData = audioData.crop( offset, length );
+		if( count > 0 ) {
+			int length = 1;
+			if( divisions > 1 ) {
+				length = audioData.getLength() / divisions;
+			}
+			audioData = audioData.crop( offset * length, count * length );
 		}
 		if( gain != 64 ) {
 			audioData = audioData.scale( gain );
@@ -53,10 +57,11 @@ public class WaveFile implements Element {
 		}
 		parent.setAudioData( audioData );
 	}
-	
-	public void setCrop( int offset, int length ) {
+
+	public void setCrop( int offset, int count, int divisions ) {
 		this.offset = offset;
-		this.length = length;
+		this.count = count;
+		this.divisions = divisions;
 	}
 
 	public void setGain( int gain ) {
