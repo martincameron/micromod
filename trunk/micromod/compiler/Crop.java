@@ -28,18 +28,22 @@ public class Crop implements Element {
 	
 	public void begin( String value ) {
 		int[] params = Parser.parseIntegerArray( value );
-		int offset = 0, length = 0;
+		int offset = 0, count = 0, divisions = 0;
 		if( params.length == 1 ) {
-			length = params[ 0 ];
+			count = params[ 0 ];
 		} else if( params.length == 2 ) {
 			offset = params[ 0 ];
-			length = params[ 1 ];
+			count = params[ 1 ];
+		} else if( params.length == 3 ) {
+			offset = params[ 0 ];
+			count = params[ 1 ];
+			divisions = params[ 2 ];
 		} else {
-			throw new IllegalArgumentException( "Invalid crop (offset,length) parameter: " + value );
+			throw new IllegalArgumentException( "Invalid Crop parameter (Offset,Count,Divisions): " + value );
 		}
-		parent.setCrop( offset, length );
+		parent.setCrop( offset, count, divisions );
 	}
-	
+
 	public void end() {
 	}
 }
