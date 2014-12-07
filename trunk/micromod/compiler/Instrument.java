@@ -72,6 +72,7 @@ public class Instrument implements Element {
 	
 	public void setLoopStart( int loopStart ) {
 		this.loopStart = loopStart;
+		setLoopLength( audioData.getLength() - loopStart );
 	}
 
 	public void setLoopLength( int loopLength ) {
