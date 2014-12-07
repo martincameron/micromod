@@ -4,19 +4,23 @@ package micromod.compiler;
 /* Compiles textual MT files to Protracker MOD files. */
 public class Compiler {
 	public static void main( String[] args ) throws java.io.IOException {
-		String mtFile = null, modFile = null, outDir = null;
+		String mtFile = null, modFile = null, outDir = null, wavFile = null;
 		boolean interpolation = false;
 		int[] sequence = null;
-		int argsIdx = 0;
+		int argsIdx = 0, key = 0;
 		while( argsIdx < args.length ) {
 			String arg = args[ argsIdx++ ];
 			if( "-dir".equals( arg ) ) {
 				outDir = args[ argsIdx++ ];
 			} else if( "-int".equals( arg ) ) {
 				interpolation = true;
-			} else if( "-dec".equals( arg ) || "-out".equals( arg ) ) {
+			} else if( "-key".equals( arg ) ) {
+				key = micromod.Note.parseKey( args[ argsIdx++ ] );
+			} else if( "-dec".equals( arg ) || "-out".equals( arg ) || "-mod".equals( arg ) ) {
 				modFile = args[ argsIdx++ ];
-			} else if( "-seq".equals( arg ) ) {
+			} else if( "-wav".equals( arg ) ) {
+				wavFile = args[ argsIdx++ ];
+			} else if( "-seq".equals( arg ) || "-pat".equals( arg ) ) {
 				sequence = Parser.parseIntegerArray( args[ argsIdx++ ] );
 			} else {
 				mtFile = arg;
@@ -24,24 +28,32 @@ public class Compiler {
 		}
 		if( mtFile != null ) {
 			if( modFile != null ) {
+				System.out.println( "Compiling '" + mtFile + "' to module '" + modFile + "'." );
 				convert( new java.io.File( mtFile ), new java.io.File( modFile ) );
 			} else {
+				System.out.println( "Compiling and playing '" + mtFile + "'." );
 				play( new java.io.File( mtFile ), sequence, interpolation );
 			}
-		} else if( modFile != null ) {
-			if( outDir == null ) {
-				outDir = modFile;
-				if( outDir.length() > 4 && ".mod".equals( outDir.substring( outDir.length() - 4 ).toLowerCase() ) ) {
-					outDir = outDir.substring( 0, outDir.length() - 4 );
+		} else if( modFile != null && ( outDir != null || wavFile != null ) ) {
+			if( outDir != null ) {
+				System.out.println( "Extracting module '" + modFile + "' to directory '" + outDir + "'." );
+				decompile( new micromod.Module( new java.io.FileInputStream( modFile ) ), new java.io.File( outDir ) );
+			} else {
+				System.out.println( "Converting module '" + modFile + "' to sample '" + wavFile + "'." );
+				if( sequence == null || sequence.length < 1 ) {
+					sequence = new int[ 1 ];
 				}
-				outDir = outDir + ".ins";
+				if( key < 1 ) {
+					key = micromod.Note.parseKey( "C-2" );
+				}
+				patternToSample( new java.io.File( modFile ), new java.io.File( wavFile ), sequence[ 0 ], key, interpolation );
 			}
-			decompile( new micromod.Module( new java.io.FileInputStream( modFile ) ), new java.io.File( outDir ) );
 		} else {
 			System.err.println( "Micromod Compiler! (c)2014 mumart@gmail.com" );
-			System.err.println( "       Play: java " + Compiler.class.getName() + " input.mt [-int] [-seq 1,2,3]" );
-			System.err.println( "    Compile: java " + Compiler.class.getName() + " input.mt [-out output.mod]" );
-			System.err.println( "  Decompile: java " + Compiler.class.getName() + " -dec input.mod [-dir outputdir]" );
+			System.err.println( "             Play: java " + Compiler.class.getName() + " input.mt [-int] [-seq 1,2,3]" );
+			System.err.println( "          Compile: java " + Compiler.class.getName() + " input.mt [-out output.mod]" );
+			System.err.println( "        Decompile: java " + Compiler.class.getName() + " -dec input.mod -dir outputdir" );
+			System.err.println( "Pattern To Sample: java " + Compiler.class.getName() + " -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-int]" );
 		}
 	}
 
@@ -145,6 +157,41 @@ public class Compiler {
 			writer.write( "(End.)\n" );
 		} finally {
 			writer.close();
+		}
+	}
+
+	private static void patternToSample( java.io.File modFile, java.io.File wavFile, int pattern, int key, boolean interpolation ) throws java.io.IOException {
+		micromod.Module module = new micromod.Module( new java.io.FileInputStream( modFile ) );
+		module.setSequenceLength( 1 );
+		module.setSequenceEntry( 0, pattern );
+		int samplingRate = module.getC2Rate() * 428 / micromod.Note.keyToPeriod( key, 0 );
+		micromod.Micromod replay = new micromod.Micromod( module, samplingRate );
+		replay.setInterpolation( interpolation );
+		int outLen = replay.calculateSongDuration();
+		int[] mixBuf = new int[ replay.getMixBufferLength() ];
+		short[] outBuf = new short[ outLen ];
+		int outIdx = 0;
+		while( outIdx < outLen ) {
+			int mixLen = replay.getAudio( mixBuf );
+			for( int mixIdx = 0; mixIdx < mixLen; mixIdx++ ) {
+				int amp = ( mixBuf[ mixIdx * 2 ] + mixBuf[ mixIdx * 2 + 1 ] ) >> 1;
+				if( amp > 32767 ) {
+					amp = 32767;
+				}
+				if( amp < -32768 ) {
+					amp = -32768;
+				}
+				outBuf[ outIdx++ ] = ( short ) amp;
+			}
+		}
+		if( wavFile.exists() ) {
+			throw new IllegalArgumentException( "Output file already exists!" );
+		}
+		java.io.OutputStream outputStream = new java.io.FileOutputStream( wavFile );
+		try {
+			new AudioData( outBuf, samplingRate ).writeWav( outputStream, false );
+		} finally {
+			outputStream.close();
 		}
 	}
 
