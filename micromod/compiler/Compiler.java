@@ -16,7 +16,7 @@ public class Compiler {
 				interpolation = true;
 			} else if( "-key".equals( arg ) ) {
 				key = micromod.Note.parseKey( args[ argsIdx++ ] );
-			} else if( "-dec".equals( arg ) || "-out".equals( arg ) || "-mod".equals( arg ) ) {
+			} else if( "-mod".equals( arg ) || "-out".equals( arg ) ) {
 				modFile = args[ argsIdx++ ];
 			} else if( "-wav".equals( arg ) ) {
 				wavFile = args[ argsIdx++ ];
@@ -50,10 +50,10 @@ public class Compiler {
 			}
 		} else {
 			System.err.println( "Micromod Compiler! (c)2014 mumart@gmail.com" );
-			System.err.println( "             Play: java " + Compiler.class.getName() + " input.mt [-int] [-seq 1,2,3]" );
-			System.err.println( "          Compile: java " + Compiler.class.getName() + " input.mt [-out output.mod]" );
-			System.err.println( "        Decompile: java " + Compiler.class.getName() + " -dec input.mod -dir outputdir" );
-			System.err.println( "Pattern To Sample: java " + Compiler.class.getName() + " -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-int]" );
+			System.err.println( "             Play: input.mt [-int] [-seq 1,2,3]" );
+			System.err.println( "          Compile: input.mt [-out output.mod]" );
+			System.err.println( "        Decompile: -mod input.mod -dir outputdir" );
+			System.err.println( "    Mod To Sample: -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-int]" );
 		}
 	}
 
