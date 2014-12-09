@@ -52,7 +52,7 @@ import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class IBXMPlayer extends JFrame {
-	private static final int SAMPLE_RATE = 48000, REVERB_MILLIS = 50;
+	private static final int SAMPLE_RATE = 48000, FADE_SECONDS = 16, REVERB_MILLIS = 50;
 
 	private JLabel songLabel;
 	private JLabel timeLabel;
@@ -206,11 +206,11 @@ public class IBXMPlayer extends JFrame {
 							boolean fade = fadeOutCheckBox.isSelected();
 							int time = duration;
 							if( fade ) try {
-								time = ( Integer.parseInt( fadeOutTextField.getText() ) + 8 ) * SAMPLE_RATE;
+								time = ( Integer.parseInt( fadeOutTextField.getText() ) + FADE_SECONDS ) * SAMPLE_RATE;
 							} catch( Exception e ) {
 								fade = false;
 							}
-							saveWav( saveFileChooser.getSelectedFile(), time, fade );
+							saveWav( saveFileChooser.getSelectedFile(), time, fade ? FADE_SECONDS : 0 );
 							JOptionPane.showMessageDialog( IBXMPlayer.this,
 								"Module saved successfully.", "Success",
 								JOptionPane.INFORMATION_MESSAGE );
@@ -381,14 +381,14 @@ public class IBXMPlayer extends JFrame {
 		return count;
 	}
 
-	private synchronized void saveWav( File wavFile, int time, boolean fade ) throws IOException {
+	private synchronized void saveWav( File wavFile, int time, int fade ) throws IOException {
 		stop();
 		seek( 0 );
 		WavInputStream wavInputStream = new WavInputStream( ibxm, time, fade );
 		FileOutputStream fileOutputStream = null;
 		try {
 			fileOutputStream = new FileOutputStream( wavFile );
-			byte[] buf = new byte[ ibxm.getSampleRate() * 4 ];
+			byte[] buf = new byte[ ibxm.getMixBufferLength() * 2 ];
 			int remain = wavInputStream.getBytesRemaining();
 			while( remain > 0 ) {
 				int count = remain > buf.length ? buf.length : remain;
