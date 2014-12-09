@@ -22,25 +22,23 @@ public class WavInputStream extends InputStream {
 		0x00, 0x00, 0x00, 0x00, /* Audio data size */
 	};
 
-	private static final short[] fadeTable = calculateFadeTable();
-
 	private Micromod micromod;
-	private int[] mixBuf;
+	private int[] mixBuf, fadeTable;
 	private byte[] outBuf;
 	private int outIdx, outLen, remain, fadeLen;
 
 	public WavInputStream( Micromod micromod ) {
-		this( micromod, micromod.calculateSongDuration(), false );
+		this( micromod, micromod.calculateSongDuration(), 0 );
 	}
 
 	/*
 		Duration is specified in samples at the sampling rate of the Micromod instance.
-		if fadeOut is true, an 8-second fade-out will be applied at the end of the stream.
+		If fadeOutSeconds is greater than zero, a fade-out will be applied at the end of the stream.
 	*/
-	public WavInputStream( Micromod micromod, int duration, boolean fadeOut ) {
+	public WavInputStream( Micromod micromod, int duration, int fadeOutSeconds ) {
 		this.micromod = micromod;
 		mixBuf = new int[ micromod.getMixBufferLength() ];
-		outBuf = new byte[ mixBuf.length * 4 ];
+		outBuf = new byte[ mixBuf.length * 2 ];
 		int dataLen = duration * 4;
 		int samplingRate = micromod.getSampleRate();
 		System.arraycopy( header, 0, outBuf, 0, header.length );
@@ -51,9 +49,8 @@ public class WavInputStream extends InputStream {
 		outIdx = 0;
 		outLen = header.length;
 		remain = header.length + dataLen;
-		if( fadeOut ) {
-			fadeLen = samplingRate * 32;
-		}
+		fadeLen = samplingRate * 4 * fadeOutSeconds;
+		fadeTable = calculateFadeTable( fadeOutSeconds * 16 );
 	}
 
 	/* Get the number of bytes available before read() returns end-of-file. */
@@ -106,7 +103,7 @@ public class WavInputStream extends InputStream {
 		if( remain < fadeLen ) {
 			int gain = fadeTable[ ( fadeLen - remain ) * fadeTable.length / fadeLen ];
 			for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
-				mixBuf[ mIdx ] = mixBuf[ mIdx ] * gain >> 15;
+				mixBuf[ mIdx ] = ( mixBuf[ mIdx ] * gain ) >> 15;
 			}
 		}
 		for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
@@ -120,15 +117,13 @@ public class WavInputStream extends InputStream {
 		outLen = mEnd * 2;
 	}
 
-	private static short[] calculateFadeTable() {
-		short[] table = new short[ 64 ];
-		int dx = 32768 / table.length;
-		int  x = 32768 - dx;
-		table[ 0 ] = 32767;
-		for( int idx = 1; idx < table.length; idx++ ) {
+	private static int[] calculateFadeTable( int length ) {
+		int[] table = new int[ length ];
+		int dx = 32768 / length;
+		int  x = 32768;
+		for( int idx = 0; idx < length; idx++ ) {
 			// y = x^3
-			int y = ( ( ( x * x ) >> 15 ) * x ) >> 15;
-			table[ idx ] = ( short ) y;
+			table[ idx ] = ( ( ( x * x ) >> 15 ) * x ) >> 15;
 			x -= dx;
 		}
 		return table;
@@ -143,44 +138,52 @@ public class WavInputStream extends InputStream {
 
 	/* Simple Mod to Wav converter. */
 	public static void main( String[] args ) throws java.io.IOException {
-		// Parse arguments.
 		java.io.File modFile = null, wavFile = null;
-		boolean interpolation = false;
-		if( args.length == 3 && "-int".equals( args[ 0 ] ) ) {
-			interpolation = true;
-			modFile = new java.io.File( args[ 1 ] );
-			wavFile = new java.io.File( args[ 2 ] );
-		} else if( args.length == 2 ) {
-			modFile = new java.io.File( args[ 0 ] );
-			wavFile = new java.io.File( args[ 1 ] );
+		boolean interpolation = false, fadeOut = false;
+		int argIdx = 0;
+		while( argIdx < args.length ) {
+			// Parse arguments.
+			String arg = args[ argIdx++ ];
+			if( "-hq".equals( arg ) ) {
+				interpolation = true;
+			} else if( "-fade".equals( arg ) ) {
+				fadeOut = true;
+			} else if( modFile == null ) {
+				modFile = new java.io.File( arg );
+			} else {
+				wavFile = new java.io.File( arg );
+			}
+		}
+		if( modFile == null || wavFile == null ) {
+			System.err.println( "Mod to Wav converter for Micromod " + Micromod.VERSION );
+			System.err.println( "Usage: java " + WavInputStream.class.getName() + " [-hq] [-fade] modfile wavfile" );
 		} else {
-			System.err.println( "Mod to Wav converter for Micromod" + Micromod.VERSION );
-			System.err.println( "Usage: java " + WavInputStream.class.getName() + " [-int] modfile wavfile" );
-			System.exit( 1 );
+			if( wavFile.exists() ) {
+				System.err.println( "Output file already exists: " + wavFile.getName() );
+			} else {
+				// Write WAV file to output.
+				Micromod micromod = new Micromod( new Module( new java.io.FileInputStream( modFile ) ), 48000 );
+				micromod.setInterpolation( interpolation );
+				int duration = micromod.calculateSongDuration();
+				if( fadeOut ) {
+					// 16-second fade-out.
+					duration = duration + micromod.getSampleRate() * 16;
+				}
+				WavInputStream in = new WavInputStream( micromod, duration, fadeOut ? 16 : 0 );
+				java.io.OutputStream out = new java.io.FileOutputStream( wavFile );
+				try {
+					byte[] buf = new byte[ micromod.getMixBufferLength() * 2 ];
+					int remain = in.getBytesRemaining();
+					while( remain > 0 ) {
+						int count = remain > buf.length ? buf.length : remain;
+						count = in.read( buf, 0, count );
+						out.write( buf, 0, count );
+						remain -= count;
+					}
+				} finally {
+					out.close();
+				}
+			}
 		}
-		// Load module data into array.
-		byte[] buf = new byte[ ( int ) modFile.length() ];
-		InputStream in = new java.io.FileInputStream( modFile );
-		int idx = 0;
-		while( idx < buf.length ) {
-			int len = in.read( buf, idx, buf.length - idx );
-			if( len < 0 ) throw new java.io.IOException( "Unexpected end of file." );
-			idx += len;
-		}
-		in.close();
-		// Write WAV file to output.
-		java.io.OutputStream out = new java.io.FileOutputStream( wavFile );
-		Micromod micromod = new Micromod( new Module( buf ), 48000 );
-		micromod.setInterpolation( interpolation );
-		in = new WavInputStream( micromod );
-		buf = new byte[ micromod.getMixBufferLength() * 4 ];
-		int remain = ( ( WavInputStream ) in ).getBytesRemaining();
-		while( remain > 0 ) {
-			int count = remain > buf.length ? buf.length : remain;
-			count = in.read( buf, 0, count );
-			out.write( buf, 0, count );
-			remain -= count;
-		}		
-		out.close();
 	}
 }
