@@ -23,7 +23,7 @@ public class WavInputStream extends InputStream {
 	};
 
 	private Micromod micromod;
-	private int[] mixBuf, fadeTable;
+	private int[] mixBuf;
 	private byte[] outBuf;
 	private int outIdx, outLen, remain, fadeLen;
 
@@ -50,7 +50,6 @@ public class WavInputStream extends InputStream {
 		outLen = header.length;
 		remain = header.length + dataLen;
 		fadeLen = samplingRate * 4 * fadeOutSeconds;
-		fadeTable = calculateFadeTable( fadeOutSeconds * 16 );
 	}
 
 	/* Get the number of bytes available before read() returns end-of-file. */
@@ -100,14 +99,13 @@ public class WavInputStream extends InputStream {
 
 	private void getAudio() {
 		int mEnd = micromod.getAudio( mixBuf ) * 2;
+		int gain = 1024;
 		if( remain < fadeLen ) {
-			int gain = fadeTable[ ( fadeLen - remain ) * fadeTable.length / fadeLen ];
-			for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
-				mixBuf[ mIdx ] = ( mixBuf[ mIdx ] * gain ) >> 15;
-			}
+			gain = remain / ( fadeLen >> 10 );
+			gain = ( gain * gain * gain ) >> 20;
 		}
 		for( int mIdx = 0, oIdx = 0; mIdx < mEnd; mIdx++ ) {
-			int ampl = mixBuf[ mIdx ];
+			int ampl = ( mixBuf[ mIdx ] * gain ) >> 10;
 			if( ampl > 32767 ) ampl = 32767;
 			if( ampl < -32768 ) ampl = -32768;
 			outBuf[ oIdx++ ] = ( byte ) ampl;
@@ -115,18 +113,6 @@ public class WavInputStream extends InputStream {
 		}
 		outIdx = 0;
 		outLen = mEnd * 2;
-	}
-
-	private static int[] calculateFadeTable( int length ) {
-		int[] table = new int[ length ];
-		int dx = 32768 / length;
-		int  x = 32768;
-		for( int idx = 0; idx < length; idx++ ) {
-			// y = x^3
-			table[ idx ] = ( ( ( x * x ) >> 15 ) * x ) >> 15;
-			x -= dx;
-		}
-		return table;
 	}
 
 	private static void writeInt32( byte[] buf, int idx, int value ) {
