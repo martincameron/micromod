@@ -40,4 +40,8 @@ public class Chorus implements Element {
 	public void setChorusType( boolean pwm ) {
 		this.type = pwm;
 	}
+
+	public String description() {
+		return "\"1\" (Chorus effect length in cycles, 1 for no chorus.)";
+	}
 }

@@ -31,4 +31,8 @@ public class Gain implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"64\" (Amplification factor, divided by 64.)";
+	}
 }

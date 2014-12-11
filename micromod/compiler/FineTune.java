@@ -31,4 +31,8 @@ public class FineTune implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0\" (Fine-tune in 8ths of a semitone, from -8 to 7.)";
+	}
 }

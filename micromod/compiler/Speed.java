@@ -32,4 +32,8 @@ public class Speed implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"6\" (The speed of the Macro, must match the playback speed (effect Fxx) for proper transposing of effects.)";
+	}
 }

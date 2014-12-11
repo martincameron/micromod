@@ -8,4 +8,5 @@ public interface Element {
 	public Element getChild();
 	public void begin( String value );
 	public void end();
+	public String description();
 }

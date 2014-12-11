@@ -31,4 +31,8 @@ public class Name implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"Name\" (Instrument name, maximum 22 characters.)";
+	}
 }

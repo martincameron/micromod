@@ -58,6 +58,10 @@ public class WaveFile implements Element {
 		parent.setAudioData( audioData );
 	}
 
+	public String description() {
+		return "\"FileName\" (The relative path of the Wav file.)";
+	}
+
 	public void setCrop( int offset, int count, int divisions ) {
 		this.offset = offset;
 		this.count = count;

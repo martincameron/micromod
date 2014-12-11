@@ -35,4 +35,8 @@ public class Type implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"Phase\" (Chorus effect modulation type, 'Pulse' or 'Phase'.)";
+	}
 }

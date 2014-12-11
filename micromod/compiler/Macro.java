@@ -42,6 +42,10 @@ public class Macro implements Element {
 		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern, speed ) );
 	}
 
+	public String description() {
+		return "\"Index\" (Macro index, from 1 to 99.)";
+	}
+
 	public void setScale( String scale ) {
 		this.scale = scale;
 	}
