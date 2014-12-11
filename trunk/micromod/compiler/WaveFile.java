@@ -53,7 +53,7 @@ public class WaveFile implements Element {
 			audioData = audioData.scale( gain );
 		}
 		if( pitch != 0 ) {
-			audioData = audioData.resample( audioData.getSamplingRate(), pitch, false );
+			audioData = audioData.resample( audioData.getSamplingRate(), pitch );
 		}
 		parent.setAudioData( audioData );
 	}
