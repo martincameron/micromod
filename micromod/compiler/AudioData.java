@@ -206,23 +206,15 @@ public class AudioData {
 	}
 
 	public AudioData resample( int samplingRate ) {
-		return resample( samplingRate, 0, false );
+		return resample( samplingRate, 0 );
 	}
 
 	/* Return an AudioData instance with the specified sampling rate,
-	   optionally adjusted in pitch by 96 per octave increments.
-	   If the waveform is short and periodic in nature, better results
-	   may be obtained if periodic is set to true. */
-	public AudioData resample( int samplingRate, int pitch, boolean periodic ) {
+	   optionally adjusted in pitch by 96 per octave increments. */
+	public AudioData resample( int samplingRate, int pitch ) {
 		short[] inputBuf = new short[ sampleData.length + HTAPS * 2 ];
-		if( periodic ) {
-			for( int idx = 0; idx < inputBuf.length; idx++ ) {
-				inputBuf[ idx ] = sampleData[ ( idx + sampleData.length * HTAPS - HTAPS + 1 ) % sampleData.length ];
-			}
-		} else {
-			for( int idx = 0; idx < sampleData.length; idx++ ) {
-				inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
-			}
+		for( int idx = 0; idx < sampleData.length; idx++ ) {
+			inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
 		}
 		int step = ( int ) Math.round( this.sampleRate * Math.pow( 2, pitch / 96.0 ) * FP_ONE / samplingRate );
 		int outputLen = ( sampleData.length << FP_SHIFT ) / step;
@@ -336,7 +328,7 @@ public class AudioData {
 					audioData = audioData.crop( offset, length );
 				}
 				if( rate > 0 || tune != 96 ) {
-					audioData = audioData.resample( rate > 0 ? rate : audioData.getSamplingRate(), tune - 96, false );
+					audioData = audioData.resample( rate > 0 ? rate : audioData.getSamplingRate(), tune - 96 );
 				}
 				if( gain > 0 && gain != 64 ) {
 					audioData = audioData.scale( gain );

@@ -81,11 +81,18 @@ public class Waveform implements Element {
 			} else {
 				waveform = genPhaseMod( waveform, cycles, octave, detune, chorus > 1 );
 			}
-			AudioData audioData = new AudioData( waveform, 512 * 262 );
 			if( octave > -4 ) {
-				audioData = audioData.resample( audioData.getSamplingRate() >> ( octave + 4 ), 0, true );
+				byte[] outBuf = new byte[ waveform.length + 1024 ];
+				for( int idx = 0; idx < outBuf.length; idx++ ) {
+					outBuf[ idx ] = waveform[ idx % waveform.length ];
+				}
+				AudioData audioData = new AudioData( outBuf, 512 * 262 );
+				audioData = audioData.resample( audioData.getSamplingRate() >> ( octave + 4 ) );
+				audioData = audioData.crop( 512 >> ( octave + 4 ), audioData.getLength() - ( 1024 >> ( octave + 4 ) ) );
+				parent.setAudioData( audioData );
+			} else {
+				parent.setAudioData( new AudioData( waveform, 512 * 262 ) );
 			}
-			parent.setAudioData( audioData );
 		}
 		parent.setLoopStart( 0 );
 		parent.setLoopLength( parent.getAudioData().getLength() );
