@@ -31,4 +31,8 @@ public class Volume implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0\" (Instrument volume, 0 to 64.)";
+	}
 }

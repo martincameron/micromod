@@ -36,6 +36,10 @@ public class Note implements Element {
 		parent.nextNote( note, repeatCount );
 	}
 
+	public String description() {
+		return "\"C-2-1---\" (A single 8-character note, as used in a Pattern.)";
+	}
+
 	public void setRepeat( int count ) {
 		if( repeatCount < 1 ) {
 			repeatCount = count;

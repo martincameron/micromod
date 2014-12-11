@@ -51,7 +51,11 @@ public class Pattern implements Element {
 			}
 		}
 	}
-	
+
+	public String description() {
+		return "\"Index\" (Pattern index, from 0 to 127.)";
+	}
+
 	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
 		int numRows = patterns.length * micromod.Pattern.NUM_ROWS;
 		if( rowIdx >= numRows ) {

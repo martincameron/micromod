@@ -31,4 +31,8 @@ public class LoopStart implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"Offset\" (Offset of sustain phase in samples.)";
+	}
 }

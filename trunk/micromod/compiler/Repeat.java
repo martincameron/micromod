@@ -34,4 +34,8 @@ public class Repeat implements Element {
 
 	public void end() {
 	}
+
+	public String description() {
+		return "\"Count\" (Repeat the notes from the marker Count times. Use a value of 'Begin' to set the marker.)";
+	}
 }

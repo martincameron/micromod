@@ -35,4 +35,8 @@ public class Sequence implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0,1,2,...\" (The order in which Patterns are played in the song.)";
+	}
 }

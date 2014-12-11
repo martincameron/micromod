@@ -98,6 +98,10 @@ public class Waveform implements Element {
 		parent.setLoopLength( parent.getAudioData().getLength() );
 	}
 
+	public String description() {
+		return "\"Type\" (Waveform type, 'Sawtooth', 'Square', 'Sine', 'Harmonics' or 'Noise'.)";
+	}
+
 	public void setOctave( int octave ) {
 		if( octave < -4 || octave > 4 ) {
 			throw new IllegalArgumentException( "Invalid octave (-4 to 4): " + octave );

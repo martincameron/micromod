@@ -31,4 +31,8 @@ public class Octave implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0\" (Waveform octave, from -4 to 4.)";
+	}
 }

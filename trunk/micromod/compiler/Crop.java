@@ -39,11 +39,15 @@ public class Crop implements Element {
 			count = params[ 1 ];
 			divisions = params[ 2 ];
 		} else {
-			throw new IllegalArgumentException( "Invalid Crop parameter (Offset,Count,Divisions): " + value );
+			throw new IllegalArgumentException( "Invalid Crop parameter (Offset,Count[,Divisions]): " + value );
 		}
 		parent.setCrop( offset, count, divisions );
 	}
 
 	public void end() {
+	}
+
+	public String description() {
+		return "\"Offset,Count[,Divisions]\" (Crop Count Divisions from Offset. Divisions is optional and defaults to sample length.)";
 	}
 }

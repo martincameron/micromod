@@ -49,7 +49,11 @@ public class Instrument implements Element {
 			", LoopStart " + instrument.getLoopStart() +
 			", SampleEnd " + ( instrument.getLoopStart() + instrument.getLoopLength() ) );
 	}
-	
+
+	public String description() {
+		return "\"Index\" (Instrument index, from 1 to 31.)";
+	}
+
 	public void setName( String name ) {
 		instrument.setName( name );
 	}

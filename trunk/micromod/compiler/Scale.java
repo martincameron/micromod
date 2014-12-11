@@ -32,4 +32,8 @@ public class Scale implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"C#D#EF#G#A#B\" (Key signature of the Macro, C-Major would be 'C-D-EF-G-A-B', for example.)";
+	}
 }

@@ -29,4 +29,8 @@ public class Pitch implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0\" (Tune the sample by the specified number of 96ths of an octave.)";
+	}
 }

@@ -36,6 +36,10 @@ public class Module implements Element {
 		System.out.println( getToken() + " end." );
 	}
 
+	public String description() {
+		return "\"Title\" (Song title, maximum 20 characters.)";
+	}
+
 	public void setNumChannels( int numChannels ) {
 		module.setNumChannels( numChannels );
 	}

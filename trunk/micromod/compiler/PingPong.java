@@ -35,4 +35,8 @@ public class PingPong implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"On\" (Append a reversed sustain phase to the sample.)";
+	}
 }

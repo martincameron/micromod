@@ -31,4 +31,8 @@ public class LoopLength implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"Length\" (Length of sustain phase in samples.)";
+	}
 }

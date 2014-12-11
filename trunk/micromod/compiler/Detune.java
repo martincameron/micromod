@@ -31,4 +31,8 @@ public class Detune implements Element {
 	
 	public void end() {
 	}
+
+	public String description() {
+		return "\"0\" (Detune effect in 96ths of an octave.)";
+	}
 }
