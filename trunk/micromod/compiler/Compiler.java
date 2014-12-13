@@ -5,12 +5,14 @@ package micromod.compiler;
 public class Compiler {
 	public static void main( String[] args ) throws java.io.IOException {
 		String mtFile = null, modFile = null, outDir = null, wavFile = null;
-		boolean interpolation = false;
+		boolean printSyntax = false, interpolation = false;
 		int[] sequence = null;
 		int argsIdx = 0, key = 0;
 		while( argsIdx < args.length ) {
 			String arg = args[ argsIdx++ ];
-			if( "-dir".equals( arg ) ) {
+			if( "-syntax".equals( arg ) ) {
+				printSyntax = true;
+			} else if( "-dir".equals( arg ) ) {
 				outDir = args[ argsIdx++ ];
 			} else if( "-hq".equals( arg ) ) {
 				interpolation = true;
@@ -26,7 +28,9 @@ public class Compiler {
 				mtFile = arg;
 			}
 		}
-		if( mtFile != null ) {
+		if( printSyntax ) {
+			System.out.println( Parser.syntax( new Module( null ) ) );
+		} else if( mtFile != null ) {
 			if( modFile != null ) {
 				System.out.println( "Compiling '" + mtFile + "' to module '" + modFile + "'." );
 				convert( new java.io.File( mtFile ), new java.io.File( modFile ) );
@@ -54,6 +58,7 @@ public class Compiler {
 			System.err.println( "          Compile: input.mt [-out output.mod]" );
 			System.err.println( "        Decompile: -mod input.mod -dir outputdir" );
 			System.err.println( "    Mod To Sample: -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-hq]" );
+			System.err.println( "  Print MT Syntax: -syntax" );
 		}
 	}
 

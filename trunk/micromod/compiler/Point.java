@@ -40,6 +40,6 @@ public class Point implements Element {
 	}
 
 	public String description() {
-		return "\"X,Y\" (Set envelope point (X,Y). Subsequent points can also be set with 'X,Y0,Y1,...,Yn'.)";
+		return "\"X,Y\" (Set envelope point. Subsequent points can also be set with 'X,Y0,Y1,...,Yn'.)";
 	}
 }
