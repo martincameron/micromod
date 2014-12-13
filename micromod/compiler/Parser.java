@@ -80,6 +80,35 @@ public class Parser {
 		}
 	}
 
+	public static String syntax( Element element ) {
+		StringBuffer stringBuffer = new StringBuffer();
+		int indent = 0;
+		while( element != null ) {
+			for( int idx = 0; idx < indent; idx++ ) {
+				stringBuffer.append( '\t' );
+			}
+			stringBuffer.append( element.getToken() );
+			stringBuffer.append( ' ' );
+			stringBuffer.append( element.description() );
+			stringBuffer.append( '\n' );
+			if( element.getChild() != null ) {
+				indent = indent + 1;
+				element = element.getChild();
+			} else if( element.getSibling() != null ) {
+				element = element.getSibling();
+			} else {
+				while( element != null && element.getSibling() == null ) {
+					indent = indent - 1;
+					element = element.getParent();
+				}
+				if( element != null ) {
+					element = element.getSibling();
+				}
+			}
+		}
+		return stringBuffer.toString();
+	}
+
 	/* Split a string, separated by whitespace or separator. */
 	public static String[] split( String input, char separator ) {
 		String[] output = new String[ split( input, ',', null ) ];

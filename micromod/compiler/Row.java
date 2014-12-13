@@ -53,7 +53,7 @@ public class Row implements Element {
 	}
 
 	public String description() {
-		return "\"00 C-2-1--- --------\" (Row index (0 to 63), followed by an 8-character note for each channel.)";
+		return "\"00 C-2-1--- --------\" (Row index from 0 to 63, followed by an 8-character note for each channel.)";
 	}
 	
 	public void setRowIdx( int rowIdx ) {
