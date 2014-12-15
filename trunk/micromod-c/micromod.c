@@ -1,14 +1,12 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20141022 (c)2014 mumart@gmail.com */
+/* fast protracker replay version 20141215 (c)2014 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
-#define MAX_INSTRUMENTS 32
-
-#define FP_SHIFT     14
-#define FP_ONE       16384
-#define FP_MASK      16383
+#define FP_SHIFT 14
+#define FP_ONE   16384
+#define FP_MASK  16383
 
 struct note {
 	unsigned short key;
@@ -38,8 +36,8 @@ static const unsigned short fine_tuning[] = {
 };
 
 static const unsigned short arp_tuning[] = {
-	4096, 4340, 4598, 4871, 5161, 5468, 5793, 6137,
-	6502, 6889, 7298, 7732, 8192, 8679, 9195, 9742
+	4096, 3866, 3649, 3444, 3251, 3069, 2896, 2734,
+	2580, 2435, 2299, 2170, 2048, 1933, 1825, 1722
 };
 
 static const unsigned char sine_table[] = {
@@ -50,7 +48,7 @@ static const unsigned char sine_table[] = {
 static signed char *module_data;
 static unsigned char *pattern_data, *sequence;
 static long song_length, restart, num_patterns, num_channels;
-static struct instrument instruments[ MAX_INSTRUMENTS ];
+static struct instrument instruments[ 32 ];
 
 static long sample_rate, c2_rate, gain, tick_len, tick_offset;
 static long pattern, break_pattern, row, next_row, tick;
@@ -103,9 +101,10 @@ static void update_frequency( struct channel *chan ) {
 	long period, volume;
 	unsigned long freq;
 	period = chan->period + chan->vibrato_add;
+	period = period * arp_tuning[ chan->arpeggio_add ] >> 11;
+	period = ( period >> 1 ) + ( period & 1 );
 	if( period < 14 ) period = 14;
 	freq = c2_rate * 428 / period;
-	freq = freq * arp_tuning[ chan->arpeggio_add ] >> 12;
 	chan->step = ( freq << FP_SHIFT ) / sample_rate;
 	volume = chan->volume + chan->tremolo_add;
 	if( volume > 64 ) volume = 64;
@@ -167,7 +166,7 @@ static void tremolo( struct channel *chan ) {
 static void trigger( struct channel *channel ) {
 	long period, ins;
 	ins = channel->note.instrument;
-	if( ins > 0 && ins < MAX_INSTRUMENTS ) {
+	if( ins > 0 && ins < 32 ) {
 		channel->assigned = ins;
 		channel->sample_offset = 0;
 		channel->fine_tune = instruments[ ins ].fine_tune;
@@ -494,7 +493,7 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 	pattern_data = (unsigned char *) module_data + 1084;
 	num_patterns = calculate_num_patterns( module_data );
 	sample_data_offset = 1084 + num_patterns * 64 * num_channels * 4;
-	for( inst_idx = 1; inst_idx < MAX_INSTRUMENTS; inst_idx++ ) {
+	for( inst_idx = 1; inst_idx < 32; inst_idx++ ) {
 		inst = &instruments[ inst_idx ];
 		sample_length = unsigned_short_big_endian( module_data, inst_idx * 30 + 12 ) * 2;
 		inst->fine_tune = module_data[ inst_idx * 30 + 14 ] & 0xF;
