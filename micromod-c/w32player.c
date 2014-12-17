@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -16,96 +17,14 @@
 #define OVERSAMPLE     2      /* 2x oversampling. */
 #define NUM_CHANNELS   2      /* Stereo. */
 #define BUFFER_SAMPLES 16384  /* 64k per buffer. */
-#define NUM_BUFFERS    8      /* 8 buffers (512k). */
+#define NUM_BUFFERS    4      /* 4 buffers (256k). */
 
 static HANDLE semaphore;
 static WAVEHDR wave_headers[ NUM_BUFFERS ];
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static short wave_buffers[ NUM_BUFFERS ][ BUFFER_SAMPLES * NUM_CHANNELS ];
-static long reverb_len, reverb_idx, filt_l, filt_r;
-
-static void __stdcall wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
-	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
-	if( uMsg == WOM_DONE ) ReleaseSemaphore( semaphore, 1, NULL );
-	/*if( uMsg == WOM_CLOSE ) printf( "Device closed.\n" );*/
-}
-
-static void check_mmsys_error( int error ) {
-	TCHAR string[ 64 ];
-	if( error != MMSYSERR_NOERROR ) {
-		waveOutGetErrorText( error, &string[ 0 ], 64 );
-		fprintf( stderr, "%s\n", &string );
-		exit( EXIT_FAILURE );
-	}
-}
-
-static void load_module( char *file_name ) {
-	FILE *file;
-	void *module;
-	long length, read, error;
-
-	file = fopen( file_name, "rb" );
-	if( file == NULL ) {
-		fprintf( stderr, "Unable to open file.\n" );
-		exit( EXIT_FAILURE );
-	}
-
-	module = malloc( 1084 );
-	if( module == NULL ) {
-		fprintf( stderr, "Unable to allocate memory.\n");
-		exit( EXIT_FAILURE );
-	}
-	read = fread( module, 1, 1084, file );
-	if( read != 1084 ) {
-		fprintf( stderr, "Unable to read module header.\n");
-		exit( EXIT_FAILURE );
-	}
-	length = micromod_calculate_mod_file_len( module );
-	if( length < 0 ) {
-		fprintf( stderr, "Module file type not recognised.\n");
-		exit( EXIT_FAILURE );
-	}
-	printf( "Module Data Length: %i bytes.\n", length );
-	free( module );
-
-	module = malloc( length );
-	if( module == NULL ) {
-		fprintf( stderr, "Unable to allocate memory.\n");
-		exit( EXIT_FAILURE );
-	}
-	error = fseek( file, 0, SEEK_SET );
-	if( error != 0 ) {
-		fprintf( stderr, "Unable to seek to start of file.\n");
-		exit( EXIT_FAILURE );
-	}
-	read = fread( module, 1, length, file );
-	if( read != length ) {
-		fprintf( stderr, "Module file is truncated. %i bytes missing.\n", length - read );
-	}
-	error = fclose( file );
-	if( error != 0 ) {
-		fprintf( stderr, "Unable to close file.\n");
-		exit( EXIT_FAILURE );
-	}
-	
-	error = micromod_initialise( ( signed char * ) module, SAMPLING_FREQ * OVERSAMPLE );
-	if( error != 0 ) {
-		fprintf( stderr, "Unable to initialise replay.\n");
-		exit( EXIT_FAILURE );
-	}
-}
-
-static void print_module_info() {
-	int inst;
-	char string[ 23 ];
-	for( inst = 0; inst < 16; inst++ ) {
-		micromod_get_string( inst, string );
-		printf( "%02i - %-22s ", inst, string );
-		micromod_get_string( inst + 16, string );
-		printf( "%02i - %-22s\n", inst + 16, string );
-	}
-}
+static long playing, reverb_len, reverb_idx, filt_l, filt_r;
 
 /*
 	2:1 downsampling with simple but effective anti-aliasing.
@@ -145,85 +64,197 @@ static void reverb( short *buffer, long count ) {
 	}
 }
 
-int main( int argc, char **argv ) {
-	char *filename;
-	static WAVEFORMATEX wave_format;
-	static HWAVEOUT h_wave_out;
-	WAVEHDR *header;
-	short *buffer;
-	long idx, current_buffer, samples_remaining, count;
-	
-	if( argc == 2 ) {
-		filename = argv[ 1 ];
-	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
-		reverb_len = REVERB_BUF_LEN;
-		filename = argv[ 2 ];
+static void __stdcall wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
+	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
+	if( uMsg == WOM_DONE ) ReleaseSemaphore( semaphore, 1, NULL );
+	/*if( uMsg == WOM_CLOSE ) printf( "Device closed.\n" );*/
+}
+
+static void termination_handler( int signum ) {
+	/* Notify the main thread to stop playback. */
+	playing = 0;
+	fprintf( stderr, "\nTerminated!\n" );
+}
+
+static long read_file( char *filename, void *buffer, long length ) {
+	FILE *file;
+	long count;
+	count = -1;
+	file = fopen( filename, "rb" );
+	if( file != NULL ) {
+		count = fread( buffer, 1, length, file );
+		if( count < length && !feof( file ) ) {
+			fprintf( stderr, "Unable to read file '%s'.\n", filename );
+			count = -1;
+		}
+		if( fclose( file ) != 0 ) {
+			fprintf( stderr, "Unable to close file '%s'.\n", filename );
+		}
+	}
+	return count;
+}
+
+static void print_module_info() {
+	int inst;
+	char string[ 23 ];
+	for( inst = 0; inst < 16; inst++ ) {
+		micromod_get_string( inst, string );
+		printf( "%02i - %-22s ", inst, string );
+		micromod_get_string( inst + 16, string );
+		printf( "%02i - %-22s\n", inst + 16, string );
+	}
+}
+
+static long read_module_length( char *filename ) {
+	long length;
+	signed char header[ 1084 ];
+	length = read_file( filename, header, 1084 );
+	if( length == 1084 ) {
+		length = micromod_calculate_mod_file_len( header );
+		if( length < 0 ) {
+			fprintf( stderr, "Module file type not recognised.\n");
+		}
 	} else {
+		fprintf( stderr, "Unable to read module file '%s'.\n", filename );
+		length = -1;
+	}
+	return length;
+}
+
+static long check_mmresult( MMRESULT mmresult ) {
+	long result;
+	TCHAR string[ 64 ];
+	result = 0;
+	if( mmresult != MMSYSERR_NOERROR ) {
+		waveOutGetErrorText( mmresult, string, 64 );
+		fprintf( stderr, "%s\n", string );
+		result = -1;
+	}
+	return result;
+}
+
+static long play_module( signed char *module ) {
+	long result, idx, current_buffer, samples_remaining, count;
+	WAVEFORMATEX wave_format;
+	HWAVEOUT h_wave_out;
+	WAVEHDR *header;
+	MMRESULT mmresult;
+	short *buffer;
+	/* Initialise replay.*/
+	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
+	if( result == 0 ) {
+		print_module_info();
+		/* Calculate song length. */
+		samples_remaining = micromod_calculate_song_duration();
+		printf( "Song Duration: %li seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
+		fflush( NULL );
+		/* Initialise Wave Format Structure. */
+		wave_format.wFormatTag = WAVE_FORMAT_PCM;
+		wave_format.nChannels = NUM_CHANNELS;
+		wave_format.nSamplesPerSec = SAMPLING_FREQ;
+		wave_format.nAvgBytesPerSec = SAMPLING_FREQ * NUM_CHANNELS * 2;
+		wave_format.nBlockAlign = NUM_CHANNELS * 2;
+		wave_format.wBitsPerSample = 16;
+		/* Initialise Waveform Buffers. */
+		for( idx = 0; idx < NUM_BUFFERS; idx++ ) {
+			header = &wave_headers[ idx ];
+			memset( header, 0, sizeof( WAVEHDR ) );
+			header->lpData = ( LPSTR ) &wave_buffers[ idx ][ 0 ];
+			header->dwBufferLength = BUFFER_SAMPLES * NUM_CHANNELS * sizeof( short );
+		}
+		/* Initialise Semaphore. */
+		semaphore = CreateSemaphore( NULL, NUM_BUFFERS, NUM_BUFFERS, "" );
+		/* Open Audio Device. */
+		result = check_mmresult( waveOutOpen( &h_wave_out, WAVE_MAPPER, &wave_format, (DWORD_PTR) wave_out_proc, 0, CALLBACK_FUNCTION ) );
+		if( result == 0 ) {
+			/* Play through once. */
+			playing = 1;
+			current_buffer = 0;
+			while( playing ) {
+				/* Wait for a buffer to become available. */
+				WaitForSingleObject( semaphore, INFINITE );
+				header = &wave_headers[ current_buffer ];
+				buffer = &wave_buffers[ current_buffer ][ 0 ];
+				/* Clear mix buffer and get audio from replay. */
+				count = BUFFER_SAMPLES * OVERSAMPLE;
+				if( count > samples_remaining ) {
+					count = samples_remaining;
+				}
+				memset( mix_buffer, 0, BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE * sizeof( short ) );
+				micromod_get_audio( mix_buffer, count );
+				downsample( mix_buffer, buffer, BUFFER_SAMPLES * OVERSAMPLE );
+				reverb( buffer, BUFFER_SAMPLES );
+				samples_remaining -= count;
+				/* Submit buffer to audio system. */
+				result = check_mmresult( waveOutUnprepareHeader( h_wave_out, header, sizeof( WAVEHDR ) ) );
+				if( result == 0 ) {
+					result = check_mmresult( waveOutPrepareHeader( h_wave_out, header, sizeof( WAVEHDR ) ) );
+					if( result == 0 ) {
+						result = check_mmresult( waveOutWrite( h_wave_out, header, sizeof( WAVEHDR ) ) );
+					}
+				}
+				if( samples_remaining <= 0 || result != 0 ) {
+					playing = 0;
+				}
+				/* Next buffer. */
+				current_buffer++;
+				if( current_buffer >= NUM_BUFFERS ) {
+					current_buffer = 0;
+				}
+			}
+			if( samples_remaining > 0 ) {
+				/* Playback interruped, drop any currently playing buffers. */
+				waveOutReset( h_wave_out );
+			}
+			while( waveOutClose( h_wave_out ) == WAVERR_STILLPLAYING ) {
+				/* Keep trying until all buffers have played. */
+				Sleep( 100 );
+			}
+		}
+	} else {
+		fprintf( stderr, "Unable to initialise replay.\n" );
+	}
+	return result;
+}
+
+int main( int argc, char **argv ) {
+	int arg, result;
+	long count, length;
+	char *filename;
+	signed char *module;
+	filename = NULL;
+	for( arg = 1; arg < argc; arg++ ) {
+		/* Parse arguments.*/
+		if( strcmp( argv[ arg ], "-reverb" ) == 0 ) {
+			reverb_len = REVERB_BUF_LEN;
+		} else {
+			filename = argv[ arg ];
+		}
+	}
+	result = EXIT_FAILURE;
+	if( filename == NULL ) {
 		fprintf( stderr, "Usage: %s [-reverb] filename\n", argv[ 0 ] );
-		return EXIT_FAILURE;
+	} else {
+		/* Read module file.*/
+		length = read_module_length( filename );
+		if( length > 0 ) {
+			printf( "Module Data Length: %li bytes.\n", length );
+			module = calloc( length, 1 );
+			if( module != NULL ) {
+				count = read_file( filename, module, length );
+				if( count < length ) {
+					fprintf( stderr, "Module file is truncated. %li bytes missing.\n", length - count );
+				}
+				/* Install signal handlers.*/
+				signal( SIGTERM, termination_handler );
+				signal( SIGINT,  termination_handler );
+				/* Play.*/
+				if( play_module( module ) == 0 ) {
+					result = EXIT_SUCCESS;
+				}
+				free( module );
+			}
+		}
 	}
-
-	/* Read module. */
-	load_module( filename );
-	print_module_info();
-	
-	/* Calculate song length. */
-	samples_remaining = micromod_calculate_song_duration();
-	printf( "Song Duration: %i seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
-	fflush( NULL );
-
-	/* Initialise Wave Format Structure. */
-	wave_format.wFormatTag = WAVE_FORMAT_PCM;
-	wave_format.nChannels = NUM_CHANNELS;
-	wave_format.nSamplesPerSec = SAMPLING_FREQ;
-	wave_format.nAvgBytesPerSec = SAMPLING_FREQ * NUM_CHANNELS * 2;
-	wave_format.nBlockAlign = NUM_CHANNELS * 2;
-	wave_format.wBitsPerSample = 16;
-	
-	/* Initialise Waveform Buffers. */
-	for( idx = 0; idx < NUM_BUFFERS; idx++ ) {
-		header = &wave_headers[ idx ];
-		memset( header, 0, sizeof( WAVEHDR ) );
-		header->lpData = ( LPSTR ) &wave_buffers[ idx ][ 0 ];
-		header->dwBufferLength = BUFFER_SAMPLES * NUM_CHANNELS * sizeof( short );
-	}
-
-	/* Initialise Semaphore. */
-	semaphore = CreateSemaphore( NULL, NUM_BUFFERS, NUM_BUFFERS, "" );
-
-	/* Open Audio Device. */
-	check_mmsys_error( waveOutOpen( &h_wave_out, WAVE_MAPPER, &wave_format, (DWORD_PTR) wave_out_proc, 0, CALLBACK_FUNCTION ) );
-
-	/* Play through once. */
-	current_buffer = 0;
-	while( samples_remaining > 0 ) {
-		/* Wait for a buffer to become available. */
-		WaitForSingleObject( semaphore, INFINITE );
-
-		header = &wave_headers[ current_buffer ];
-		buffer = &wave_buffers[ current_buffer ][ 0 ];
-		
-		/* Clear mix buffer and get audio from replay. */
-		count = BUFFER_SAMPLES * OVERSAMPLE;
-		if( count > samples_remaining ) count = samples_remaining;
-		memset( mix_buffer, 0, BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE * sizeof( short ) );
-		micromod_get_audio( mix_buffer, count );
-		downsample( mix_buffer, buffer, BUFFER_SAMPLES * OVERSAMPLE );
-		reverb( buffer, BUFFER_SAMPLES );
-		samples_remaining -= count;
-		
-		/* Submit buffer to audio system. */
-		check_mmsys_error( waveOutUnprepareHeader( h_wave_out, header, sizeof( WAVEHDR ) ) );
-		check_mmsys_error( waveOutPrepareHeader( h_wave_out, header, sizeof( WAVEHDR ) ) );
-		check_mmsys_error( waveOutWrite( h_wave_out, header, sizeof( WAVEHDR ) ) );
-		
-		/* Next buffer. */
-		current_buffer++;
-		if( current_buffer >= NUM_BUFFERS ) current_buffer = 0;
-	}
-
-	/* Close audio device when finished.*/
-	while( waveOutClose( h_wave_out ) == WAVERR_STILLPLAYING ) Sleep( 100 );
-
-	return EXIT_SUCCESS;
+	return result;
 }

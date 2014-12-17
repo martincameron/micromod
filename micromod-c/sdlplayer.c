@@ -177,7 +177,7 @@ static long play_module( signed char *module ) {
 			fprintf( stderr, "Unable to initialise SDL: %s\n", SDL_GetError() );
 		}
 	} else {
-		fprintf( stderr, "Unable to initialise replay.\n");
+		fprintf( stderr, "Unable to initialise replay.\n" );
 	}
 	return result;
 }
@@ -213,8 +213,6 @@ int main( int argc, char **argv ) {
 				/* Install signal handlers.*/
 				signal( SIGTERM, termination_handler );
 				signal( SIGINT,  termination_handler );
-				signal( SIGQUIT, termination_handler );
-				signal( SIGHUP,  termination_handler );
 				/* Play.*/
 				if( play_module( module ) == 0 ) {
 					result = EXIT_SUCCESS;
