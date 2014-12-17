@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "SDL/SDL.h"
 #include "SDL/SDL_main.h"
@@ -8,7 +9,7 @@
 #include "micromod.h"
 
 /*
-	Simple command line test player for micromod using SDL.
+	Simple command-line test player for micromod using SDL.
 */
 
 #define SAMPLING_FREQ  48000  /* 48khz. */
@@ -18,7 +19,6 @@
 #define BUFFER_SAMPLES 16384  /* 64k buffer. */
 
 static SDL_sem *semaphore;
-static signed char *module;
 static long samples_remaining;
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
@@ -66,37 +66,43 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	long count;
 	count = len * OVERSAMPLE / 4;
 	if( samples_remaining < count ) {
-		/* Clear output. */
+		/* Clear output.*/
 		memset( stream, 0, len );
 		count = samples_remaining;
 	}
 	if( count > 0 ) {
-		/* Get audio from replay. */
+		/* Get audio from replay.*/
 		memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
 		micromod_get_audio( mix_buffer, count );
 		downsample( mix_buffer, ( short * ) stream, count );
 		reverb( ( short * ) stream, count / OVERSAMPLE );
 		samples_remaining -= count;
 	} else {
-		/* Notify the main thread if song has finished. */	
+		/* Notify the main thread to stop playback.*/
 		SDL_SemPost( semaphore );
 	}
 }
 
-static long read_file( char *file_name, void *buffer, long length ) {
+static void termination_handler( int signum ) {
+	/* Notify the main thread to stop playback. */
+	SDL_SemPost( semaphore );
+	fprintf( stderr, "\nTerminated!\n" );
+}
+
+static long read_file( char *filename, void *buffer, long length ) {
 	FILE *file;
-	long error, count;
-	file = fopen( file_name, "rb" );
-	if( file == NULL ) {
-		return -1;
-	}
-	count = fread( buffer, 1, length, file );
-	if( count < length && !feof( file ) ) {
-		return -1;
-	}
-	error = fclose( file );
-	if( error != 0 ) {
-		return -1;
+	long count;
+	count = -1;
+	file = fopen( filename, "rb" );
+	if( file != NULL ) {
+		count = fread( buffer, 1, length, file );
+		if( count < length && !feof( file ) ) {
+			fprintf( stderr, "Unable to read file '%s'.\n", filename );
+			count = -1;
+		}
+		if( fclose( file ) != 0 ) {
+			fprintf( stderr, "Unable to close file '%s'.\n", filename );
+		}
 	}
 	return count;
 }
@@ -112,91 +118,110 @@ static void print_module_info() {
 	}
 }
 
-static void free_module() {
-	free( module );
+static long read_module_length( char *filename ) {
+	long length;
+	signed char header[ 1084 ];
+	length = read_file( filename, header, 1084 );
+	if( length == 1084 ) {
+		length = micromod_calculate_mod_file_len( header );
+		if( length < 0 ) {
+			fprintf( stderr, "Module file type not recognised.\n");
+		}
+	} else {
+		fprintf( stderr, "Unable to read module file '%s'.\n", filename );
+		length = -1;
+	}
+	return length;
+}
+
+static long play_module( signed char *module ) {
+	long result;
+	SDL_AudioSpec audiospec;
+	/* Initialise replay.*/
+	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
+	if( result == 0 ) {
+		print_module_info();
+		/* Calculate song length. */
+		samples_remaining = micromod_calculate_song_duration();
+		printf( "Song Duration: %li seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
+		fflush( NULL );
+		/* Initialise SDL_AudioSpec Structure. */
+		memset( &audiospec, 0, sizeof( SDL_AudioSpec ) );
+		audiospec.freq = SAMPLING_FREQ;
+		audiospec.format = AUDIO_S16SYS;
+		audiospec.channels = NUM_CHANNELS;
+		audiospec.samples = BUFFER_SAMPLES;
+		audiospec.callback = audio_callback;
+		audiospec.userdata = NULL;
+		/* Initialise audio subsystem. */
+		result = SDL_Init( SDL_INIT_AUDIO );
+		if( result == 0 ) {
+			/* Open the audio device. */
+			result = SDL_OpenAudio( &audiospec, NULL );
+			if( result == 0 ) {
+				/* Begin playback. */
+				SDL_PauseAudio( 0 );
+				/* Wait for playback to finish. */
+				semaphore = SDL_CreateSemaphore( 0 );
+				result = SDL_SemWait( semaphore );
+				if( result != 0 ) {
+					fprintf( stderr, "SDL_SemWait() failed.\n" );
+				}
+				/* Close audio device and shut down SDL. */
+				SDL_CloseAudio();
+				SDL_Quit();
+			} else {
+				fprintf( stderr, "Unable to open audio device: %s\n", SDL_GetError() );
+			}
+		} else {
+			fprintf( stderr, "Unable to initialise SDL: %s\n", SDL_GetError() );
+		}
+	} else {
+		fprintf( stderr, "Unable to initialise replay.\n");
+	}
+	return result;
 }
 
 int main( int argc, char **argv ) {
-	long error, count, length;
+	int arg, result;
+	long count, length;
 	char *filename;
-	signed char header[ 1084 ];
-	SDL_AudioSpec audiospec;
-	/* Parse arguments.*/
-	if( argc == 2 ) {
-		filename = argv[ 1 ];
-	} else if( argc == 3 && strcmp( argv[ 1 ], "-reverb" ) == 0 ) {
-		reverb_len = REVERB_BUF_LEN;
-		filename = argv[ 2 ];
-	} else {
+	signed char *module;
+	filename = NULL;
+	for( arg = 1; arg < argc; arg++ ) {
+		/* Parse arguments.*/
+		if( strcmp( argv[ arg ], "-reverb" ) == 0 ) {
+			reverb_len = REVERB_BUF_LEN;
+		} else {
+			filename = argv[ arg ];
+		}
+	}
+	result = EXIT_FAILURE;
+	if( filename == NULL ) {
 		fprintf( stderr, "Usage: %s [-reverb] filename\n", argv[ 0 ] );
-		return EXIT_FAILURE;
+	} else {
+		/* Read module file.*/
+		length = read_module_length( filename );
+		if( length > 0 ) {
+			printf( "Module Data Length: %li bytes.\n", length );
+			module = calloc( length, 1 );
+			if( module != NULL ) {
+				count = read_file( filename, module, length );
+				if( count < length ) {
+					fprintf( stderr, "Module file is truncated. %li bytes missing.\n", length - count );
+				}
+				/* Install signal handlers.*/
+				signal( SIGTERM, termination_handler );
+				signal( SIGINT,  termination_handler );
+				signal( SIGQUIT, termination_handler );
+				signal( SIGHUP,  termination_handler );
+				/* Play.*/
+				if( play_module( module ) == 0 ) {
+					result = EXIT_SUCCESS;
+				}
+				free( module );
+			}
+		}
 	}
-	/* Calculate module file length.*/
-	count = read_file( filename, header, 1084 );
-	if( count != 1084 ) {
-		fprintf( stderr, "Unable to read module header.\n");
-		exit( EXIT_FAILURE );
-	}
-	length = micromod_calculate_mod_file_len( header );
-	if( length < 0 ) {
-		fprintf( stderr, "Module file type not recognised.\n");
-		exit( EXIT_FAILURE );
-	}
-	printf( "Module Data Length: %li bytes.\n", length );
-	/* Allocate memory for module.*/
-	module = calloc( length, 1 );
-	if( module == NULL ) {
-		fprintf( stderr, "Unable to allocate memory for module data.\n");
-		exit( EXIT_FAILURE );
-	}
-	atexit( free_module );
-	/* Read module data.*/
-	count = read_file( filename, module, length );
-	if( count < 0 ) {
-		fprintf( stderr, "Unable to read module file.\n");
-		exit( EXIT_FAILURE );
-	} else if( count < length ) {
-		fprintf( stderr, "Module file is truncated. %li bytes missing.\n", length - count );
-	}
-	/* Initialise replay.*/
-	error = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
-	if( error != 0 ) {
-		fprintf( stderr, "Unable to initialise replay.\n");
-		exit( EXIT_FAILURE );
-	}
-	print_module_info();
-	/* Calculate song length. */
-	samples_remaining = micromod_calculate_song_duration();
-	printf( "Song Duration: %li seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
-	fflush( NULL );
-	/* Initialise SDL_AudioSpec Structure. */
-	memset( &audiospec, 0, sizeof( SDL_AudioSpec ) );
-	audiospec.freq = SAMPLING_FREQ;
-	audiospec.format = AUDIO_S16SYS;
-	audiospec.channels = NUM_CHANNELS;
-	audiospec.samples = BUFFER_SAMPLES;
-	audiospec.callback = audio_callback;
-	audiospec.userdata = NULL;
-	/* Initialise audio subsystem. */
-	if( SDL_Init( SDL_INIT_AUDIO ) != 0 ) {
-		fprintf( stderr, "Unable to initialise SDL: %s\n", SDL_GetError() );
-		return EXIT_FAILURE;
-	}
-	atexit( SDL_Quit );
-	/* Open the audio device. */
-	if( SDL_OpenAudio( &audiospec, NULL ) != 0 ) {
-		fprintf( stderr, "Unable to open audio device: %s\n", SDL_GetError() );
-		return EXIT_FAILURE;
-	}
-	/* Begin playback. */
-	SDL_PauseAudio( 0 );
-	/* Wait for playback to finish. */
-	semaphore = SDL_CreateSemaphore( 0 );
-	if( SDL_SemWait( semaphore ) != 0 ) {
-		fprintf( stderr, "SDL_SemWait() failed.\n" );
-		return EXIT_FAILURE;
-	}
-	/* Close audio device and exit. */
-	SDL_CloseAudio();
-	return EXIT_SUCCESS;
+	return result;
 }

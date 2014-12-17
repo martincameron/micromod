@@ -25,7 +25,7 @@ static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static short wave_buffers[ NUM_BUFFERS ][ BUFFER_SAMPLES * NUM_CHANNELS ];
 static long reverb_len, reverb_idx, filt_l, filt_r;
 
-static void STDCALL wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
+static void __stdcall wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
 	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
 	if( uMsg == WOM_DONE ) ReleaseSemaphore( semaphore, 1, NULL );
 	/*if( uMsg == WOM_CLOSE ) printf( "Device closed.\n" );*/
