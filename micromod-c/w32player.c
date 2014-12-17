@@ -203,7 +203,7 @@ static long play_module( signed char *module ) {
 				}
 			}
 			if( samples_remaining > 0 ) {
-				/* Playback interruped, drop any currently playing buffers. */
+				/* Playback interrupted, drop any currently playing buffers. */
 				waveOutReset( h_wave_out );
 			}
 			while( waveOutClose( h_wave_out ) == WAVERR_STILLPLAYING ) {
