@@ -5,8 +5,8 @@ public class Waveform implements Element {
 	private WaveFile sibling;
 	private Octave child = new Octave( this );
 	private byte[] envelope = new byte[ 512 ];
-	private int octave, detune, chorus, x0, y0;
-	private boolean spectral, noise, pwm;
+	private int octave, cycles, modRate, lfoRate, detune, mix, x0, y0;
+	private boolean spectral, noise;
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -30,7 +30,7 @@ public class Waveform implements Element {
 	}
 	
 	public void begin( String value ) {
-		spectral = noise = pwm = false;
+		spectral = noise = false;
 		if( "Sawtooth".equals( value ) ) {
 			setEnvelopePoint(   0, -128 );
 			setEnvelopePoint( 511,  127 );
@@ -61,26 +61,16 @@ public class Waveform implements Element {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
 		setOctave( 0 );
-		setDetune( 0 );
-		setChorus( 1, false );
+		setModulation( 1, 0, 0, 0, 128 );
 	}
 
 	public void end() {
 		if( noise ) {
 			parent.setAudioData( new AudioData( noise( envelope ), 8363 ) );
 		} else {
-			int cycles = 2;
-			if( chorus > 1 ) {
-				cycles = chorus;
-			} else if( detune != 0 ) {
-				cycles = 128;
-			}
-			byte[] waveform = spectral ? harmonics( envelope ) : envelope;
-			if( chorus > 1 && pwm ) {
-				waveform = genPulseMod( waveform, cycles / 2, octave, detune );
-			} else {
-				waveform = genPhaseMod( waveform, cycles, octave, detune, chorus > 1 );
-			}
+			byte[] carrier = spectral ? harmonics( envelope ) : envelope;
+			byte[] waveform = new byte[ cycles * 512 ];
+			fm( carrier, sine(), cosine(), cycles, modRate, lfoRate, detune, mix, waveform );
 			if( octave > -4 ) {
 				byte[] outBuf = new byte[ waveform.length + 1024 ];
 				for( int idx = 0; idx < outBuf.length; idx++ ) {
@@ -108,20 +98,28 @@ public class Waveform implements Element {
 		}
 		this.octave = octave;
 	}
-	
-	public void setDetune( int pitch ) {
-		if( pitch < -192 || pitch > 192 ) {
-			throw new IllegalArgumentException( "Invalid detune (-192 to 192): " + pitch );
-		}
-		this.detune = pitch;
-	}
 
-	public void setChorus( int cycles, boolean pwm ) {
+	public void setModulation( int cycles, int modRate, int lfoRate, int detune, int mix ) {
 		if( cycles < 1 || cycles > 1024 ) {
-			throw new IllegalArgumentException( "Invalid chorus length (1 to 1024): " + cycles );
+			throw new IllegalArgumentException( "Invalid number of cycles (1 to 1024): " + cycles );
 		}
-		this.chorus = cycles;
-		this.pwm = pwm;
+		this.cycles = cycles;
+		if( modRate < 0 || modRate > 1024 ) {
+			throw new IllegalArgumentException( "Invalid modulation rate (0 to 1024): " + modRate );
+		}
+		this.modRate = modRate;
+		if( lfoRate < 0 || lfoRate > 1024 ) {
+			throw new IllegalArgumentException( "Invalid LFO rate (0 to 1024): " + lfoRate );
+		}
+		this.lfoRate = lfoRate;
+		if( detune < -192 || detune > 192 ) {
+			throw new IllegalArgumentException( "Invalid detune pitch (-192 to 192): " + detune );
+		}
+		this.detune = detune;
+		if( mix < 0 || mix > 256 ) {
+			throw new IllegalArgumentException( "Invalid mix parameter (0 to 256): " + mix );
+		}
+		this.mix = mix;
 	}
 
 	/* Set the envelope from x0 to x1 (0 to 511) by interpolating y0 to y1 (-128 to 127).
@@ -145,42 +143,6 @@ public class Waveform implements Element {
 		}
 		x0 = x1;
 		y0 = y1;
-	}
-
-	/* Generate the specified number of cycles of the specified 512-byte waveform.
-	   at the specified octave with optional 2-oscillator detune and phase-modulation chorus.
-	   The cycles parameter determines the cycle length of the chorus and accuracy of the detune. */
-	public static byte[] genPhaseMod( byte[] waveform, int cycles, int octave, int detune, boolean chorus ) {
-		byte[] buf = new byte[ 512 * cycles ];
-		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
-		for( int cycle = 0; cycle < cycles; cycle++ ) {
-			int mod = chorus ? 256 + Math.round( ( float ) ( Math.cos( 2 * Math.PI * cycle / cycles ) * 256 ) ) : 0;
-			for( int ph1 = 0; ph1 < 512; ph1++ ) {
-				int ph2 = ( cycle * 512 + ph1 ) * cycles2 / cycles;
-				buf[ cycle * 512 + ph1 ] = ( byte ) ( ( waveform[ ph1 ] + waveform[ ( ph2 + mod ) & 0x1FF ] ) / 2 );
-			}
-		}
-		return buf;
-	}
-
-	/* Generate the specified number of 1024-byte cycles by frequency-modulating the specified 512-byte waveform
-	   and mixing it with the non-modulated waveform detuned by the specified number of 96ths of an octave.
-	   The cycles parameter determines the cycle length of the modulation effect and accuracy of the detune. */
-	public static byte[] genPulseMod( byte[] waveform, int cycles, int octave, int detune ) {
-		byte[] buf = new byte[ cycles * 1024 ];
-		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
-		for( int cycle = 0; cycle < cycles; cycle++ ) {
-			int pw1 = Math.round( 512 * ( float ) Math.pow( 2, ( Math.cos( 2 * Math.PI * cycle / cycles ) - 1 ) / 2 ) );
-			for( int ph1 = 0; ph1 < pw1; ph1++ ) {
-				int ph2 = ( cycle * 1024 + ph1 ) * cycles2 / cycles;
-				buf[ cycle * 1024 + ph1 ] = ( byte ) ( ( waveform[ ph1 * 512 / pw1 ] + waveform[ ph2 & 0x1FF ] ) / 2 );
-			}
-			for( int ph1 = 0, pw2 = ( 1024 - pw1 ); ph1 < pw2; ph1++ ) {
-				int ph2 = ( cycle * 1024 + ph1 + pw1 ) * cycles2 / cycles;
-				buf[ cycle * 1024 + ph1 + pw1 ] = ( byte ) ( ( waveform[ ph1 * 512 / pw2 ] + waveform[ ph2 & 0x1FF ] ) / 2 );
-			}
-		}
-		return buf;
 	}
 
 	/* Generate a 512-byte periodic waveform from the specified 256-harmonic spectrum. */
@@ -230,6 +192,16 @@ public class Waveform implements Element {
 		}
 	}
 
+	/* Simple 3-operator FM synthesis. */
+	public static void fm( byte[] carrier, byte[] modulator, byte[] lfo, int cycles, int modRate, int lfoRate, int detune, int mix, byte[] output ) {
+		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
+		for( int idx = 0, end = cycles * 512; idx < end; idx++ ) {
+			int out1 = carrier[ idx & 0x1FF ];
+			int out2 = carrier[ ( idx * cycles2 / cycles + modulator[ ( idx * modRate / cycles ) & 0x1FF ] * lfo[ ( idx * lfoRate / cycles ) & 0x1FF ] / 64 ) & 0x1FF ];
+			output[ idx ] = ( byte ) ( ( out1 * mix + out2 * ( 256 - mix ) ) / 256 );
+		}
+	}
+
 	/* Generate a 512-byte sine table. */
 	public static byte[] sine() {
 		byte[] sine = new byte[ 512 ];
@@ -237,5 +209,30 @@ public class Waveform implements Element {
 			sine[ idx ] = ( byte ) Math.round( Math.sin( Math.PI * idx / 256 ) * 127 );
 		}
 		return sine;
+	}
+
+	public static byte[] cosine() {
+		byte[] cosine = new byte[ 512 ];
+		for( int idx = 0; idx < 512; idx++ ) {
+			cosine[ idx ] = ( byte ) Math.round( Math.cos( Math.PI * idx / 256 ) * 127 );
+		}
+		return cosine;
+	}
+
+	public static byte[] sawtooth() {
+		byte[] saw = new byte[ 512 ];
+		for( int idx = 0; idx < 512; idx++ ) {
+			saw[ idx ] = ( byte ) ( idx / 2 - 128 );
+		}
+		return saw;
+	}
+
+	public static byte[] triangle() {
+		byte[] tri = new byte[ 512 ];
+		for( int idx = 0; idx < 256; idx++ ) {
+			tri[ idx ] = ( byte ) ( idx - 128 );
+			tri[ idx + 256 ] = ( byte ) ( 127 - idx );
+		}
+		return tri;
 	}
 }
