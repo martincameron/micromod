@@ -2,11 +2,11 @@ package micromod.compiler;
 
 public class Octave implements Element {
 	private Waveform parent;
-	private Detune sibling;
+	private Chorus sibling;
 
 	public Octave( Waveform parent ) {
 		this.parent = parent;
-		sibling = new Detune( parent );
+		sibling = new Chorus( parent );
 	}
 	
 	public String getToken() {
