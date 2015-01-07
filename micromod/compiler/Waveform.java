@@ -68,9 +68,10 @@ public class Waveform implements Element {
 		if( noise ) {
 			parent.setAudioData( new AudioData( noise( envelope ), 8363 ) );
 		} else {
+			byte[] modulator = cosine();
 			byte[] carrier = spectral ? harmonics( envelope ) : envelope;
 			byte[] waveform = new byte[ cycles * 512 ];
-			fm( carrier, sine(), cosine(), cycles, modRate, lfoRate, detune, mix, waveform );
+			fm( carrier, modulator, modulator, cycles, modRate, lfoRate, detune, mix, waveform );
 			if( octave > -4 ) {
 				byte[] outBuf = new byte[ waveform.length + 1024 ];
 				for( int idx = 0; idx < outBuf.length; idx++ ) {
@@ -197,7 +198,7 @@ public class Waveform implements Element {
 		int cycles2 = Math.round( ( float ) ( cycles * Math.pow( 2, detune / 96d ) ) );
 		for( int idx = 0, end = cycles * 512; idx < end; idx++ ) {
 			int out1 = carrier[ idx & 0x1FF ];
-			int out2 = carrier[ ( idx * cycles2 / cycles + modulator[ ( idx * modRate / cycles ) & 0x1FF ] * lfo[ ( idx * lfoRate / cycles ) & 0x1FF ] / 64 ) & 0x1FF ];
+			int out2 = carrier[ ( idx * cycles2 / cycles + ( 128 + modulator[ ( idx * modRate / cycles ) & 0x1FF ] ) * ( 128 + lfo[ ( idx * lfoRate / cycles ) & 0x1FF ] ) / 128 ) & 0x1FF ];
 			output[ idx ] = ( byte ) ( ( out1 * mix + out2 * ( 256 - mix ) ) / 256 );
 		}
 	}
