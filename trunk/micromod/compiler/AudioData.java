@@ -13,20 +13,24 @@ public class AudioData {
 	private short[] sampleData;
 
 	public AudioData( short[] samples, int samplingRate ) {
-		this.sampleRate = samplingRate;
 		this.sampleData = samples;
+		setSamplingRate( samplingRate );
 	}
 
 	public AudioData( byte[] samples, int samplingRate ) {
-		this.sampleRate = samplingRate;
 		this.sampleData = new short[ samples.length ];
 		for( int idx = 0; idx < samples.length; idx++ ) {
 			this.sampleData[ idx ] = ( short ) ( samples[ idx ] << 8 );
 		}
+		setSamplingRate( samplingRate );
 	}
 
 	public int getSamplingRate() {
 		return sampleRate;
+	}
+
+	public void setSamplingRate( int samplingRate ) {
+		this.sampleRate = samplingRate;
 	}
 
 	public int getLength() {

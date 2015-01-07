@@ -7,6 +7,10 @@ public class Waveform implements Element {
 	private byte[] envelope = new byte[ 512 ];
 	private int octave, cycles, modRate, lfoRate, detune, mix, x0, y0;
 	private boolean spectral, noise;
+	private AudioData audioData;
+
+	public Waveform() {
+	}
 
 	public Waveform( Instrument parent ) {
 		this.parent = parent;
@@ -66,7 +70,7 @@ public class Waveform implements Element {
 
 	public void end() {
 		if( noise ) {
-			parent.setAudioData( new AudioData( noise( envelope ), 8363 ) );
+			setAudioData( new AudioData( noise( envelope ), 512 * 262 ) );
 		} else {
 			byte[] modulator = cosine();
 			byte[] carrier = spectral ? harmonics( envelope ) : envelope;
@@ -80,17 +84,28 @@ public class Waveform implements Element {
 				AudioData audioData = new AudioData( outBuf, 512 * 262 );
 				audioData = audioData.resample( audioData.getSamplingRate() >> ( octave + 4 ) );
 				audioData = audioData.crop( 512 >> ( octave + 4 ), audioData.getLength() - ( 1024 >> ( octave + 4 ) ) );
-				parent.setAudioData( audioData );
+				setAudioData( audioData );
 			} else {
-				parent.setAudioData( new AudioData( waveform, 512 * 262 ) );
+				setAudioData( new AudioData( waveform, 512 * 262 ) );
 			}
 		}
-		parent.setLoopStart( 0 );
-		parent.setLoopLength( parent.getAudioData().getLength() );
 	}
 
 	public String description() {
 		return "\"Type\" (Waveform type, 'Sawtooth', 'Square', 'Sine', 'Harmonics' or 'Noise'.)";
+	}
+
+	public AudioData getAudioData() {
+		return audioData;
+	}
+
+	public void setAudioData( AudioData audioData ) {
+		this.audioData = audioData;
+		if( parent != null ) {
+			parent.setAudioData( audioData );
+			parent.setLoopStart( 0 );
+			parent.setLoopLength( audioData.getLength() );
+		}
 	}
 
 	public void setOctave( int octave ) {
@@ -235,5 +250,33 @@ public class Waveform implements Element {
 			tri[ idx + 256 ] = ( byte ) ( 127 - idx );
 		}
 		return tri;
+	}
+
+	public static void main( String[] args ) throws java.io.IOException {
+		int idx = 0;
+		String patch = "Waveform Sawtooth Octave -2 Chorus 1024,0", waveFile = null;
+		while( idx < args.length ) {
+			String arg = args[ idx++ ];
+			if( "-patch".equals( arg ) ){
+				patch = args[ idx++ ];
+			} else if( "-wav".equals( arg ) ) {
+				waveFile = args[ idx++ ];
+			}
+		}
+		Waveform waveform = new Waveform();
+		if( waveFile != null ) {
+			Parser.parse( new java.io.StringReader( patch ), waveform );
+			java.io.OutputStream outputStream = new java.io.FileOutputStream( waveFile );
+			try {
+				AudioData audioData = waveform.getAudioData();
+				audioData.setSamplingRate( 512 * 262 / 4 );
+				audioData.writeWav( outputStream, false );
+			} finally {
+				outputStream.close();
+			}
+		} else {
+			System.err.println( "Usage: " + Waveform.class.getName() + " -patch \"" + patch + "\" -wav output.wav" );
+			System.err.println( "Patch syntax: " + Parser.syntax( waveform ) );
+		}
 	}
 }
