@@ -34,6 +34,6 @@ public class Speed implements Element {
 	}
 
 	public String description() {
-		return "\"6\" (Must match effect Fxx speed for correct portamento/volume slide adjustment.)";
+		return "\"6\" (Must match effect Fxx speed for correct slide adjustment.)";
 	}
 }

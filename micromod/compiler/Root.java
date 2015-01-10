@@ -34,6 +34,6 @@ public class Root implements Element {
 	}
 
 	public String description() {
-		return "\"C-2\" (Set the root key of the Macro, for which no transpose will be applied.)";
+		return "\"C-2\" (The root key of the Macro, no transpose will be applied.)";
 	}
 }

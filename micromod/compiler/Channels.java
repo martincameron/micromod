@@ -33,6 +33,6 @@ public class Channels implements Element {
 	}
 
 	public String description() {
-		return "\"4\" (Number of channels. Four channel modules have fixed panning and PAL tuning on playback.)";
+		return "\"4\" (Number of channels. Four channel modules have fixed panning.)";
 	}
 }

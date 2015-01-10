@@ -53,7 +53,10 @@ public class Pattern implements Element {
 	}
 
 	public String description() {
-		return "\"Index\" (Pattern index, from 0 to 127.)";
+		return "\"Index\" (Pattern index, from 0 to 127.)\n" +
+			"(There are 64 rows in each pattern.)\n" +
+			"(Virtual patterns can be combined using a list, such as '0,1,2'.)\n" +
+			"(This can be useful when expanding macros across patterns.)";
 	}
 
 	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {

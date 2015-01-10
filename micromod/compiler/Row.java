@@ -53,7 +53,9 @@ public class Row implements Element {
 	}
 
 	public String description() {
-		return "\"00 C-2-1--- --------\" (Row index from 0 to 63, followed by an 8-character note for each channel.)";
+		return "\"00 C-2-1--- --------\" (Specify a single row within a pattern.)\n" +
+			"(Row index, followed by 8-character notes for each channel.)\n" +
+			"(See the '-notes' command line option for more information.)";
 	}
 	
 	public void setRowIdx( int rowIdx ) {

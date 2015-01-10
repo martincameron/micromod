@@ -48,6 +48,8 @@ public class Crop implements Element {
 	}
 
 	public String description() {
-		return "\"Offset,Count[,Divisions]\" (Crop Count Divisions or samples from Offset.)";
+		return "\"Offset,Count[,Divisions]\" (Crop Count Divisions from Offset.)\n" +
+			"(The Divisions parameter divides the sample into segments.)\n" +
+			"(If unspecified, one division is equivalent to one sample.)";
 	}
 }

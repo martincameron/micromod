@@ -59,7 +59,7 @@ public class WaveFile implements Element {
 	}
 
 	public String description() {
-		return "\"FileName\" (The relative path of the Wav file.)";
+		return "\"FileName\" (The relative path of the WAV file.)";
 	}
 
 	public void setCrop( int offset, int count, int divisions ) {

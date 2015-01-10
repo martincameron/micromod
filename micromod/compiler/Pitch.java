@@ -31,6 +31,6 @@ public class Pitch implements Element {
 	}
 
 	public String description() {
-		return "\"0\" (Tune the sample by the specified number of 96ths of an octave.)";
+		return "\"0\" (Tune the sample in eighths of a semitone.)";
 	}
 }

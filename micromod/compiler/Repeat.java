@@ -36,6 +36,7 @@ public class Repeat implements Element {
 	}
 
 	public String description() {
-		return "\"Count\" (Repeat the notes from the marker Count times. Use a value of 'Begin' to set the marker.)";
+		return "\"Count\" (Repeat the notes from the marker Count times.)\n" +
+			"(Use a value of 'Begin' to set the marker.)";
 	}
 }

@@ -43,6 +43,11 @@ public class Chorus implements Element {
 	}
 
 	public String description() {
-		return "\"Cycles,ModRate,LfoRate,Detune,Mix\" (Phase modulation. Try '256,1,0,0,128' for a basic chorus, or '1,0,0,96,128' for an octave detune.)";
+		return "\"Cycles[,ModRate,LfoRate,Detune,Mix]\" (Phase modulation.)\n" +
+			"(Cycles controls cycles of unmodulated oscillator 1.)\n" +
+			"(ModRate controls cycles of osc 2 modulation. Default 1.)\n" +
+			"(LfoRate controls cycles of modulator LFO. Default 0.)\n" +
+			"(Detune adjusts pitch of osc 2 in eighths of a semitone.)\n" +
+			"(Mix controls oscillator mix from 0 to 256. Default 128.)";
 	}
 }
