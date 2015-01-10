@@ -43,24 +43,19 @@ public class Waveform implements Element {
 			setEnvelopePoint( 255, -128 );
 			setEnvelopePoint( 256,  127 );
 			setEnvelopePoint( 511,  127 );
-		} else if( "Envelope".equals( value ) ) {
-			setEnvelopePoint(   0, 0 );
-			setEnvelopePoint( 511, 0 );
-			setEnvelopePoint(   0, 0 );			
-		} else if( "Sine".equals( value ) || "Harmonics".equals( value ) ) {
+		} else if( "Sine".equals( value ) ) {
 			spectral = true;
 			setEnvelopePoint(   0,    0 );
 			setEnvelopePoint(   1, -128 );
 			setEnvelopePoint(   2,    0 );
 			setEnvelopePoint( 511,    0 );
-			setEnvelopePoint(   0,    0 );
 		} else if( "Noise".equals( value ) ) {
 			spectral = noise = true;
 			setEnvelopePoint( 0, 0 );
 			setEnvelopePoint( 1, 1 );
 			setEnvelopePoint( 256, 1 );
+			setEnvelopePoint( 257, 0 );
 			setEnvelopePoint( 511, 0 );
-			setEnvelopePoint( 0, 0 );
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
@@ -92,7 +87,7 @@ public class Waveform implements Element {
 	}
 
 	public String description() {
-		return "\"Type\" (Waveform type, 'Sawtooth', 'Square', 'Sine', 'Harmonics' or 'Noise'.)";
+		return "\"Type\" ('Sawtooth', 'Square', 'Sine', or 'Noise'.)";
 	}
 
 	public AudioData getAudioData() {
@@ -139,7 +134,8 @@ public class Waveform implements Element {
 	}
 
 	/* Set the envelope from x0 to x1 (0 to 511) by interpolating y0 to y1 (-128 to 127).
-	   The values of x0 and y0 are taken from the previously set envelope point (unless x1 is 0). */
+	   The values of x0 and y0 are taken from the previously set envelope point, unless
+	   x1 is less than or equal to x0, which sets a single point without interpolation.*/
 	public void setEnvelopePoint( int x1, int y1 ) {
 		if( x1 < 0 || x1 > 511 ) {
 			throw new IllegalArgumentException( "Invalid envelope index (0 to 511): " + x1 );
@@ -147,12 +143,9 @@ public class Waveform implements Element {
 		if( y1 < -128 || y1 > 127 ) {
 			throw new IllegalArgumentException( "Invalid envelope amplitude (-128 to 127): " + y1 );
 		}
-		if( x1 == 0 ) {
-			envelope[ 0 ] = ( byte ) y1;
+		if( x1 <= x0 ) {
+			envelope[ x1 ] = ( byte ) y1;
 		} else {
-			if( x1 <= x0 ) {
-				throw new IllegalArgumentException( "Invalid envelope index (must increase): " + x1 );
-			}
 			for( int x = 0, dx = x1 - x0, dy = y1 - y0; x <= dx; x++ ) {
 				envelope[ x0 + x ] = ( byte ) ( dy * x / dx + y0 );
 			}

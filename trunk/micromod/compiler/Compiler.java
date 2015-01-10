@@ -18,7 +18,7 @@ public class Compiler {
 		"a note with an instrument is encountered. The transpose and volume\n" +
 		"of a macro can be adjusted by using a key or set volume (effect C)\n" +
 		"in the pattern. Macros can play over multiple patterns or loop within\n" +
-		"the same pattern using double patterns, for example 'Pattern 0,1'.\n\n" +
+		"the same pattern using virtual patterns, for example 'Pattern 0,1'.\n\n" +
 		"The available effect/parameter combinations are:\n\n" +
 		"    0xy = Arpeggio, rapidly cycle through key, key + x, key + y.\n" +
 		"    1xx = Portamento up with speed xx.\n" +

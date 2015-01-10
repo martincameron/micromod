@@ -40,6 +40,11 @@ public class Point implements Element {
 	}
 
 	public String description() {
-		return "\"X,Y\" (Set envelope point. Subsequent points can also be set with 'X,Y0,Y1,...,Yn'.)";
+		return "\"X,Y\" (Set a point in the time or spectral envelope.)\n" +
+			"(If Waveform is Sawtooth or Square, set sample X from 0 to 512.)\n" +
+			"(If Waveform is Sine or Noise, set harmonic X from 1 to 256.)\n" +
+			"(The value of Y is an eight-bit quantity from -128 to 127.)\n" +
+			"(Multiple Points with increasing X are linear interpolated.)\n" +
+			"(Neighbouring values can also be set with 'X,Y0,Y1,...,Yn'.)";
 	}
 }

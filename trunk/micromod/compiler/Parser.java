@@ -85,11 +85,27 @@ public class Parser {
 		int indent = 0;
 		while( element != null ) {
 			for( int idx = 0; idx < indent; idx++ ) {
-				stringBuffer.append( '\t' );
+				stringBuffer.append( "   " );
 			}
-			stringBuffer.append( element.getToken() );
+			String token = element.getToken();
+			int tokenLen = token.length();
+			stringBuffer.append( token );
 			stringBuffer.append( ' ' );
-			stringBuffer.append( element.description() );
+			String description = element.description();
+			int splitIdx = description.indexOf( '\n' );
+			while( splitIdx >= 0 ) {
+				stringBuffer.append( description.substring( 0, splitIdx ) );
+				stringBuffer.append( '\n' );
+				for( int idx = 0; idx < indent; idx++ ) {
+					stringBuffer.append( "   " );
+				}
+				for( int idx = 0; idx <= tokenLen; idx++ ) {
+					stringBuffer.append( ' ' );
+				}
+				description = description.substring( splitIdx + 1 );
+				splitIdx = description.indexOf( '\n' );
+			}
+			stringBuffer.append( description );
 			stringBuffer.append( '\n' );
 			if( element.getChild() != null ) {
 				indent = indent + 1;

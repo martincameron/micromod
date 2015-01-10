@@ -34,6 +34,8 @@ public class Scale implements Element {
 	}
 
 	public String description() {
-		return "\"C#D#EF#G#A#B\" (Key signature of the Macro, C-Major would be 'C-D-EF-G-A-B', for example.)";
+		return "\"C#D#EF#G#A#B\" (Key signature for Macro transpose.)\n" +
+			"(All scales are specified as 12 notes starting from C.)\n" +
+			"(C-Major would be 'C-D-EF-G-A-B', and C-Minor 'C-D#-F-G#-#-'.)";
 	}
 }
