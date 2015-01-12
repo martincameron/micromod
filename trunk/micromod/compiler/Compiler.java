@@ -4,7 +4,7 @@ package micromod.compiler;
 /* Compiles textual MT files to Protracker MOD files. */
 public class Compiler {
 	private static final String NOTE_INFO =
-		"\nAn 8-character ProTracker note takes the form 'KKOIIFPP', where:\n\n" +
+		"An 8-character ProTracker note takes the form 'KKOIIFPP', where:\n\n" +
 		"    KK = Key (One of 'C-', 'C#', 'D-', 'D#', 'E-', 'F-', 'F#',\n" +
 		"                     'G-', 'G#', 'A-', 'A#', 'B-', or '--').\n" +
 		"    O  = Octave (0 to 6, or '-').\n" +
@@ -28,13 +28,13 @@ public class Compiler {
 		"    3xx = Tone portamento, slide towards the current key at speed xx.\n" +
 		"    3Fx = Tone portamento with speed x semitones per row (Macro only).\n" +
 		"    4xy = Vibrato with speed x, depth y.\n" +
-		"    5xy = Continue tone portamento with volume-slide speed of (x - y).\n" +
-		"    6xy = Continue vibrato with volume slide speed of (x - y).\n" +
+		"    5xy = Continue tone portamento with volume-slide speed (x - y).\n" +
+		"    6xy = Continue vibrato with volume slide speed (x - y).\n" +
 		"    7xx = Tremolo with speed x, depth y.\n" +
 		"    8xx = Set panning 00 to 7F. Not for 4-channel modules.\n" +
 		"    9xx = Set sample offset to xx * 256 samples.\n" +
 		"    9Fx = Increase sample offset by x * length / 64 (Macro only).\n" +
-		"    Axy = Volume slide with speed of (x - y).\n" +
+		"    Axy = Volume slide with speed (x - y).\n" +
 		"    AxF = Linear volume-slide up with speed x (Macro only).\n" +
 		"    AFx = Linear volume-slide down with speed x (Macro only).\n" +
 		"    Bxx = Pattern jump to pattern xx.\n" +
