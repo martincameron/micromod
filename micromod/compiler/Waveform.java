@@ -268,7 +268,8 @@ public class Waveform implements Element {
 				outputStream.close();
 			}
 		} else {
-			System.err.println( "Usage: " + Waveform.class.getName() + " -patch \"" + patch + "\" -wav output.wav" );
+			System.err.println( "Usage: " + Waveform.class.getName() +
+				"\n      -patch \"" + patch + "\" -wav output.wav" );
 			System.err.println( "Patch syntax: " + Parser.syntax( waveform ) );
 		}
 	}

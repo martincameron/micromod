@@ -82,31 +82,22 @@ public class Parser {
 
 	public static String syntax( Element element ) {
 		StringBuffer stringBuffer = new StringBuffer();
-		int indent = 0;
+		int tab = 4, indent = 0;
 		while( element != null ) {
-			for( int idx = 0; idx < indent; idx++ ) {
-				stringBuffer.append( "   " );
-			}
 			String token = element.getToken();
-			int tokenLen = token.length();
-			stringBuffer.append( token );
-			stringBuffer.append( ' ' );
-			String description = element.description();
+			String description = token + ' ' + element.description() + '\n';
 			int splitIdx = description.indexOf( '\n' );
+			int spaces = indent * tab;
 			while( splitIdx >= 0 ) {
-				stringBuffer.append( description.substring( 0, splitIdx ) );
-				stringBuffer.append( '\n' );
-				for( int idx = 0; idx < indent; idx++ ) {
-					stringBuffer.append( "   " );
-				}
-				for( int idx = 0; idx <= tokenLen; idx++ ) {
+				for( int idx = 0; idx < spaces; idx++ ) {
 					stringBuffer.append( ' ' );
 				}
+				stringBuffer.append( description.substring( 0, splitIdx ) );
+				stringBuffer.append( '\n' );
+				spaces = indent * tab + token.length() + 1;
 				description = description.substring( splitIdx + 1 );
 				splitIdx = description.indexOf( '\n' );
 			}
-			stringBuffer.append( description );
-			stringBuffer.append( '\n' );
 			if( element.getChild() != null ) {
 				indent = indent + 1;
 				element = element.getChild();
