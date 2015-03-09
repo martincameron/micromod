@@ -422,7 +422,7 @@ Var
 	Period, Freq, Volume : LongInt;
 Begin
 	Period := Channel.Period + Channel.VibratoAdd;
-	If Period < 14 Then Period := 14;
+	If Period < 14 Then Period := 6848;
 	Freq := C2Rate * 107 Div Period;
 	Freq := ( ( Freq * ArpTuning[ Channel.ArpeggioAdd ] ) Shr 12 ) And $FFFF;
 	Channel.Step := ( Freq Shl FP_SHIFT ) Div ( SampleRate Shr 1 );

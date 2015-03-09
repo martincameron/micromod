@@ -103,7 +103,7 @@ static void update_frequency( struct channel *chan ) {
 	period = chan->period + chan->vibrato_add;
 	period = period * arp_tuning[ chan->arpeggio_add ] >> 11;
 	period = ( period >> 1 ) + ( period & 1 );
-	if( period < 14 ) period = 14;
+	if( period < 14 ) period = 6848;
 	freq = c2_rate * 428 / period;
 	chan->step = ( freq << FP_SHIFT ) / sample_rate;
 	volume = chan->volume + chan->tremolo_add;
