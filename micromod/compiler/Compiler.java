@@ -95,13 +95,13 @@ public class Compiler {
 				convert( new java.io.File( mtFile ), new java.io.File( modFile ) );
 			} else {
 				System.out.println( "Compiling and playing '" + mtFile + "'." );
-				play( new java.io.File( mtFile ), sequence, interpolation );
+				play( compile( new java.io.File( mtFile ) ).getModule(), sequence, interpolation );
 			}
-		} else if( modFile != null && ( outDir != null || wavFile != null ) ) {
+		} else if( modFile != null ) {
 			if( outDir != null ) {
 				System.out.println( "Extracting module '" + modFile + "' to directory '" + outDir + "'." );
 				decompile( new micromod.Module( new java.io.FileInputStream( modFile ) ), new java.io.File( outDir ) );
-			} else {
+			} else if( wavFile != null ) {
 				System.out.println( "Converting module '" + modFile + "' to sample '" + wavFile + "'." );
 				if( sequence == null || sequence.length < 1 ) {
 					sequence = new int[ 1 ];
@@ -110,11 +110,15 @@ public class Compiler {
 					key = micromod.Note.parseKey( "C-2" );
 				}
 				patternToSample( new java.io.File( modFile ), new java.io.File( wavFile ), sequence[ 0 ], key, interpolation );
+			} else {
+				System.out.println( "Playing module '" + modFile + "'." );
+				play( new micromod.Module( new java.io.FileInputStream( modFile ) ), sequence, interpolation );
 			}
 		} else {
-			System.err.println( "Micromod Compiler! (c)2014 mumart@gmail.com" );
+			System.err.println( "Micromod Compiler! " + micromod.Micromod.VERSION );
 			System.err.println( "             Play: input.mt [-hq] [-seq 1,2,3]" );
 			System.err.println( "          Compile: input.mt [-out output.mod]" );
+			System.err.println( "         Play Mod: -mod module.mod [-hq]" );
 			System.err.println( "        Decompile: -mod input.mod -dir outputdir" );
 			System.err.println( "    Mod To Sample: -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-hq]" );
 			System.err.println( "  Print MT Syntax: -syntax" );
@@ -122,15 +126,14 @@ public class Compiler {
 		}
 	}
 
-	private static void play( java.io.File mtFile, int[] sequence, boolean interpolation ) throws java.io.IOException {
-		Module module = compile( mtFile );
+	private static void play( micromod.Module module, int[] sequence, boolean interpolation ) throws java.io.IOException {
 		if( sequence != null ) {
 			module.setSequenceLength( sequence.length );
 			for( int idx = 0; idx < sequence.length; idx++ ) {
 				module.setSequenceEntry( idx, sequence[ idx ] );
 			}
 		}
-		micromod.Player player = new micromod.Player( module.getModule(), interpolation, false );
+		micromod.Player player = new micromod.Player( module, interpolation, false );
 		System.out.println( player.getModuleInfo() );
 		Thread thread = new Thread( player );
 		thread.start();
