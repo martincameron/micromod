@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>IBXM for JavaScript</title>
+	</head>
+	<body>
+		<script type="text/javascript" src="AudioPlayer.js"></script>
+		<script type="text/javascript" src="IBXM.js"></script>
+		<script type="text/javascript">
+			var player = new AudioPlayer();
+			function play() {
+				player.play();
+			}
+			function stop() {
+				player.stop();
+			}
+			function setModule( moduleData ) {
+				stop();
+				var module = new IBXMModule( moduleData );
+				var replay = new IBXMReplay( module, player.getSamplingRate() );
+				player.setAudioSource( replay );
+				document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
+			}
+			function loadFile( file ) {
+				var reader = new FileReader();
+				reader.onloadend = function( event ) {
+					setModule( new Int8Array( reader.result ) );
+				};
+				reader.readAsArrayBuffer( file );
+			}
+			function loadURL( url ) {
+				var request = new XMLHttpRequest();
+				request.open( "GET", url, true );
+				request.responseType = "arraybuffer";
+				request.onload = function( event ) {
+					setModule( new Int8Array( request.response ) );
+				};
+				request.send( null );
+			}
+		</script>
+		<p>
+			<h3>IBXM for JavaScript!</h3>
+		</p>
+		<p>
+			Please direct any comments, questions, complaints :) to mumart@gmail.com
+		</p>
+		<p>
+			<div id="songName">No song loaded.</div>
+		</p>
+		<p>
+			<input type="file" id="input" onchange="loadFile( this.files[ 0 ] )"></input>
+			<button onclick="play()">Play</button>
+			<button onclick="stop()">Stop</button>
+		</p>
+	</body>
+</html>
