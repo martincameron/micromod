@@ -1,11 +1,11 @@
 
 /*
-	JavaScript ProTracker Replay (c)2014 mumart@gmail.com
+	JavaScript ProTracker Replay (c)2015 mumart@gmail.com
 */
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20141126 (c)2014 mumart@gmail.com";
+		return "20150503 (c)2015 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -111,28 +111,26 @@ function Micromod( module, samplingRate ) {
 		}
 	}
 
-	/* Write count floating-point stereo samples into outputBuf. */
-	this.getAudio = function( outputBuf, count ) {
+	/* Write count floating-point stereo samples into the specified buffers. */
+	this.getAudio = function( leftBuf, rightBuf, count ) {
 		var outIdx = 0;
 		while( outIdx < count ) {
 			if( mixIdx >= mixLen ) {
-				mixLen = mixAudio( mixBuf );
+				mixLen = mixAudio();
 				mixIdx = 0;
 			}
 			var remain = mixLen - mixIdx;
 			if( ( outIdx + remain ) > count ) {
 				remain = count - outIdx;
 			}
-			for( var idx = outIdx << 1, end = ( outIdx + remain ) << 1, mix = mixIdx << 1; idx < end; ) {
-				// Convert to floating-point and divide by ~32768 for output.
-				outputBuf[ idx++ ] = mixBuf[ mix++ ] * 0.0000305;
+			for( var end = outIdx + remain; outIdx < end; outIdx++, mixIdx++ ) {
+				leftBuf[ outIdx ] = mixBuf[ mixIdx * 2 ];
+				rightBuf[ outIdx ] = mixBuf[ mixIdx * 2 + 1 ];
 			}
-			mixIdx += remain;
-			outIdx += remain;
 		}
 	}
 
-	var mixAudio = function( outputBuf ) {
+	var mixAudio = function() {
 		// Generate audio. The number of samples produced is returned.
 		var tickLen = calculateTickLen( tempo, samplingRate );
 		for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
@@ -146,7 +144,7 @@ function Micromod( module, samplingRate ) {
 			chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
 		}
 		downsample( mixBuf, tickLen + 64 );
-		volumeRamp( mixBuf, tickLen );
+		volumeRamp( tickLen );
 		// Update the sequencer.
 		seqTick();
 		return tickLen;
@@ -156,12 +154,12 @@ function Micromod( module, samplingRate ) {
 		return ( ( sampleRate * 5 ) / ( tempo * 2 ) ) | 0;
 	}
 
-	var volumeRamp = function( mixBuf, tickLen ) {
-		var rampRate = ( 256 * 2048 / samplingRate ) | 0;
-		for( var idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
-			var a2 = 256 - a1;
-			mixBuf[ idx     ] = ( mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2 ) >> 8;
-			mixBuf[ idx + 1 ] = ( mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2 ) >> 8;
+	var volumeRamp = function( tickLen ) {
+		var rampRate = 2048 / samplingRate;
+		for( var idx = 0, a1 = 0; a1 < 1; idx += 2, a1 += rampRate ) {
+			var a2 = 1 - a1;
+			mixBuf[ idx     ] = mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2;
+			mixBuf[ idx + 1 ] = mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2;
 		}
 		rampBuf.set( mixBuf.subarray( tickLen * 2, ( tickLen + 64 ) * 2 ) );
 	}
@@ -171,8 +169,8 @@ function Micromod( module, samplingRate ) {
 		// Buf must contain count * 2 + 1 stereo samples.
 		var outLen = count * 2;
 		for( inIdx = 0, outIdx = 0; outIdx < outLen; inIdx += 4, outIdx += 2 ) {
-			buf[ outIdx     ] = ( buf[ inIdx     ] >> 2 ) + ( buf[ inIdx + 2 ] >> 1 ) + ( buf[ inIdx + 4 ] >> 2 );
-			buf[ outIdx + 1 ] = ( buf[ inIdx + 1 ] >> 2 ) + ( buf[ inIdx + 3 ] >> 1 ) + ( buf[ inIdx + 5 ] >> 2 );
+			buf[ outIdx     ] = buf[ inIdx     ] * 0.25 + buf[ inIdx + 2 ] * 0.5 + buf[ inIdx + 4 ] * 0.25;
+			buf[ outIdx + 1 ] = buf[ inIdx + 1 ] * 0.25 + buf[ inIdx + 3 ] * 0.5 + buf[ inIdx + 5 ] * 0.25;
 		}
 	}
 
@@ -282,8 +280,8 @@ function Micromod( module, samplingRate ) {
 	}
 
 	var interpolation = false;
-	var rampBuf = new Int32Array( 64 * 2 );
-	var mixBuf = new Int32Array( ( calculateTickLen( 32, 128000 ) + 65 ) * 4 );
+	var rampBuf = new Float32Array( 64 * 2 );
+	var mixBuf = new Float32Array( ( calculateTickLen( 32, 128000 ) + 65 ) * 4 );
 	var mixIdx = 0, mixLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, tempo = 0, plCount = 0, plChannel = 0;
@@ -293,8 +291,6 @@ function Micromod( module, samplingRate ) {
 }
 
 function Channel( module, id ) {
-	var FP_SHIFT = 15, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1;
-
 	var fineTuning = new Int16Array([
 		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
 		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
@@ -307,8 +303,8 @@ function Channel( module, id ) {
 
 	var noteKey = 0, noteEffect = 0, noteParam = 0;
 	var noteIns = 0, instrument = 0, assigned = 0;
+	var sampleOffset = 0, sampleIdx = 0, freq = 0;
 	var volume = 0, panning = 0, fineTune = 0, ampl = 0;
-	var sampleOffset = 0, sampleIdx = 0, sampleFra = 0, freq = 0;
 	var period = 0, portaPeriod = 0, portaSpeed = 0, fxCount = 0;
 	var vibratoType = 0, vibratoPhase = 0, vibratoSpeed = 0, vibratoDepth = 0;
 	var tremoloType = 0, tremoloPhase = 0, tremoloSpeed = 0, tremoloDepth = 0;
@@ -322,61 +318,54 @@ function Channel( module, id ) {
 
 	this.resample = function( outBuf, offset, count, sampleRate, interpolate ) {
 		if( ampl <= 0 ) return;
-		var lAmpl = ampl * panning >> 8;
-		var rAmpl = ampl * ( 255 - panning ) >> 8;
+		var lGain = ampl * panning / 32768;
+		var rGain = ampl * ( 255 - panning ) / 32768;
 		var samIdx = sampleIdx;
-		var samFra = sampleFra;
-		var step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
+		var step = freq / sampleRate;
 		var ins = module.instruments[ instrument ];
 		var loopLen = ins.loopLength;
-		var loopEp1 = ins.loopStart + loopLen;
+		var loopEnd = ins.loopStart + loopLen;
 		var sampleData = ins.sampleData;
-		var outIdx = offset << 1;
-		var outEp1 = ( offset + count ) << 1;
+		var outIdx = offset * 2;
+		var outEnd = ( offset + count ) * 2;
 		if( interpolate ) {
-			while( outIdx < outEp1 ) {
-				if( samIdx >= loopEp1 ) {
+			while( outIdx < outEnd ) {
+				if( samIdx >= loopEnd ) {
 					if( loopLen <= 1 ) break;
-					while( samIdx >= loopEp1 ) samIdx -= loopLen;
+					while( samIdx >= loopEnd ) samIdx -= loopLen;
 				}
-				var c = sampleData[ samIdx ];
-				var m = sampleData[ samIdx + 1 ] - c;
-				var y = ( ( m * samFra ) >> ( FP_SHIFT - 8 ) ) + ( c << 8 );
-				outBuf[ outIdx++ ] += ( y * lAmpl ) >> FP_SHIFT;
-				outBuf[ outIdx++ ] += ( y * rAmpl ) >> FP_SHIFT;
-				samFra += step;
-				samIdx += samFra >> FP_SHIFT;
-				samFra &= FP_MASK;
+				var x = samIdx | 0;
+				var c = sampleData[ x ];
+				var m = sampleData[ x + 1 ] - c;
+				var y = ( m * ( samIdx - x ) ) + c;
+				outBuf[ outIdx++ ] += y * lGain;
+				outBuf[ outIdx++ ] += y * rGain;
+				samIdx += step;
 			}
 		} else {
-			while( outIdx < outEp1 ) {
-				if( samIdx >= loopEp1 ) {
+			while( outIdx < outEnd ) {
+				if( samIdx >= loopEnd ) {
 					if( loopLen <= 1 ) break;
-					while( samIdx >= loopEp1 ) samIdx -= loopLen;
+					while( samIdx >= loopEnd ) samIdx -= loopLen;
 				}
-				var y = sampleData[ samIdx ];
-				outBuf[ outIdx++ ] += ( y * lAmpl ) >> ( FP_SHIFT - 8 );
-				outBuf[ outIdx++ ] += ( y * rAmpl ) >> ( FP_SHIFT - 8 );
-				samFra += step;
-				samIdx += samFra >> FP_SHIFT;
-				samFra &= FP_MASK;
+				var y = sampleData[ samIdx | 0 ];
+				outBuf[ outIdx++ ] += y * lGain;
+				outBuf[ outIdx++ ] += y * rGain;
+				samIdx += step;
 			}
 		}
 	}
 
 	this.updateSampleIdx = function( count, sampleRate ) {
-		var step = ( freq << ( FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
-		sampleFra += step * count;
-		sampleIdx += sampleFra >> FP_SHIFT;
+		sampleIdx += ( freq / sampleRate ) * count;
 		var ins = module.instruments[ instrument ];
-		var loopStart = ins.loopStart;
-		var loopLength = ins.loopLength;
-		var loopOffset = sampleIdx - loopStart;
-		if( loopOffset > 0 ) {
-			sampleIdx = loopStart;
-			if( loopLength > 1 ) sampleIdx += ( loopOffset % loopLength ) | 0;
+		if( sampleIdx > ins.loopStart ) {
+			if( ins.loopLength > 1 ) {
+				sampleIdx = ins.loopStart + ( sampleIdx - ins.loopStart ) % ins.loopLength;
+			} else {
+				sampleIdx = ins.loopStart;
+			}
 		}
-		sampleFra &= FP_MASK;
 	}
 
 	this.row = function( key, ins, effect, param ) {
@@ -501,16 +490,15 @@ function Channel( module, id ) {
 
 	var updateFrequency = function() {
 		var per = period + vibratoAdd;
-		per = per * module.keyToPeriod[ arpeggioAdd ] * 2 / module.keyToPeriod[ 0 ];
-		per = ( per >> 1 ) + ( per & 1 );
+		per = per * module.keyToPeriod[ arpeggioAdd ] / module.keyToPeriod[ 0 ];
 		if( per < 7 ) {
 			 per = 6848;
 		}
-		freq = ( module.c2Rate * 428 / per ) | 0;
+		freq = module.c2Rate * 428 / per;
 		var vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		ampl = ( vol * module.gain * FP_ONE ) >> 13;
+		ampl = vol * module.gain / 8192;
 	}
 
 	var trigger = function() {
@@ -600,8 +588,7 @@ function Instrument() {
 	this.sampleData = new Int8Array( 0 );
 }
 
-
-function Module() {
+function Module( module ) {
 	this.songName = "Blank";
 	this.numChannels = 4;
 	this.numInstruments = 1;
@@ -614,9 +601,6 @@ function Module() {
 	this.sequence = new Int8Array( 1 );
 	this.instruments = new Array( this.numInstruments + 1 );
 	this.instruments[ 0 ] = this.instruments[ 1 ] = new Instrument();
-}
-
-function Module( module ) {
 	this.keyToPeriod = new Int16Array([ 1814,
 	/*	 C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-0  A#0  B-0 */
 		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
@@ -626,116 +610,115 @@ function Module( module ) {
 		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
 		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28
 	]);
-
-	var ushortbe = function( buf, offset ) {
-		return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
-	}
-	
-	var ascii = function( buf, offset, len ) {
-		var str = "";
-		for( var idx = 0; idx < len; idx++ ) {
-			var c = buf[ offset + idx ] & 0xFF;
-			str += c < 32 ? " " : String.fromCharCode( c );
+	if( module != undefined ) {
+		var ushortbe = function( buf, offset ) {
+			return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
 		}
-		return str;
-	}
-
-	this.songName = ascii( module, 0, 20 );
-	this.sequenceLength = module[ 950 ] & 0x7F;
-	this.restartPos = module[ 951 ] & 0x7F;
-	if( this.restartPos >= this.sequenceLength ) {
-		this.restartPos = 0;
-	}
-	this.numPatterns = 0;
-	this.sequence = new Int8Array( 128 );
-	for( var seqIdx = 0; seqIdx < 128; seqIdx++ ) {
-		var patIdx = module[ 952 + seqIdx ] & 0x7F;
-		this.sequence[ seqIdx ] = patIdx;
-		if( patIdx >= this.numPatterns ) {
-			this.numPatterns = patIdx + 1;
-		}
-	}
-	switch( ushortbe( module, 1082 ) ) {
-		case 0x4b2e: /* M.K. */
-		case 0x4b21: /* M!K! */
-		case 0x5434: /* FLT4 */
-			this.numChannels = 4;
-			this.c2Rate = 8287; /* PAL */
-			this.gain = 64;
-			break;
-		case 0x484e: /* xCHN */
-			this.numChannels = module[ 1080 ] - 48;
-			this.c2Rate = 8363; /* NTSC */
-			this.gain = 32;
-			break;
-		case 0x4348: /* xxCH */
-			this.numChannels = ( module[ 1080 ] - 48 ) * 10;
-			this.numChannels += module[ 1081 ] - 48;
-			this.c2Rate = 8363; /* NTSC */
-			this.gain = 32;
-			break;
-		default:
-			throw "MOD Format not recognised!";
-	}
-	var numNotes = this.numPatterns * 64 * this.numChannels;
-	this.patterns = new Int8Array( numNotes * 4 );
-	for( var patIdx = 0; patIdx < this.patterns.length; patIdx += 4 ) {
-		var period = ( module[ 1084 + patIdx ] & 0xF ) << 8;
-		period = period | ( module[ 1084 + patIdx + 1 ] & 0xFF );
-		if( period < 28 ) {
-			this.patterns[ patIdx ] = 0;
-		} else {
-			/* Convert period to key. */
-			var key = 0, oct = 0;
-			while( period < 907 ) {
-				period *= 2;
-				oct++;
+		var ascii = function( buf, offset, len ) {
+			var str = "";
+			for( var idx = 0; idx < len; idx++ ) {
+				var c = buf[ offset + idx ] & 0xFF;
+				str += c < 32 ? " " : String.fromCharCode( c );
 			}
-			while( key < 12 ) {
-				var d1 = this.keyToPeriod[ key ] - period;
-				var d2 = period - this.keyToPeriod[ key + 1 ];
-				if( d2 >= 0 ) {
-					if( d2 < d1 ) key++;
-					break;
+			return str;
+		}
+		this.songName = ascii( module, 0, 20 );
+		this.sequenceLength = module[ 950 ] & 0x7F;
+		this.restartPos = module[ 951 ] & 0x7F;
+		if( this.restartPos >= this.sequenceLength ) {
+			this.restartPos = 0;
+		}
+		this.numPatterns = 0;
+		this.sequence = new Int8Array( 128 );
+		for( var seqIdx = 0; seqIdx < 128; seqIdx++ ) {
+			var patIdx = module[ 952 + seqIdx ] & 0x7F;
+			this.sequence[ seqIdx ] = patIdx;
+			if( patIdx >= this.numPatterns ) {
+				this.numPatterns = patIdx + 1;
+			}
+		}
+		switch( ushortbe( module, 1082 ) ) {
+			case 0x4b2e: /* M.K. */
+			case 0x4b21: /* M!K! */
+			case 0x5434: /* FLT4 */
+				this.numChannels = 4;
+				this.c2Rate = 8287; /* PAL */
+				this.gain = 64;
+				break;
+			case 0x484e: /* xCHN */
+				this.numChannels = module[ 1080 ] - 48;
+				this.c2Rate = 8363; /* NTSC */
+				this.gain = 32;
+				break;
+			case 0x4348: /* xxCH */
+				this.numChannels = ( module[ 1080 ] - 48 ) * 10;
+				this.numChannels += module[ 1081 ] - 48;
+				this.c2Rate = 8363; /* NTSC */
+				this.gain = 32;
+				break;
+			default:
+				throw "MOD Format not recognised!";
+		}
+		var numNotes = this.numPatterns * 64 * this.numChannels;
+		this.patterns = new Int8Array( numNotes * 4 );
+		for( var patIdx = 0; patIdx < this.patterns.length; patIdx += 4 ) {
+			var period = ( module[ 1084 + patIdx ] & 0xF ) << 8;
+			period = period | ( module[ 1084 + patIdx + 1 ] & 0xFF );
+			if( period < 28 ) {
+				this.patterns[ patIdx ] = 0;
+			} else {
+				/* Convert period to key. */
+				var key = 0, oct = 0;
+				while( period < 907 ) {
+					period *= 2;
+					oct++;
 				}
-				key++;
+				while( key < 12 ) {
+					var d1 = this.keyToPeriod[ key ] - period;
+					var d2 = period - this.keyToPeriod[ key + 1 ];
+					if( d2 >= 0 ) {
+						if( d2 < d1 ) key++;
+						break;
+					}
+					key++;
+				}
+				this.patterns[ patIdx ] = oct * 12 + key;
 			}
-			this.patterns[ patIdx ] = oct * 12 + key;
+			var ins = ( module[ 1084 + patIdx + 2 ] & 0xF0 ) >> 4;
+			this.patterns[ patIdx + 1 ] = ins | ( module[ 1084 + patIdx ] & 0x10 );
+			this.patterns[ patIdx + 2 ] = module[ 1084 + patIdx + 2 ] & 0xF;
+			this.patterns[ patIdx + 3 ] = module[ 1084 + patIdx + 3 ];
 		}
-		var ins = ( module[ 1084 + patIdx + 2 ] & 0xF0 ) >> 4;
-		this.patterns[ patIdx + 1 ] = ins | ( module[ 1084 + patIdx ] & 0x10 );
-		this.patterns[ patIdx + 2 ] = module[ 1084 + patIdx + 2 ] & 0xF;
-		this.patterns[ patIdx + 3 ] = module[ 1084 + patIdx + 3 ];
-	}
-	this.numInstruments = 31;
-	this.instruments = new Array( this.numInstruments + 1 );
-	this.instruments[ 0 ] = new Instrument();
-	var modIdx = 1084 + numNotes * 4;
-	for( var instIdx = 1; instIdx <= this.numInstruments; instIdx++ ) {
-		var inst = new Instrument();
-		inst.instrumentName = ascii( module, instIdx * 30 - 10, 22 );
-		var sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
-		inst.fineTune = module[ instIdx * 30 + 14 ] & 0xF;
-		inst.volume = module[ instIdx * 30 + 15 ] & 0x7F;
-		if( inst.volume > 64 ) {
-			inst.volume = 64;
+		this.numInstruments = 31;
+		this.instruments = new Array( this.numInstruments + 1 );
+		this.instruments[ 0 ] = new Instrument();
+		var modIdx = 1084 + numNotes * 4;
+		for( var instIdx = 1; instIdx <= this.numInstruments; instIdx++ ) {
+			var inst = new Instrument();
+			inst.instrumentName = ascii( module, instIdx * 30 - 10, 22 );
+			var sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
+			inst.fineTune = module[ instIdx * 30 + 14 ] & 0xF;
+			inst.volume = module[ instIdx * 30 + 15 ] & 0x7F;
+			if( inst.volume > 64 ) {
+				inst.volume = 64;
+			}
+			inst.loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
+			inst.loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
+			if( inst.loopStart + inst.loopLength > sampleLength ) {
+				inst.loopLength = sampleLength - inst.loopStart;
+			}
+			if( inst.loopLength < 4 ) {
+				inst.loopStart = sampleLength;
+				inst.loopLength = 0;
+			}
+			inst.sampleData = new Int8Array( sampleLength + 1 );
+			if( modIdx + sampleLength > module.length ) {
+				sampleLength = module.length - modIdx;
+			}
+			inst.sampleData.set( module.subarray( modIdx, modIdx + sampleLength ) );
+			inst.sampleData[ inst.loopStart + inst.loopLength ] = inst.sampleData[ inst.loopStart ];
+			modIdx += sampleLength;
+			this.instruments[ instIdx ] = inst;
 		}
-		inst.loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
-		inst.loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
-		if( inst.loopStart + inst.loopLength > sampleLength ) {
-			inst.loopLength = sampleLength - inst.loopStart;
-		}
-		if( inst.loopLength < 4 ) {
-			inst.loopStart = sampleLength;
-			inst.loopLength = 0;
-		}
-		inst.sampleData = new Int8Array( sampleLength + 1 );
-		if( modIdx + sampleLength > module.length ) {
-			sampleLength = module.length - modIdx;
-		}
-		inst.sampleData.set( module.subarray( modIdx, modIdx + sampleLength ) );
-		inst.sampleData[ inst.loopStart + inst.loopLength ] = inst.sampleData[ inst.loopStart ];
-		modIdx += sampleLength;
-		this.instruments[ instIdx ] = inst;
 	}
 }
