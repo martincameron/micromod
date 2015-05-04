@@ -805,7 +805,7 @@ function IBXMChannel( replay, id ) {
 				if( replay.module.linearPeriods ) {
 					per = 7744 - per;
 				} else {
-					per = Math.round( 29021 * Math.pow( 2, -per / 768 ) );
+					per = 29021 * Math.pow( 2, -per / 768 );
 				}
 				portaPeriod = Math.round( replay.module.c2Rate * per / sample.c2Rate );
 				if( !isPorta ) {
@@ -899,23 +899,23 @@ function IBXMSample() {
 	this.sampleData = new Int16Array( 1 );
 	this.setSampleData = function( sampleData, loopStart, loopLength, pingPong ) {
 		var sampleLength = sampleData.length;
-		// Fix loop if necessary.
+		/* Fix loop if necessary.*/
 		if( loopStart < 0 || loopStart > sampleLength )
 			loopStart = sampleLength;
 		if( loopLength < 0 || ( loopStart + loopLength ) > sampleLength )
 			loopLength = sampleLength - loopStart;
 		sampleLength = loopStart + loopLength;
-		// Allocate new sample.
+		/* Allocate new sample.*/
 		var newSampleData = new Int16Array( sampleLength + ( pingPong ? loopLength : 0 ) + 1 );
 		newSampleData.set( sampleData.subarray( 0, sampleLength ) );
 		sampleData = newSampleData;
 		if( pingPong ) {
-			// Calculate reversed loop.
+			/* Calculate reversed loop.*/
 			for( var idx = 0; idx < loopLength; idx++ )
 				sampleData[ sampleLength + idx ] = sampleData[ sampleLength - idx - 1 ];
 			loopLength *= 2;
 		}
-		// Extend loop for linear interpolation.
+		/* Extend loop for linear interpolation.*/
 		sampleData[ loopStart + loopLength ] = sampleData[ loopStart ];
 		this.sampleData = sampleData;
 		this.loopStart = loopStart;
@@ -1239,7 +1239,7 @@ function IBXMModule( moduleData ) {
 				}
 				var noteKey = 0;
 				var noteIns = 0;
-				if( ( token & 0x20 ) == 0x20 ) { //* Key + Instrument.*
+				if( ( token & 0x20 ) == 0x20 ) { /* Key + Instrument.*/
 					noteKey = moduleData.uByte( inOffset++ );
 					noteIns = moduleData.uByte( inOffset++ );
 					if( noteKey < 0xFE )
@@ -1247,13 +1247,13 @@ function IBXMModule( moduleData ) {
 					if( noteKey == 0xFF ) noteKey = 0;
 				}
 				var noteVol = 0;
-				if( ( token & 0x40 ) == 0x40 ) { //* Volume Column.*
+				if( ( token & 0x40 ) == 0x40 ) { /* Volume Column.*/
 					noteVol = ( moduleData.uByte( inOffset++ ) & 0x7F ) + 0x10;
 					if( noteVol > 0x50 ) noteVol = 0;
 				}
 				var noteEffect = 0;
 				var noteParam = 0;
-				if( ( token & 0x80 ) == 0x80 ) { //* Effect + Param.*
+				if( ( token & 0x80 ) == 0x80 ) { /* Effect + Param.*/
 					noteEffect = moduleData.uByte( inOffset++ );
 					noteParam = moduleData.uByte( inOffset++ );
 					if( noteEffect < 1 || noteEffect >= 0x40 )
