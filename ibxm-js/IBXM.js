@@ -1345,7 +1345,7 @@ function IBXMModule( moduleData ) {
 				var param  = moduleData.uByte( moduleDataIdx + 3 );
 				if( param == 0 && ( effect < 3 || effect == 0xA ) ) effect = 0;
 				if( param == 0 && ( effect == 5 || effect == 6 ) ) effect -= 2;
-				if( effect == 8 && numChannels == 4 ) effect = param = 0;
+				if( effect == 8 && this.numChannels == 4 ) effect = param = 0;
 				pattern.data[ patDataIdx + 3 ] = effect;
 				pattern.data[ patDataIdx + 4 ] = param;
 				moduleDataIdx += 4;
