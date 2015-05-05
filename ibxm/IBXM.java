@@ -2,15 +2,15 @@
 package ibxm;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2014 mumart@gmail.com
+	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2015 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a69 (c)2014 mumart@gmail.com";
+	public static final String VERSION = "a70dev (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
 	private Channel[] channels;
-	private int sampleRate, interpolation;
+	private int sampleRate, c2Rate, interpolation;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, tempo, plCount, plChannel;
 	private GlobalVol globalVol;
@@ -20,6 +20,7 @@ public class IBXM {
 	public IBXM( Module module, int samplingRate ) {
 		this.module = module;
 		setSampleRate( samplingRate );
+		setC2Rate( module.c2Rate );
 		interpolation = Channel.LINEAR;
 		rampBuf = new int[ 128 ];
 		channels = new Channel[ module.numChannels ];
@@ -35,12 +36,16 @@ public class IBXM {
 
 	/* Set the sampling rate of playback. */
 	public void setSampleRate( int rate ) {
-		// Use with Module.c2Rate to adjust the tempo of playback.
-		// To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
 		if( rate < 8000 || rate > 128000 ) {
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
 		}
 		sampleRate = rate;
+	}
+
+	/* Adjust the frequency of the C key for pitch shifting.
+	   The default is module.c2Rate. */
+	public void setC2Rate( int c2Rate ) {
+		this.c2Rate = c2Rate;
 	}
 
 	/* Set the resampling quality to one of
@@ -100,9 +105,10 @@ public class IBXM {
 		setSequencePos( 0 );
 		int currentPos = 0;
 		int tickLen = calculateTickLen( tempo, sampleRate );
+		int frequency = sampleRate * module.c2Rate / c2Rate;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( int idx = 0; idx < module.numChannels; idx++ )
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
 			currentPos += tickLen;
 			tick();
 			tickLen = calculateTickLen( tempo, sampleRate );
@@ -112,6 +118,7 @@ public class IBXM {
 
 	/* Seek to the specified position and row in the sequence. */
 	public void seekSequencePos( int sequencePos, int sequenceRow ) {
+		int frequency = sampleRate * module.c2Rate / c2Rate;
 		setSequencePos( 0 );
 		if( sequencePos < 0 || sequencePos >= module.sequenceLength )
 			sequencePos = 0;
@@ -120,9 +127,9 @@ public class IBXM {
 		while( seqPos < sequencePos || row < sequenceRow ) {
 			int tickLen = calculateTickLen( tempo, sampleRate );
 			for( int idx = 0; idx < module.numChannels; idx++ )
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
 			if( tick() ) {
-				// Song end reached.
+				/* Song end reached. */
 				setSequencePos( sequencePos );
 				return;
 			}
@@ -135,14 +142,15 @@ public class IBXM {
 	   A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels. */
 	public int getAudio( int[] outputBuf ) {
 		int tickLen = calculateTickLen( tempo, sampleRate );
-		// Clear output buffer.
+		int frequency = sampleRate * module.c2Rate / c2Rate;
+		/* Clear output buffer. */
 		for( int idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ )
 			outputBuf[ idx ] = 0;
-		// Resample.
+		/* Resample. */
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
-			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
+			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, frequency * 2, interpolation );
+			chan.updateSampleIdx( tickLen * 2, frequency * 2 );
 		}
 		downsample( outputBuf, tickLen + 64 );
 		volumeRamp( outputBuf, tickLen );
@@ -165,7 +173,7 @@ public class IBXM {
 	}
 
 	private void downsample( int[] buf, int count ) {
-		// 2:1 downsampling with simple but effective anti-aliasing. Buf must contain count * 2 + 1 stereo samples.
+		/* 2:1 downsampling with simple but effective anti-aliasing. Buf must contain count * 2 + 1 stereo samples. */
 		int outLen = count * 2;
 		for( int inIdx = 0, outIdx = 0; outIdx < outLen; inIdx += 4, outIdx += 2 ) {
 			buf[ outIdx     ] = ( buf[ inIdx     ] >> 2 ) + ( buf[ inIdx + 2 ] >> 1 ) + ( buf[ inIdx + 4 ] >> 2 );

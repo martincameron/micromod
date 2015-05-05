@@ -578,9 +578,7 @@ public class Channel {
 				int key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;
 				if( key > 120 ) key = 120;
-				int per = keyToPeriod( key, fineTune, module.linearPeriods );
-				per = module.c2Rate * per * 2 / sample.c2Rate;
-				portaPeriod = ( per >> 1 ) + ( per & 1 );
+				portaPeriod = keyToPeriod( key, fineTune, sample.c2Rate );
 				if( !isPorta ) {
 					period = portaPeriod;
 					sampleIdx = sampleOffset;
@@ -593,8 +591,8 @@ public class Channel {
 		}
 	}
 
-	public static int keyToPeriod( int key, int fineTune, boolean linear ) {
-		if( linear ) {
+	public int keyToPeriod( int key, int fineTune, int c2Rate ) {
+		if( module.linearPeriods ) {
 			return 7744 - ( key << 6 ) - ( fineTune >> 1 );
 		} else {
 			int tone = ( key << 6 ) + ( fineTune >> 1 );
@@ -603,6 +601,7 @@ public class Channel {
 			int m = periodTable[ i + 1 ] * 2 - c;
 			int x = tone & 0x7;
 			int y = ( ( ( m * x ) >> 3 ) + c ) >> ( tone / 768 );
+			y = y * module.c2Rate / c2Rate;
 			return ( y >> 1 ) + ( y & 1 );
 		}
 	}

@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150504 (c)2015 mumart@gmail.com";
+		return "20150505 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -10,12 +10,15 @@ function IBXMReplay( module, samplingRate ) {
 	}
 	/* Set the sampling rate of playback. */
 	this.setSamplingRate = function( rate ) {
-		/* Use with Module.c2Rate to adjust the tempo of playback.*/
-		/* To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.*/
 		if( rate < 8000 || rate > 128000 ) {
 			throw "Unsupported sampling rate!";
 		}
 		samplingRate = rate;
+	}
+	/* Adjust the frequency of the C key for pitch shifting.
+	   The default is module.c2Rate. */
+	this.setC2Rate = function( rate ) {
+		c2Rate = rate;
 	}
 	/* Enable or disable the linear interpolation filter. */
 	this.setInterpolation = function( interp ) {
@@ -69,9 +72,10 @@ function IBXMReplay( module, samplingRate ) {
 		this.setSequencePos( 0 );
 		var currentPos = 0;
 		var tickLen = calculateTickLen( tempo, samplingRate );
+		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
 			}
 			currentPos += tickLen;
 			seqTick();
@@ -81,6 +85,7 @@ function IBXMReplay( module, samplingRate ) {
 	}
 	/* Seek to the specified position and row in the sequence. */
 	this.seekSequencePos = function( sequencePos, sequenceRow ) {
+		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		this.setSequencePos( 0 );
 		if( sequencePos < 0 || sequencePos >= module.sequenceLength ) {
 			sequencePos = 0;
@@ -89,9 +94,9 @@ function IBXMReplay( module, samplingRate ) {
 			sequenceRow = 0;
 		}
 		while( seqPos < sequencePos || row < sequenceRow ) {
-			var tickLen = calculateTickLen( tempo, sampleRate );
+			var tickLen = calculateTickLen( tempo, samplingRate );
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
 			}
 			if( seqTick() ) { /* Song end reached.*/
 				setSequencePos( sequencePos );
@@ -120,6 +125,7 @@ function IBXMReplay( module, samplingRate ) {
 	var mixAudio = function() {
 		/* Generate audio. The number of samples produced is returned.*/
 		var tickLen = calculateTickLen( tempo, samplingRate );
+		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
 			/* Clear mix buffer.*/
 			mixBuf[ idx ] = 0;
@@ -127,8 +133,8 @@ function IBXMReplay( module, samplingRate ) {
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			/* Resample and mix each channel.*/
 			var chan = channels[ idx ];
-			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
-			chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
+			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, frequency * 2, interpolation );
+			chan.updateSampleIdx( tickLen * 2, frequency * 2 );
 		}
 		downsample( mixBuf, tickLen + 64 );
 		volumeRamp( tickLen );
@@ -262,7 +268,7 @@ function IBXMReplay( module, samplingRate ) {
 		}
 		return songEnd;
 	}
-	var interpolation = true;
+	var c2Rate = module.c2Rate, interpolation = true;
 	var rampBuf = new Float32Array( 64 * 2 );
 	var mixBuf = new Float32Array( ( calculateTickLen( 32, 128000 ) + 65 ) * 4 );
 	var mixIdx = 0, mixLen = 0;
@@ -803,11 +809,11 @@ function IBXMChannel( replay, id ) {
 				if( key > 120 ) key = 120;
 				var per = ( key << 6 ) + ( fineTune >> 1 );
 				if( replay.module.linearPeriods ) {
-					per = 7744 - per;
+					portaPeriod = 7744 - per;
 				} else {
 					per = 29021 * Math.pow( 2, -per / 768 );
+					portaPeriod = Math.round( replay.module.c2Rate * per / sample.c2Rate );
 				}
-				portaPeriod = Math.round( replay.module.c2Rate * per / sample.c2Rate );
 				if( !isPorta ) {
 					period = portaPeriod;
 					sampleIdx = sampleOffset;

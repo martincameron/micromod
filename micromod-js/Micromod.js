@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150503 (c)2015 mumart@gmail.com";
+		return "20150505 (c)2015 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -15,8 +15,8 @@ function Micromod( module, samplingRate ) {
 
 	/* Set the sampling rate of playback. */
 	this.setSamplingRate = function( rate ) {
-		// Use with Module.c2Rate to adjust the tempo of playback.
-		// To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
+		/* Use with Module.c2Rate to adjust the tempo of playback. */
+		/* To play at half speed, multiply both the samplingRate and Module.c2Rate by 2. */
 		if( rate < 8000 || rate > 128000 ) {
 			throw "Unsupported sampling rate!";
 		}
@@ -100,9 +100,9 @@ function Micromod( module, samplingRate ) {
 			sequenceRow = 0;
 		}
 		while( seqPos < sequencePos || row < sequenceRow ) {
-			var tickLen = calculateTickLen( tempo, sampleRate );
+			var tickLen = calculateTickLen( tempo, samplingRate );
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
 			}
 			if( seqTick() ) { // Song end reached.
 				setSequencePos( sequencePos );

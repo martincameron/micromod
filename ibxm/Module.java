@@ -330,8 +330,8 @@ public class Module {
 					volEnv.pointsAmpl[ point ] = moduleData.uleShort( pointOffset + 2 );
 				}
 				Envelope panEnv = instrument.panningEnvelope = new Envelope();
-				panEnv.pointsTick = new int[ 12 ];
-				panEnv.pointsAmpl = new int[ 12 ];
+				panEnv.pointsTick = new int[ 16 ];
+				panEnv.pointsAmpl = new int[ 16 ];
 				pointTick = 0;
 				for( int point = 0; point < 12; point++ ) {
 					int pointOffset = dataOffset + 177 + ( point * 4 );
@@ -343,12 +343,12 @@ public class Module {
 				if( volEnv.numPoints > 12 ) volEnv.numPoints = 0;
 				panEnv.numPoints = moduleData.uByte( dataOffset + 226 );
 				if( panEnv.numPoints > 12 ) panEnv.numPoints = 0;
-				volEnv.sustainTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 227 ) ];
-				volEnv.loopStartTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 228 ) ];
-				volEnv.loopEndTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 229 ) ];
-				panEnv.sustainTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 230 ) ];
-				panEnv.loopStartTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 231 ) ];
-				panEnv.loopEndTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 232 ) ];
+				volEnv.sustainTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 227 ) & 0xF ];
+				volEnv.loopStartTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 228 ) & 0xF ];
+				volEnv.loopEndTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 229 ) & 0xF ];
+				panEnv.sustainTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 230 ) & 0xF ];
+				panEnv.loopStartTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 231 ) & 0xF ];
+				panEnv.loopEndTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 232 ) & 0xF ];
 				volEnv.enabled = volEnv.numPoints > 0 && ( moduleData.uByte( dataOffset + 233 ) & 0x1 ) > 0;
 				volEnv.sustain = ( moduleData.uByte( dataOffset + 233 ) & 0x2 ) > 0;
 				volEnv.looped = ( moduleData.uByte( dataOffset + 233 ) & 0x4 ) > 0;
