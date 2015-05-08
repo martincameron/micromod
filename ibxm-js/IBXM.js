@@ -2,23 +2,19 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150505 (c)2015 mumart@gmail.com";
+		return "20150508 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
 		return samplingRate;
 	}
-	/* Set the sampling rate of playback. */
+	/* Set the sampling rate of playback.
+	   This can be used with Module.c2Rate to adjust the tempo and pitch.*/
 	this.setSamplingRate = function( rate ) {
 		if( rate < 8000 || rate > 128000 ) {
 			throw "Unsupported sampling rate!";
 		}
 		samplingRate = rate;
-	}
-	/* Adjust the frequency of the C key for pitch shifting.
-	   The default is module.c2Rate. */
-	this.setC2Rate = function( rate ) {
-		c2Rate = rate;
 	}
 	/* Enable or disable the linear interpolation filter. */
 	this.setInterpolation = function( interp ) {
@@ -72,10 +68,9 @@ function IBXMReplay( module, samplingRate ) {
 		this.setSequencePos( 0 );
 		var currentPos = 0;
 		var tickLen = calculateTickLen( tempo, samplingRate );
-		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		while( ( samplePos - currentPos ) >= tickLen ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
 			}
 			currentPos += tickLen;
 			seqTick();
@@ -85,7 +80,6 @@ function IBXMReplay( module, samplingRate ) {
 	}
 	/* Seek to the specified position and row in the sequence. */
 	this.seekSequencePos = function( sequencePos, sequenceRow ) {
-		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		this.setSequencePos( 0 );
 		if( sequencePos < 0 || sequencePos >= module.sequenceLength ) {
 			sequencePos = 0;
@@ -96,7 +90,7 @@ function IBXMReplay( module, samplingRate ) {
 		while( seqPos < sequencePos || row < sequenceRow ) {
 			var tickLen = calculateTickLen( tempo, samplingRate );
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
-				channels[ idx ].updateSampleIdx( tickLen * 2, frequency * 2 );
+				channels[ idx ].updateSampleIdx( tickLen * 2, samplingRate * 2 );
 			}
 			if( seqTick() ) { /* Song end reached.*/
 				setSequencePos( sequencePos );
@@ -125,7 +119,6 @@ function IBXMReplay( module, samplingRate ) {
 	var mixAudio = function() {
 		/* Generate audio. The number of samples produced is returned.*/
 		var tickLen = calculateTickLen( tempo, samplingRate );
-		var frequency = ( samplingRate * module.c2Rate / c2Rate ) | 0;
 		for( var idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ ) {
 			/* Clear mix buffer.*/
 			mixBuf[ idx ] = 0;
@@ -133,8 +126,8 @@ function IBXMReplay( module, samplingRate ) {
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			/* Resample and mix each channel.*/
 			var chan = channels[ idx ];
-			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, frequency * 2, interpolation );
-			chan.updateSampleIdx( tickLen * 2, frequency * 2 );
+			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
+			chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
 		}
 		downsample( mixBuf, tickLen + 64 );
 		volumeRamp( tickLen );
@@ -268,7 +261,7 @@ function IBXMReplay( module, samplingRate ) {
 		}
 		return songEnd;
 	}
-	var c2Rate = module.c2Rate, interpolation = true;
+	var interpolation = true;
 	var rampBuf = new Float32Array( 64 * 2 );
 	var mixBuf = new Float32Array( ( calculateTickLen( 32, 128000 ) + 65 ) * 4 );
 	var mixIdx = 0, mixLen = 0;
@@ -704,21 +697,21 @@ function IBXMChannel( replay, id ) {
 		if( retrigCount >= retrigTicks ) {
 			retrigCount = sampleIdx = sampleFra = 0;
 			switch( retrigVolume ) {
-				case 0x1: volume -=  1; break;
-				case 0x2: volume -=  2; break;
-				case 0x3: volume -=  4; break;
-				case 0x4: volume -=  8; break;
-				case 0x5: volume -= 16; break;
-				case 0x6: volume -= volume / 3; break;
-				case 0x7: volume >>= 1; break;
+				case 0x1: volume = volume -  1; break;
+				case 0x2: volume = volume -  2; break;
+				case 0x3: volume = volume -  4; break;
+				case 0x4: volume = volume -  8; break;
+				case 0x5: volume = volume - 16; break;
+				case 0x6: volume = ( volume * 2 / 3 ) | 0; break;
+				case 0x7: volume = ( volume >> 1 ); break;
 				case 0x8: /* ? */ break;
-				case 0x9: volume +=  1; break;
-				case 0xA: volume +=  2; break;
-				case 0xB: volume +=  4; break;
-				case 0xC: volume +=  8; break;
-				case 0xD: volume += 16; break;
-				case 0xE: volume += volume >> 1; break;
-				case 0xF: volume <<= 1; break;
+				case 0x9: volume = volume +  1; break;
+				case 0xA: volume = volume +  2; break;
+				case 0xB: volume = volume +  4; break;
+				case 0xC: volume = volume +  8; break;
+				case 0xD: volume = volume + 16; break;
+				case 0xE: volume = ( volume * 3 / 2 ) | 0; break;
+				case 0xF: volume = ( volume << 1 ); break;
 			}
 			if( volume <  0 ) volume = 0;
 			if( volume > 64 ) volume = 64;
@@ -811,8 +804,7 @@ function IBXMChannel( replay, id ) {
 				if( replay.module.linearPeriods ) {
 					portaPeriod = 7744 - per;
 				} else {
-					per = 29021 * Math.pow( 2, -per / 768 );
-					portaPeriod = Math.round( replay.module.c2Rate * per / sample.c2Rate );
+					portaPeriod = 29021 * Math.pow( 2, -per / 768 );
 				}
 				if( !isPorta ) {
 					period = portaPeriod;
@@ -899,7 +891,6 @@ function IBXMSample() {
 	this.panning = -1;
 	this.relNote = 0;
 	this.fineTune = 0;
-	this.c2Rate = 8363;
 	this.loopStart = 0;
 	this.loopLength = 0;
 	this.sampleData = new Int16Array( 1 );
@@ -1140,7 +1131,6 @@ function IBXMModule( moduleData ) {
 				var sampleLoopLength = moduleData.uleInt( sampleHeaderOffset + 8 );
 				sample.volume = moduleData.sByte( sampleHeaderOffset + 12 );
 				sample.fineTune = moduleData.sByte( sampleHeaderOffset + 13 );
-				sample.c2Rate = this.c2Rate;
 				var looped = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x3 ) > 0;
 				var pingPong = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x2 ) > 0;
 				var sixteenBit = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x10 ) > 0;
@@ -1217,7 +1207,10 @@ function IBXMModule( moduleData ) {
 			var stereo = ( moduleData.uByte( instOffset + 31 ) & 0x2 ) == 0x2;
 			var sixteenBit = ( moduleData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
 			if( packed ) throw "Packed samples not supported!";
-			sample.c2Rate = moduleData.uleInt( instOffset + 32 );
+			var c2Rate = moduleData.uleInt( instOffset + 32 );
+			var tune = ( Math.log( c2Rate ) - Math.log( this.c2Rate ) ) / Math.log( 2 );
+			sample.relNote = Math.round( tune * 12 );
+			sample.fineTune = Math.round( ( tune * 12 - sample.relNote ) * 128 );
 			if( sixteenBit ) {
 				if( signedSamples ) {
 					sample.setSampleData( moduleData.samS16( sampleOffset, sampleLength ), loopStart, loopLength, false );
@@ -1370,7 +1363,6 @@ function IBXMModule( moduleData ) {
 			var volume = moduleData.uByte( instIdx * 30 + 15 ) & 0x7F;
 			sample.volume = ( volume <= 64 ) ? volume : 64;
 			sample.panning = -1;
-			sample.c2Rate = this.c2Rate;
 			var loopStart = moduleData.ubeShort( instIdx * 30 + 16 ) * 2;
 			var loopLength = moduleData.ubeShort( instIdx * 30 + 18 ) * 2;
 			if( loopStart + loopLength > sampleLength )
