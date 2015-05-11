@@ -10,7 +10,7 @@ public class Sample {
 	public static final int C2_PAL = 8287, C2_NTSC = 8363;
 
 	public String name = "";
-	public int volume = 0, panning = -1, relNote = 0, fineTune = 0, c2Rate = C2_NTSC;
+	public int volume = 0, panning = -1, relNote = 0, fineTune = 0;
 	private int loopStart = 0, loopLength = 0;
 	private short[] sampleData;
 	

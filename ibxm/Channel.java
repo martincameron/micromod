@@ -4,41 +4,24 @@ package ibxm;
 public class Channel {
 	public static final int NEAREST = 0, LINEAR = 1, SINC = 2;
 
-	private static final int[] periodTable = {
-		/* Periods for keys 0 to 15 with 8 finetune values. */
-		29021, 28812, 28605, 28399, 28195, 27992, 27790, 27590,
-		27392, 27195, 26999, 26805, 26612, 26421, 26231, 26042,
-		25855, 25669, 25484, 25301, 25119, 24938, 24758, 24580,
-		24403, 24228, 24054, 23881, 23709, 23538, 23369, 23201,
-		23034, 22868, 22704, 22540, 22378, 22217, 22057, 21899,
-		21741, 21585, 21429, 21275, 21122, 20970, 20819, 20670,
-		20521, 20373, 20227, 20081, 19937, 19793, 19651, 19509,
-		19369, 19230, 19091, 18954, 18818, 18682, 18548, 18414,
-		18282, 18150, 18020, 17890, 17762, 17634, 17507, 17381,
-		17256, 17132, 17008, 16886, 16765, 16644, 16524, 16405,
-		16287, 16170, 16054, 15938, 15824, 15710, 15597, 15485,
-		15373, 15263, 15153, 15044, 14936, 14828, 14721, 14616,
-		14510, 14406, 14302, 14199, 14097, 13996, 13895, 13795,
-		13696, 13597, 13500, 13403, 13306, 13210, 13115, 13021,
-		12927, 12834, 12742, 12650, 12559, 12469, 12379, 12290,
-		12202, 12114, 12027, 11940, 11854, 11769, 11684, 11600
-	};
-
-	private static final int[] freqTable = {
-		/* Frequency for keys 109 to 121 with 8 fractional values. */
-		267616, 269555, 271509, 273476, 275458, 277454, 279464, 281489,
-		283529, 285584, 287653, 289738, 291837, 293952, 296082, 298228,
-		300389, 302566, 304758, 306966, 309191, 311431, 313688, 315961,
-		318251, 320557, 322880, 325220, 327576, 329950, 332341, 334749,
-		337175, 339618, 342079, 344558, 347055, 349570, 352103, 354655,
-		357225, 359813, 362420, 365047, 367692, 370356, 373040, 375743,
-		378466, 381209, 383971, 386754, 389556, 392379, 395222, 398086,
-		400971, 403877, 406803, 409751, 412720, 415711, 418723, 421758,
-		424814, 427892, 430993, 434116, 437262, 440430, 443622, 446837,
-		450075, 453336, 456621, 459930, 463263, 466620, 470001, 473407,
-		476838, 480293, 483773, 487279, 490810, 494367, 497949, 501557,
-		505192, 508853, 512540, 516254, 519995, 523763, 527558, 531381,
-		535232, 539111, 543017, 546952, 550915, 554908, 558929, 562979
+	private static int[] exp2Table = {
+		32768, 32946, 33125, 33305, 33486, 33667, 33850, 34034,
+		34219, 34405, 34591, 34779, 34968, 35158, 35349, 35541,
+		35734, 35928, 36123, 36319, 36516, 36715, 36914, 37114,
+		37316, 37518, 37722, 37927, 38133, 38340, 38548, 38757,
+		38968, 39180, 39392, 39606, 39821, 40037, 40255, 40473,
+		40693, 40914, 41136, 41360, 41584, 41810, 42037, 42265,
+		42495, 42726, 42958, 43191, 43425, 43661, 43898, 44137,
+		44376, 44617, 44859, 45103, 45348, 45594, 45842, 46091,
+		46341, 46593, 46846, 47100, 47356, 47613, 47871, 48131,
+		48393, 48655, 48920, 49185, 49452, 49721, 49991, 50262,
+		50535, 50810, 51085, 51363, 51642, 51922, 52204, 52488,
+		52773, 53059, 53347, 53637, 53928, 54221, 54515, 54811,
+		55109, 55408, 55709, 56012, 56316, 56622, 56929, 57238,
+		57549, 57861, 58176, 58491, 58809, 59128, 59449, 59772,
+		60097, 60423, 60751, 61081, 61413, 61746, 62081, 62419,
+		62757, 63098, 63441, 63785, 64132, 64480, 64830, 65182,
+		65536
 	};
 
 	private static final short[] sineTable = {
@@ -464,21 +447,21 @@ public class Channel {
 		if( retrigCount >= retrigTicks ) {
 			retrigCount = sampleIdx = sampleFra = 0;
 			switch( retrigVolume ) {
-				case 0x1: volume -=  1; break;
-				case 0x2: volume -=  2; break;
-				case 0x3: volume -=  4; break;
-				case 0x4: volume -=  8; break;
-				case 0x5: volume -= 16; break;
-				case 0x6: volume -= volume / 3; break;
-				case 0x7: volume >>= 1; break;
+				case 0x1: volume = volume -  1; break;
+				case 0x2: volume = volume -  2; break;
+				case 0x3: volume = volume -  4; break;
+				case 0x4: volume = volume -  8; break;
+				case 0x5: volume = volume - 16; break;
+				case 0x6: volume = volume * 2 / 3; break;
+				case 0x7: volume = volume >> 1; break;
 				case 0x8: /* ? */ break;
-				case 0x9: volume +=  1; break;
-				case 0xA: volume +=  2; break;
-				case 0xB: volume +=  4; break;
-				case 0xC: volume +=  8; break;
-				case 0xD: volume += 16; break;
-				case 0xE: volume += volume >> 1; break;
-				case 0xF: volume <<= 1; break;
+				case 0x9: volume = volume +  1; break;
+				case 0xA: volume = volume +  2; break;
+				case 0xB: volume = volume +  4; break;
+				case 0xC: volume = volume +  8; break;
+				case 0xD: volume = volume + 16; break;
+				case 0xE: volume = volume * 3 / 2; break;
+				case 0xF: volume = volume << 1; break;
 			}
 			if( volume <  0 ) volume = 0;
 			if( volume > 64 ) volume = 64;
@@ -486,21 +469,15 @@ public class Channel {
 	}
 
 	private void calculateFrequency() {
+		int per = period + vibratoAdd;
 		if( module.linearPeriods ) {
-			int per = period + vibratoAdd - ( arpeggioAdd << 6 );
+			per = per - ( arpeggioAdd << 6 );
 			if( per < 28 || per > 7680 ) per = 7680;
-			int tone = 7680 - per;
-			int i = ( tone >> 3 ) % 96;
-			int c = freqTable[ i ];
-			int m = freqTable[ i + 1 ] - c;
-			int x = tone & 0x7;
-			int y = ( ( m * x ) >> 3 ) + c;
-			freq = y >> ( 9 - tone / 768 );
+			freq = ( ( module.c2Rate >> 4 ) * exp2( ( ( 4608 - per ) << Sample.FP_SHIFT ) / 768 ) ) >> ( Sample.FP_SHIFT - 4 );
 		} else {
-			int per = period + vibratoAdd;
-			per = per * ( periodTable[ ( arpeggioAdd & 0xF ) << 3 ] << 1 ) / periodTable[ 0 ];
-			per = ( per >> 1 ) + ( per & 1 );
-			if( per < 28 ) per = periodTable[ 0 ];
+			if( per > 29021 ) per = 29021;
+			per = ( per << Sample.FP_SHIFT ) / exp2( ( arpeggioAdd << Sample.FP_SHIFT ) / 12 );
+			if( per < 28 ) per = 29021;
 			freq = module.c2Rate * 1712 / per;
 		}
 	}
@@ -578,7 +555,12 @@ public class Channel {
 				int key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;
 				if( key > 120 ) key = 120;
-				portaPeriod = keyToPeriod( key, fineTune, sample.c2Rate );
+				int per = ( key << 6 ) + ( fineTune >> 1 );
+				if( module.linearPeriods ) {
+					portaPeriod = 7744 - per;
+				} else {
+					portaPeriod = 29021 * exp2( ( per << Sample.FP_SHIFT ) / -768 ) >> Sample.FP_SHIFT;
+				}
 				if( !isPorta ) {
 					period = portaPeriod;
 					sampleIdx = sampleOffset;
@@ -591,36 +573,19 @@ public class Channel {
 		}
 	}
 
-	public int keyToPeriod( int key, int fineTune, int c2Rate ) {
-		if( module.linearPeriods ) {
-			return 7744 - ( key << 6 ) - ( fineTune >> 1 );
-		} else {
-			int tone = ( key << 6 ) + ( fineTune >> 1 );
-			int i = ( tone >> 3 ) % 96;
-			int c = periodTable[ i ] * 2;
-			int m = periodTable[ i + 1 ] * 2 - c;
-			int x = tone & 0x7;
-			int y = ( ( ( m * x ) >> 3 ) + c ) >> ( tone / 768 );
-			y = y * module.c2Rate / c2Rate;
-			return ( y >> 1 ) + ( y & 1 );
-		}
+	public static int exp2( int x ) {
+		int x0 = ( x & Sample.FP_MASK ) >> ( Sample.FP_SHIFT - 7 );
+		int c = exp2Table[ x0 ];
+		int m = exp2Table[ x0 + 1 ] - c;
+		int y = ( m * ( x & ( Sample.FP_MASK >> 7 ) ) >> 8 ) + c;
+		return ( y << Sample.FP_SHIFT ) >> ( Sample.FP_SHIFT - ( x >> Sample.FP_SHIFT ) );
 	}
 
-	public static int periodToKey( int period ) {
-		int key = 0, oct = 0;
-		while( period < periodTable[ 96 ] ) {
-			period = period << 1;
-			oct++;
+	public static int log2( int x ) {
+		int y = 0;
+		for( int step = Sample.FP_SHIFT << ( Sample.FP_SHIFT - 1 ); step > 0; step >>= 1 ) {
+			y = y + ( exp2( y ) < x ? step : -step );
 		}
-		while( key < 12 ) {
-			int d1 = periodTable[ key << 3 ] - period;
-			int d2 = period - periodTable[ ( key + 1 ) << 3 ];
-			if( d2 >= 0 ) {
-				if( d2 < d1 ) key++;
-				break;
-			}
-			key++;
-		}
-		return oct * 12 + key;
+		return y;
 	}
 }

@@ -79,9 +79,11 @@ public class Module {
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, 64 );
 			for( int patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
-				int period = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
-				period = ( period | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
-				if( period > 112 ) pattern.data[ patDataIdx ] = ( byte ) Channel.periodToKey( period );
+				int key = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
+				key = ( key | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
+				key = -12 * Channel.log2( ( key << Sample.FP_SHIFT ) / 29021 );
+				key = ( key >> Sample.FP_SHIFT ) + ( key & ( Sample.FP_ONE >> 1 ) );
+				if( key < 97 ) pattern.data[ patDataIdx ] = ( byte ) key;
 				int ins = ( moduleData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
 				ins = ins | moduleData.uByte( moduleDataIdx ) & 0x10;
 				pattern.data[ patDataIdx + 1 ] = ( byte ) ins;
@@ -108,7 +110,6 @@ public class Module {
 			int volume = moduleData.uByte( instIdx * 30 + 15 ) & 0x7F;
 			sample.volume = ( volume <= 64 ) ? volume : 64;
 			sample.panning = -1;
-			sample.c2Rate = c2Rate;
 			int loopStart = moduleData.ubeShort( instIdx * 30 + 16 ) * 2;
 			int loopLength = moduleData.ubeShort( instIdx * 30 + 18 ) * 2;
 			if( loopStart + loopLength > sampleLength )
@@ -178,7 +179,10 @@ public class Module {
 			boolean stereo = ( moduleData.uByte( instOffset + 31 ) & 0x2 ) == 0x2;
 			boolean sixteenBit = ( moduleData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
 			if( packed ) throw new IllegalArgumentException( "Packed samples not supported!" );
-			sample.c2Rate = moduleData.uleInt( instOffset + 32 );
+			int c2Rate = moduleData.uleInt( instOffset + 32 );
+			int tune = ( Channel.log2( c2Rate ) - Channel.log2( this.c2Rate ) ) * 12;
+			sample.relNote = tune >> Sample.FP_SHIFT;
+			sample.fineTune = ( tune & Sample.FP_MASK ) >> ( Sample.FP_SHIFT - 7 );
 			if( sixteenBit ) {
 				if( signedSamples ) {
 					sample.setSampleData( moduleData.samS16( sampleOffset, sampleLength ), loopStart, loopLength, false );
@@ -371,7 +375,6 @@ public class Module {
 				int sampleLoopLength = moduleData.uleInt( sampleHeaderOffset + 8 );
 				sample.volume = moduleData.sByte( sampleHeaderOffset + 12 );
 				sample.fineTune = moduleData.sByte( sampleHeaderOffset + 13 );
-				sample.c2Rate = Sample.C2_NTSC;
 				boolean looped = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x3 ) > 0;
 				boolean pingPong = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x2 ) > 0;
 				boolean sixteenBit = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x10 ) > 0;

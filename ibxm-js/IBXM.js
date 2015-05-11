@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150508 (c)2015 mumart@gmail.com";
+		return "20150511 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -559,7 +559,7 @@ function IBXMChannel( replay, id ) {
 			case 0x79: /* Retrig. */
 				if( fxCount >= noteParam ) {
 					fxCount = 0;
-					sampleIdx = sampleFra = 0;
+					sampleIdx = 0;
 				}
 				break;
 			case 0x7C: case 0xFC: /* Note Cut. */
@@ -695,7 +695,7 @@ function IBXMChannel( replay, id ) {
 	}
 	var retrigVolSlide = function() {
 		if( retrigCount >= retrigTicks ) {
-			retrigCount = sampleIdx = sampleFra = 0;
+			retrigCount = sampleIdx = 0;
 			switch( retrigVolume ) {
 				case 0x1: volume = volume -  1; break;
 				case 0x2: volume = volume -  2; break;
@@ -703,7 +703,7 @@ function IBXMChannel( replay, id ) {
 				case 0x4: volume = volume -  8; break;
 				case 0x5: volume = volume - 16; break;
 				case 0x6: volume = ( volume * 2 / 3 ) | 0; break;
-				case 0x7: volume = ( volume >> 1 ); break;
+				case 0x7: volume = volume >> 1; break;
 				case 0x8: /* ? */ break;
 				case 0x9: volume = volume +  1; break;
 				case 0xA: volume = volume +  2; break;
@@ -711,7 +711,7 @@ function IBXMChannel( replay, id ) {
 				case 0xC: volume = volume +  8; break;
 				case 0xD: volume = volume + 16; break;
 				case 0xE: volume = ( volume * 3 / 2 ) | 0; break;
-				case 0xF: volume = ( volume << 1 ); break;
+				case 0xF: volume = volume << 1; break;
 			}
 			if( volume <  0 ) volume = 0;
 			if( volume > 64 ) volume = 64;
@@ -809,7 +809,6 @@ function IBXMChannel( replay, id ) {
 				if( !isPorta ) {
 					period = portaPeriod;
 					sampleIdx = sampleOffset;
-					sampleFra = 0;
 					if( vibratoType < 4 ) vibratoPhase = 0;
 					if( tremoloType < 4 ) tremoloPhase = 0;
 					retrigCount = autoVibratoCount = 0;
@@ -1208,9 +1207,9 @@ function IBXMModule( moduleData ) {
 			var sixteenBit = ( moduleData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
 			if( packed ) throw "Packed samples not supported!";
 			var c2Rate = moduleData.uleInt( instOffset + 32 );
-			var tune = ( Math.log( c2Rate ) - Math.log( this.c2Rate ) ) / Math.log( 2 );
-			sample.relNote = Math.round( tune * 12 );
-			sample.fineTune = Math.round( ( tune * 12 - sample.relNote ) * 128 );
+			var tune = ( Math.log( c2Rate ) - Math.log( this.c2Rate ) ) * 12 / Math.log( 2 );
+			sample.relNote = Math.round( tune );
+			sample.fineTune = Math.round( ( tune - sample.relNote ) * 128 );
 			if( sixteenBit ) {
 				if( signedSamples ) {
 					sample.setSampleData( moduleData.samS16( sampleOffset, sampleLength ), loopStart, loopLength, false );
