@@ -582,9 +582,9 @@ public class Channel {
 	}
 
 	public static int log2( int x ) {
-		int y = 0;
-		for( int step = Sample.FP_SHIFT << ( Sample.FP_SHIFT - 1 ); step > 0; step >>= 1 ) {
-			y = y + ( exp2( y ) < x ? step : -step );
+		int y = 16 << Sample.FP_SHIFT;
+		for( int step = y; step > 0; step >>= 1 ) {
+			if( exp2( y - step ) >= x ) y -= step;
 		}
 		return y;
 	}

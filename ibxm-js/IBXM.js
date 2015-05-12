@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150511 (c)2015 mumart@gmail.com";
+		return "20150512 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -1014,53 +1014,53 @@ function IBXMModule( moduleData ) {
 	this.sequence = new Int32Array( 1 );
 	this.patterns = [ new IBXMPattern( 4, 64 ) ];
 	this.instruments = [ new IBXMInstrument(), new IBXMInstrument() ];
-	this.loadXM = function( moduleData ) {
-		if( moduleData.uleShort( 58 ) != 0x0104 )
+	this.loadXM = function( ibxmData ) {
+		if( ibxmData.uleShort( 58 ) != 0x0104 )
 			throw "XM format version must be 0x0104!";
-		this.songName = moduleData.strLatin1( 17, 20 );
-		var deltaEnv = moduleData.strLatin1( 38, 20 ).startsWith( "DigiBooster Pro" );
-		var dataOffset = 60 + moduleData.uleInt( 60 );
-		this.sequenceLength = moduleData.uleShort( 64 );
-		this.restartPos = moduleData.uleShort( 66 );
-		this.numChannels = moduleData.uleShort( 68 );
-		this.numPatterns = moduleData.uleShort( 70 );
-		this.numInstruments = moduleData.uleShort( 72 );
-		this.linearPeriods = ( moduleData.uleShort( 74 ) & 0x1 ) > 0;
+		this.songName = ibxmData.strLatin1( 17, 20 );
+		var deltaEnv = ibxmData.strLatin1( 38, 20 ).startsWith( "DigiBooster Pro" );
+		var dataOffset = 60 + ibxmData.uleInt( 60 );
+		this.sequenceLength = ibxmData.uleShort( 64 );
+		this.restartPos = ibxmData.uleShort( 66 );
+		this.numChannels = ibxmData.uleShort( 68 );
+		this.numPatterns = ibxmData.uleShort( 70 );
+		this.numInstruments = ibxmData.uleShort( 72 );
+		this.linearPeriods = ( ibxmData.uleShort( 74 ) & 0x1 ) > 0;
 		this.defaultGVol = 64;
-		this.defaultSpeed = moduleData.uleShort( 76 );
-		this.defaultTempo = moduleData.uleShort( 78 );
+		this.defaultSpeed = ibxmData.uleShort( 76 );
+		this.defaultTempo = ibxmData.uleShort( 78 );
 		this.c2Rate = 8363;
 		this.gain = 64;
 		this.defaultPanning = new Int32Array( this.numChannels );
 		for( var idx = 0; idx < this.numChannels; idx++ ) this.defaultPanning[ idx ] = 128;
 		this.sequence = new Int32Array( this.sequenceLength );
 		for( var seqIdx = 0; seqIdx < this.sequenceLength; seqIdx++ ) {
-			var entry = moduleData.uByte( 80 + seqIdx );
+			var entry = ibxmData.uByte( 80 + seqIdx );
 			this.sequence[ seqIdx ] = entry < this.numPatterns ? entry : 0;
 		}
 		this.patterns = new Array( this.numPatterns );
 		for( var patIdx = 0; patIdx < this.numPatterns; patIdx++ ) {
-			if( moduleData.uByte( dataOffset + 4 ) != 0 )
+			if( ibxmData.uByte( dataOffset + 4 ) != 0 )
 				throw "Unknown pattern packing type!";
-			var numRows = moduleData.uleShort( dataOffset + 5 );
+			var numRows = ibxmData.uleShort( dataOffset + 5 );
 			var numNotes = numRows * this.numChannels;
 			var pattern = this.patterns[ patIdx ] = new IBXMPattern( this.numChannels, numRows );
-			var patternDataLength = moduleData.uleShort( dataOffset + 7 );
-			dataOffset += moduleData.uleInt( dataOffset );
+			var patternDataLength = ibxmData.uleShort( dataOffset + 7 );
+			dataOffset += ibxmData.uleInt( dataOffset );
 			var nextOffset = dataOffset + patternDataLength;
 			if( patternDataLength > 0 ) {
 				var patternDataOffset = 0;
 				for( var note = 0; note < numNotes; note++ ) {
-					var flags = moduleData.uByte( dataOffset );
+					var flags = ibxmData.uByte( dataOffset );
 					if( ( flags & 0x80 ) == 0 ) flags = 0x1F; else dataOffset++;
-					var key = ( flags & 0x01 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					var key = ( flags & 0x01 ) > 0 ? ibxmData.sByte( dataOffset++ ) : 0;
 					pattern.data[ patternDataOffset++ ] = key;
-					var ins = ( flags & 0x02 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					var ins = ( flags & 0x02 ) > 0 ? ibxmData.sByte( dataOffset++ ) : 0;
 					pattern.data[ patternDataOffset++ ] = ins;
-					var vol = ( flags & 0x04 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					var vol = ( flags & 0x04 ) > 0 ? ibxmData.sByte( dataOffset++ ) : 0;
 					pattern.data[ patternDataOffset++ ] = vol;
-					var fxc = ( flags & 0x08 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					var fxp = ( flags & 0x10 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					var fxc = ( flags & 0x08 ) > 0 ? ibxmData.sByte( dataOffset++ ) : 0;
+					var fxp = ( flags & 0x10 ) > 0 ? ibxmData.sByte( dataOffset++ ) : 0;
 					if( fxc >= 0x40 ) fxc = fxp = 0;
 					pattern.data[ patternDataOffset++ ] = fxc;
 					pattern.data[ patternDataOffset++ ] = fxp;
@@ -1072,21 +1072,21 @@ function IBXMModule( moduleData ) {
 		this.instruments[ 0 ] = new IBXMInstrument();
 		for( var insIdx = 1; insIdx <= this.numInstruments; insIdx++ ) {
 			var instrument = this.instruments[ insIdx ] = new IBXMInstrument();
-			instrument.name = moduleData.strLatin1( dataOffset + 4, 22 );
-			var numSamples = instrument.numSamples = moduleData.uleShort( dataOffset + 27 );
+			instrument.name = ibxmData.strLatin1( dataOffset + 4, 22 );
+			var numSamples = instrument.numSamples = ibxmData.uleShort( dataOffset + 27 );
 			if( numSamples > 0 ) {
 				instrument.samples = new Array( numSamples );
 				for( var keyIdx = 0; keyIdx < 96; keyIdx++ )
-					instrument.keyToSample[ keyIdx + 1 ] = moduleData.uByte( dataOffset + 33 + keyIdx );
+					instrument.keyToSample[ keyIdx + 1 ] = ibxmData.uByte( dataOffset + 33 + keyIdx );
 				var volEnv = instrument.volumeEnvelope = new IBXMEnvelope();
 				volEnv.pointsTick = new Int32Array( 16 );
 				volEnv.pointsAmpl = new Int32Array( 16 );
 				var pointTick = 0;
 				for( var point = 0; point < 12; point++ ) {
 					var pointOffset = dataOffset + 129 + ( point * 4 );
-					pointTick = ( deltaEnv ? pointTick : 0 ) + moduleData.uleShort( pointOffset );
+					pointTick = ( deltaEnv ? pointTick : 0 ) + ibxmData.uleShort( pointOffset );
 					volEnv.pointsTick[ point ] = pointTick;
-					volEnv.pointsAmpl[ point ] = moduleData.uleShort( pointOffset + 2 );
+					volEnv.pointsAmpl[ point ] = ibxmData.uleShort( pointOffset + 2 );
 				}
 				var panEnv = instrument.panningEnvelope = new IBXMEnvelope();
 				panEnv.pointsTick = new Int32Array( 16 );
@@ -1094,143 +1094,143 @@ function IBXMModule( moduleData ) {
 				pointTick = 0;
 				for( var point = 0; point < 12; point++ ) {
 					var pointOffset = dataOffset + 177 + ( point * 4 );
-					pointTick = ( deltaEnv ? pointTick : 0 ) + moduleData.uleShort( pointOffset );
+					pointTick = ( deltaEnv ? pointTick : 0 ) + ibxmData.uleShort( pointOffset );
 					panEnv.pointsTick[ point ] = pointTick;
-					panEnv.pointsAmpl[ point ] = moduleData.uleShort( pointOffset + 2 );
+					panEnv.pointsAmpl[ point ] = ibxmData.uleShort( pointOffset + 2 );
 				}
-				volEnv.numPoints = moduleData.uByte( dataOffset + 225 );
+				volEnv.numPoints = ibxmData.uByte( dataOffset + 225 );
 				if( volEnv.numPoints > 12 ) volEnv.numPoints = 0;
-				panEnv.numPoints = moduleData.uByte( dataOffset + 226 );
+				panEnv.numPoints = ibxmData.uByte( dataOffset + 226 );
 				if( panEnv.numPoints > 12 ) panEnv.numPoints = 0;
-				volEnv.sustainTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 227 ) & 0xF ];
-				volEnv.loopStartTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 228 ) & 0xF ];
-				volEnv.loopEndTick = volEnv.pointsTick[ moduleData.uByte( dataOffset + 229 ) & 0xF ];
-				panEnv.sustainTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 230 ) & 0xF ];
-				panEnv.loopStartTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 231 ) & 0xF ];
-				panEnv.loopEndTick = panEnv.pointsTick[ moduleData.uByte( dataOffset + 232 ) & 0xF ];
-				volEnv.enabled = volEnv.numPoints > 0 && ( moduleData.uByte( dataOffset + 233 ) & 0x1 ) > 0;
-				volEnv.sustain = ( moduleData.uByte( dataOffset + 233 ) & 0x2 ) > 0;
-				volEnv.looped = ( moduleData.uByte( dataOffset + 233 ) & 0x4 ) > 0;
-				panEnv.enabled = panEnv.numPoints > 0 && ( moduleData.uByte( dataOffset + 234 ) & 0x1 ) > 0;
-				panEnv.sustain = ( moduleData.uByte( dataOffset + 234 ) & 0x2 ) > 0;
-				panEnv.looped = ( moduleData.uByte( dataOffset + 234 ) & 0x4 ) > 0;
-				instrument.vibratoType = moduleData.uByte( dataOffset + 235 );
-				instrument.vibratoSweep = moduleData.uByte( dataOffset + 236 );
-				instrument.vibratoDepth = moduleData.uByte( dataOffset + 237 );
-				instrument.vibratoRate = moduleData.uByte( dataOffset + 238 );
-				instrument.volumeFadeOut = moduleData.uleShort( dataOffset + 239 );
+				volEnv.sustainTick = volEnv.pointsTick[ ibxmData.uByte( dataOffset + 227 ) & 0xF ];
+				volEnv.loopStartTick = volEnv.pointsTick[ ibxmData.uByte( dataOffset + 228 ) & 0xF ];
+				volEnv.loopEndTick = volEnv.pointsTick[ ibxmData.uByte( dataOffset + 229 ) & 0xF ];
+				panEnv.sustainTick = panEnv.pointsTick[ ibxmData.uByte( dataOffset + 230 ) & 0xF ];
+				panEnv.loopStartTick = panEnv.pointsTick[ ibxmData.uByte( dataOffset + 231 ) & 0xF ];
+				panEnv.loopEndTick = panEnv.pointsTick[ ibxmData.uByte( dataOffset + 232 ) & 0xF ];
+				volEnv.enabled = volEnv.numPoints > 0 && ( ibxmData.uByte( dataOffset + 233 ) & 0x1 ) > 0;
+				volEnv.sustain = ( ibxmData.uByte( dataOffset + 233 ) & 0x2 ) > 0;
+				volEnv.looped = ( ibxmData.uByte( dataOffset + 233 ) & 0x4 ) > 0;
+				panEnv.enabled = panEnv.numPoints > 0 && ( ibxmData.uByte( dataOffset + 234 ) & 0x1 ) > 0;
+				panEnv.sustain = ( ibxmData.uByte( dataOffset + 234 ) & 0x2 ) > 0;
+				panEnv.looped = ( ibxmData.uByte( dataOffset + 234 ) & 0x4 ) > 0;
+				instrument.vibratoType = ibxmData.uByte( dataOffset + 235 );
+				instrument.vibratoSweep = ibxmData.uByte( dataOffset + 236 );
+				instrument.vibratoDepth = ibxmData.uByte( dataOffset + 237 );
+				instrument.vibratoRate = ibxmData.uByte( dataOffset + 238 );
+				instrument.volumeFadeOut = ibxmData.uleShort( dataOffset + 239 );
 			}
-			dataOffset += moduleData.uleInt( dataOffset );
+			dataOffset += ibxmData.uleInt( dataOffset );
 			var sampleHeaderOffset = dataOffset;
 			dataOffset += numSamples * 40;
 			for( var samIdx = 0; samIdx < numSamples; samIdx++ ) {
 				var sample = instrument.samples[ samIdx ] = new IBXMSample();
-				var sampleDataBytes = moduleData.uleInt( sampleHeaderOffset );
-				var sampleLoopStart = moduleData.uleInt( sampleHeaderOffset + 4 );
-				var sampleLoopLength = moduleData.uleInt( sampleHeaderOffset + 8 );
-				sample.volume = moduleData.sByte( sampleHeaderOffset + 12 );
-				sample.fineTune = moduleData.sByte( sampleHeaderOffset + 13 );
-				var looped = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x3 ) > 0;
-				var pingPong = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x2 ) > 0;
-				var sixteenBit = ( moduleData.uByte( sampleHeaderOffset + 14 ) & 0x10 ) > 0;
-				sample.panning = moduleData.uByte( sampleHeaderOffset + 15 );
-				sample.relNote = moduleData.sByte( sampleHeaderOffset + 16 );
-				sample.name = moduleData.strLatin1( sampleHeaderOffset + 18, 22 );
+				var sampleDataBytes = ibxmData.uleInt( sampleHeaderOffset );
+				var sampleLoopStart = ibxmData.uleInt( sampleHeaderOffset + 4 );
+				var sampleLoopLength = ibxmData.uleInt( sampleHeaderOffset + 8 );
+				sample.volume = ibxmData.sByte( sampleHeaderOffset + 12 );
+				sample.fineTune = ibxmData.sByte( sampleHeaderOffset + 13 );
+				var looped = ( ibxmData.uByte( sampleHeaderOffset + 14 ) & 0x3 ) > 0;
+				var pingPong = ( ibxmData.uByte( sampleHeaderOffset + 14 ) & 0x2 ) > 0;
+				var sixteenBit = ( ibxmData.uByte( sampleHeaderOffset + 14 ) & 0x10 ) > 0;
+				sample.panning = ibxmData.uByte( sampleHeaderOffset + 15 );
+				sample.relNote = ibxmData.sByte( sampleHeaderOffset + 16 );
+				sample.name = ibxmData.strLatin1( sampleHeaderOffset + 18, 22 );
 				sampleHeaderOffset += 40;
 				if( !looped || ( sampleLoopStart + sampleLoopLength ) > sampleDataBytes ) {
 					sampleLoopStart = sampleDataBytes;
 					sampleLoopLength = 0;
 				}
 				if( sixteenBit ) {
-					sample.setSampleData( moduleData.samS16D( dataOffset, sampleDataBytes >> 1 ), sampleLoopStart >> 1, sampleLoopLength >> 1, pingPong );
+					sample.setSampleData( ibxmData.samS16D( dataOffset, sampleDataBytes >> 1 ), sampleLoopStart >> 1, sampleLoopLength >> 1, pingPong );
 				} else {
-					sample.setSampleData( moduleData.samS8D( dataOffset, sampleDataBytes ), sampleLoopStart, sampleLoopLength, pingPong );
+					sample.setSampleData( ibxmData.samS8D( dataOffset, sampleDataBytes ), sampleLoopStart, sampleLoopLength, pingPong );
 				}
 				dataOffset += sampleDataBytes;
 			}
 		}
 	}
-	this.loadS3M = function( moduleData ) {
-		this.songName = moduleData.strLatin1( 0, 28 );
-		this.sequenceLength = moduleData.uleShort( 32 );
-		this.numInstruments = moduleData.uleShort( 34 );
-		this.numPatterns = moduleData.uleShort( 36 );
-		var flags = moduleData.uleShort( 38 );
-		var version = moduleData.uleShort( 40 );
+	this.loadS3M = function( ibxmData ) {
+		this.songName = ibxmData.strLatin1( 0, 28 );
+		this.sequenceLength = ibxmData.uleShort( 32 );
+		this.numInstruments = ibxmData.uleShort( 34 );
+		this.numPatterns = ibxmData.uleShort( 36 );
+		var flags = ibxmData.uleShort( 38 );
+		var version = ibxmData.uleShort( 40 );
 		this.fastVolSlides = ( ( flags & 0x40 ) == 0x40 ) || version == 0x1300;
-		var signedSamples = moduleData.uleShort( 42 ) == 1;
-		if( moduleData.uleInt( 44 ) != 0x4d524353 ) throw "Not an S3M file!";
-		this.defaultGVol = moduleData.uByte( 48 );
-		this.defaultSpeed = moduleData.uByte( 49 );
-		this.defaultTempo = moduleData.uByte( 50 );
+		var signedSamples = ibxmData.uleShort( 42 ) == 1;
+		if( ibxmData.uleInt( 44 ) != 0x4d524353 ) throw "Not an S3M file!";
+		this.defaultGVol = ibxmData.uByte( 48 );
+		this.defaultSpeed = ibxmData.uByte( 49 );
+		this.defaultTempo = ibxmData.uByte( 50 );
 		this.c2Rate = 8363;
-		this.gain = moduleData.uByte( 51 ) & 0x7F;
-		var stereoMode = ( moduleData.uByte( 51 ) & 0x80 ) == 0x80;
-		var defaultPan = moduleData.uByte( 53 ) == 0xFC;
+		this.gain = ibxmData.uByte( 51 ) & 0x7F;
+		var stereoMode = ( ibxmData.uByte( 51 ) & 0x80 ) == 0x80;
+		var defaultPan = ibxmData.uByte( 53 ) == 0xFC;
 		var channelMap = new Int32Array( 32 );
 		this.numChannels = 0;
 		for( var chanIdx = 0; chanIdx < 32; chanIdx++ ) {
 			channelMap[ chanIdx ] = -1;
-			if( moduleData.uByte( 64 + chanIdx ) < 16 )
+			if( ibxmData.uByte( 64 + chanIdx ) < 16 )
 				channelMap[ chanIdx ] = this.numChannels++;
 		}
 		this.sequence = new Int32Array( this.sequenceLength );
 		for( var seqIdx = 0; seqIdx < this.sequenceLength; seqIdx++ )
-			this.sequence[ seqIdx ] = moduleData.uByte( 96 + seqIdx );
+			this.sequence[ seqIdx ] = ibxmData.uByte( 96 + seqIdx );
 		var moduleDataIdx = 96 + this.sequenceLength;
 		this.instruments = new Array( this.numInstruments + 1 );
 		this.instruments[ 0 ] = new IBXMInstrument();
 		for( var instIdx = 1; instIdx <= this.numInstruments; instIdx++ ) {
 			var instrument = this.instruments[ instIdx ] = new IBXMInstrument();
 			var sample = instrument.samples[ 0 ];
-			var instOffset = moduleData.uleShort( moduleDataIdx ) << 4;
+			var instOffset = ibxmData.uleShort( moduleDataIdx ) << 4;
 			moduleDataIdx += 2;
-			instrument.name = moduleData.strLatin1( instOffset + 48, 28 );
-			if( moduleData.uByte( instOffset ) != 1 ) continue;
-			if( moduleData.uleShort( instOffset + 76 ) != 0x4353 ) continue;
-			var sampleOffset = moduleData.uByte( instOffset + 13 ) << 20;
-			sampleOffset += moduleData.uleShort( instOffset + 14 ) << 4;
-			var sampleLength = moduleData.uleInt( instOffset + 16 );
-			var loopStart = moduleData.uleInt( instOffset + 20 );
-			var loopLength = moduleData.uleInt( instOffset + 24 ) - loopStart;
-			sample.volume = moduleData.uByte( instOffset + 28 );
+			instrument.name = ibxmData.strLatin1( instOffset + 48, 28 );
+			if( ibxmData.uByte( instOffset ) != 1 ) continue;
+			if( ibxmData.uleShort( instOffset + 76 ) != 0x4353 ) continue;
+			var sampleOffset = ibxmData.uByte( instOffset + 13 ) << 20;
+			sampleOffset += ibxmData.uleShort( instOffset + 14 ) << 4;
+			var sampleLength = ibxmData.uleInt( instOffset + 16 );
+			var loopStart = ibxmData.uleInt( instOffset + 20 );
+			var loopLength = ibxmData.uleInt( instOffset + 24 ) - loopStart;
+			sample.volume = ibxmData.uByte( instOffset + 28 );
 			sample.panning = -1;
-			var packed = moduleData.uByte( instOffset + 30 ) != 0;
-			var loopOn = ( moduleData.uByte( instOffset + 31 ) & 0x1 ) == 0x1;
+			var packed = ibxmData.uByte( instOffset + 30 ) != 0;
+			var loopOn = ( ibxmData.uByte( instOffset + 31 ) & 0x1 ) == 0x1;
 			if( loopStart + loopLength > sampleLength )
 				loopLength = sampleLength - loopStart;
 			if( loopLength < 1 || !loopOn ) {
 				loopStart = sampleLength;
 				loopLength = 0;
 			}
-			var stereo = ( moduleData.uByte( instOffset + 31 ) & 0x2 ) == 0x2;
-			var sixteenBit = ( moduleData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
+			var stereo = ( ibxmData.uByte( instOffset + 31 ) & 0x2 ) == 0x2;
+			var sixteenBit = ( ibxmData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
 			if( packed ) throw "Packed samples not supported!";
-			var c2Rate = moduleData.uleInt( instOffset + 32 );
+			var c2Rate = ibxmData.uleInt( instOffset + 32 );
 			var tune = ( Math.log( c2Rate ) - Math.log( this.c2Rate ) ) * 12 / Math.log( 2 );
 			sample.relNote = Math.round( tune );
 			sample.fineTune = Math.round( ( tune - sample.relNote ) * 128 );
 			if( sixteenBit ) {
 				if( signedSamples ) {
-					sample.setSampleData( moduleData.samS16( sampleOffset, sampleLength ), loopStart, loopLength, false );
+					sample.setSampleData( ibxmData.samS16( sampleOffset, sampleLength ), loopStart, loopLength, false );
 				} else {
-					sample.setSampleData( moduleData.samU16( sampleOffset, sampleLength ), loopStart, loopLength, false );
+					sample.setSampleData( ibxmData.samU16( sampleOffset, sampleLength ), loopStart, loopLength, false );
 				}
 			} else {
 				if( signedSamples ) {
-					sample.setSampleData( moduleData.samS8( sampleOffset, sampleLength ), loopStart, loopLength, false );
+					sample.setSampleData( ibxmData.samS8( sampleOffset, sampleLength ), loopStart, loopLength, false );
 				} else {
-					sample.setSampleData( moduleData.samU8( sampleOffset, sampleLength ), loopStart, loopLength, false );
+					sample.setSampleData( ibxmData.samU8( sampleOffset, sampleLength ), loopStart, loopLength, false );
 				}
 			}
 		}
 		this.patterns = new Array( this.numPatterns );
 		for( var patIdx = 0; patIdx < this.numPatterns; patIdx++ ) {
 			var pattern = this.patterns[ patIdx ] = new IBXMPattern( this.numChannels, 64 );
-			var inOffset = ( moduleData.uleShort( moduleDataIdx ) << 4 ) + 2;
+			var inOffset = ( ibxmData.uleShort( moduleDataIdx ) << 4 ) + 2;
 			var rowIdx = 0;
 			while( rowIdx < 64 ) {
-				var token = moduleData.uByte( inOffset++ );
+				var token = ibxmData.uByte( inOffset++ );
 				if( token == 0 ) {
 					rowIdx++;
 					continue;
@@ -1238,22 +1238,22 @@ function IBXMModule( moduleData ) {
 				var noteKey = 0;
 				var noteIns = 0;
 				if( ( token & 0x20 ) == 0x20 ) { /* Key + Instrument.*/
-					noteKey = moduleData.uByte( inOffset++ );
-					noteIns = moduleData.uByte( inOffset++ );
+					noteKey = ibxmData.uByte( inOffset++ );
+					noteIns = ibxmData.uByte( inOffset++ );
 					if( noteKey < 0xFE )
 						noteKey = ( noteKey >> 4 ) * 12 + ( noteKey & 0xF ) + 1;
 					if( noteKey == 0xFF ) noteKey = 0;
 				}
 				var noteVol = 0;
 				if( ( token & 0x40 ) == 0x40 ) { /* Volume Column.*/
-					noteVol = ( moduleData.uByte( inOffset++ ) & 0x7F ) + 0x10;
+					noteVol = ( ibxmData.uByte( inOffset++ ) & 0x7F ) + 0x10;
 					if( noteVol > 0x50 ) noteVol = 0;
 				}
 				var noteEffect = 0;
 				var noteParam = 0;
 				if( ( token & 0x80 ) == 0x80 ) { /* Effect + Param.*/
-					noteEffect = moduleData.uByte( inOffset++ );
-					noteParam = moduleData.uByte( inOffset++ );
+					noteEffect = ibxmData.uByte( inOffset++ );
+					noteParam = ibxmData.uByte( inOffset++ );
 					if( noteEffect < 1 || noteEffect >= 0x40 )
 						noteEffect = noteParam = 0;
 					if( noteEffect > 0 ) noteEffect += 0x80;
@@ -1276,27 +1276,27 @@ function IBXMModule( moduleData ) {
 			var panning = 7;
 			if( stereoMode ) {
 				panning = 12;
-				if( moduleData.uByte( 64 + chanIdx ) < 8 ) panning = 3;
+				if( ibxmData.uByte( 64 + chanIdx ) < 8 ) panning = 3;
 			}
 			if( defaultPan ) {
-				var panFlags = moduleData.uByte( moduleDataIdx + chanIdx );
+				var panFlags = ibxmData.uByte( moduleDataIdx + chanIdx );
 				if( ( panFlags & 0x20 ) == 0x20 ) panning = panFlags & 0xF;
 			}
 			this.defaultPanning[ channelMap[ chanIdx ] ] = panning * 17;
 		}
 	}
-	this.loadMod = function( moduleData ) {
-		this.songName = moduleData.strLatin1( 0, 20 );
-		this.sequenceLength = moduleData.uByte( 950 ) & 0x7F;
-		this.restartPos = moduleData.uByte( 951 ) & 0x7F;
+	this.loadMod = function( ibxmData ) {
+		this.songName = ibxmData.strLatin1( 0, 20 );
+		this.sequenceLength = ibxmData.uByte( 950 ) & 0x7F;
+		this.restartPos = ibxmData.uByte( 951 ) & 0x7F;
 		if( this.restartPos >= this.sequenceLength ) this.restartPos = 0;
 		this.sequence = new Int32Array( 128 );
 		for( var seqIdx = 0; seqIdx < 128; seqIdx++ ) {
-			var patIdx = moduleData.uByte( 952 + seqIdx ) & 0x7F;
+			var patIdx = ibxmData.uByte( 952 + seqIdx ) & 0x7F;
 			this.sequence[ seqIdx ] = patIdx;
 			if( patIdx >= this.numPatterns ) this.numPatterns = patIdx + 1;
 		}
-		switch( moduleData.ubeShort( 1082 ) ) {
+		switch( ibxmData.ubeShort( 1082 ) ) {
 			case 0x4b2e: /* M.K. */
 			case 0x4b21: /* M!K! */
 			case 0x5434: /* FLT4 */
@@ -1305,13 +1305,13 @@ function IBXMModule( moduleData ) {
 				this.gain = 64;
 				break;
 			case 0x484e: /* xCHN */
-				this.numChannels = moduleData.uByte( 1080 ) - 48;
+				this.numChannels = ibxmData.uByte( 1080 ) - 48;
 				this.c2Rate = 8363; /* NTSC */
 				this.gain = 32;
 				break;
 			case 0x4348: /* xxCH */
-				this.numChannels  = ( moduleData.uByte( 1080 ) - 48 ) * 10;
-				this.numChannels += moduleData.uByte( 1081 ) - 48;
+				this.numChannels  = ( ibxmData.uByte( 1080 ) - 48 ) * 10;
+				this.numChannels += ibxmData.uByte( 1081 ) - 48;
 				this.c2Rate = 8363; /* NTSC */
 				this.gain = 32;
 				break;
@@ -1332,15 +1332,17 @@ function IBXMModule( moduleData ) {
 		for( var patIdx = 0; patIdx < this.numPatterns; patIdx++ ) {
 			var pattern = this.patterns[ patIdx ] = new IBXMPattern( this.numChannels, 64 );
 			for( var patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
-				var key = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
-				key = ( key | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
-				key = Math.round( -12 * Math.log( key / 29021 ) / Math.log( 2 ) );
-				if( key < 97 ) pattern.data[ patDataIdx ] = key;
-				var ins = ( moduleData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
-				ins = ins | moduleData.uByte( moduleDataIdx ) & 0x10;
+				var period = ( ibxmData.uByte( moduleDataIdx ) & 0xF ) << 8;
+				period = ( period | ibxmData.uByte( moduleDataIdx + 1 ) ) * 4;
+				if( period > 112 ) {
+					var key = Math.round( -12 * Math.log( period / 29021 ) / Math.log( 2 ) );
+					pattern.data[ patDataIdx ] = key;
+				}
+				var ins = ( ibxmData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
+				ins = ins | ibxmData.uByte( moduleDataIdx ) & 0x10;
 				pattern.data[ patDataIdx + 1 ] = ins;
-				var effect = moduleData.uByte( moduleDataIdx + 2 ) & 0x0F;
-				var param  = moduleData.uByte( moduleDataIdx + 3 );
+				var effect = ibxmData.uByte( moduleDataIdx + 2 ) & 0x0F;
+				var param  = ibxmData.uByte( moduleDataIdx + 3 );
 				if( param == 0 && ( effect < 3 || effect == 0xA ) ) effect = 0;
 				if( param == 0 && ( effect == 5 || effect == 6 ) ) effect -= 2;
 				if( effect == 8 && this.numChannels == 4 ) effect = param = 0;
@@ -1355,31 +1357,33 @@ function IBXMModule( moduleData ) {
 		for( var instIdx = 1; instIdx <= this.numInstruments; instIdx++ ) {
 			var instrument = this.instruments[ instIdx ] = new IBXMInstrument();
 			var sample = instrument.samples[ 0 ];
-			instrument.name = moduleData.strLatin1( instIdx * 30 - 10, 22 );
-			var sampleLength = moduleData.ubeShort( instIdx * 30 + 12 ) * 2;
-			var fineTune = ( moduleData.uByte( instIdx * 30 + 14 ) & 0xF ) << 4;
+			instrument.name = ibxmData.strLatin1( instIdx * 30 - 10, 22 );
+			var sampleLength = ibxmData.ubeShort( instIdx * 30 + 12 ) * 2;
+			var fineTune = ( ibxmData.uByte( instIdx * 30 + 14 ) & 0xF ) << 4;
 			sample.fineTune = ( fineTune < 128 ) ? fineTune : fineTune - 256;
-			var volume = moduleData.uByte( instIdx * 30 + 15 ) & 0x7F;
+			var volume = ibxmData.uByte( instIdx * 30 + 15 ) & 0x7F;
 			sample.volume = ( volume <= 64 ) ? volume : 64;
 			sample.panning = -1;
-			var loopStart = moduleData.ubeShort( instIdx * 30 + 16 ) * 2;
-			var loopLength = moduleData.ubeShort( instIdx * 30 + 18 ) * 2;
+			var loopStart = ibxmData.ubeShort( instIdx * 30 + 16 ) * 2;
+			var loopLength = ibxmData.ubeShort( instIdx * 30 + 18 ) * 2;
 			if( loopStart + loopLength > sampleLength )
 				loopLength = sampleLength - loopStart;
 			if( loopLength < 4 ) {
 				loopStart = sampleLength;
 				loopLength = 0;
 			}
-			sample.setSampleData( moduleData.samS8( moduleDataIdx, sampleLength ), loopStart, loopLength, false );
+			sample.setSampleData( ibxmData.samS8( moduleDataIdx, sampleLength ), loopStart, loopLength, false );
 			moduleDataIdx += sampleLength;
 		}
 	}
-	var data = new IBXMData( moduleData );
-	if( data.strLatin1( 0, 17 ) == "Extended Module: " ) {
-		this.loadXM( data );
-	} else if( data.strLatin1( 44, 4 ) == "SCRM" ) {
-		this.loadS3M( data );
-	} else if( moduleData != undefined ) {
-		this.loadMod( data );
+	if( moduleData != undefined ) {
+		var ibxmData = new IBXMData( moduleData );
+		if( ibxmData.strLatin1( 0, 17 ) == "Extended Module: " ) {
+			this.loadXM( ibxmData );
+		} else if( ibxmData.strLatin1( 44, 4 ) == "SCRM" ) {
+			this.loadS3M( ibxmData );
+		} else {
+			this.loadMod( ibxmData );
+		}
 	}
 }

@@ -79,11 +79,13 @@ public class Module {
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, 64 );
 			for( int patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
-				int key = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
-				key = ( key | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
-				key = -12 * Channel.log2( ( key << Sample.FP_SHIFT ) / 29021 );
-				key = ( key + ( key & ( Sample.FP_ONE >> 1 ) ) ) >> Sample.FP_SHIFT;
-				if( key < 97 ) pattern.data[ patDataIdx ] = ( byte ) key;
+				int period = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
+				period = ( period | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
+				if( period > 112 ) {
+					int key = -12 * Channel.log2( ( period << Sample.FP_SHIFT ) / 29021 );
+					key = ( key + ( key & ( Sample.FP_ONE >> 1 ) ) ) >> Sample.FP_SHIFT;
+					pattern.data[ patDataIdx ] = ( byte ) key;
+				}
 				int ins = ( moduleData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
 				ins = ins | moduleData.uByte( moduleDataIdx ) & 0x10;
 				pattern.data[ patDataIdx + 1 ] = ( byte ) ins;
