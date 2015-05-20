@@ -43,13 +43,17 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSlider;
+import javax.swing.JTree;
 import javax.swing.JTextField;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
+import javax.swing.event.TreeSelectionListener;
+import javax.swing.event.TreeSelectionEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.tree.TreeModel;
 
 public class IBXMPlayer extends JFrame {
 	private static final int SAMPLE_RATE = 48000, FADE_SECONDS = 16, REVERB_MILLIS = 50;
@@ -96,6 +100,50 @@ public class IBXMPlayer extends JFrame {
 		instrumentList.setOpaque( false );
 		JScrollPane instrumentPane = new JScrollPane( instrumentList );
 		instrumentPane.setBorder( BorderFactory.createTitledBorder( "Instruments" ) );
+
+
+		JTree fileTree = new JTree( new TreeModel() {
+			public void addTreeModelListener(javax.swing.event.TreeModelListener l) {}
+			public Object getChild(Object parent, int index) {
+				return ((Node)parent).getChildren()[ index ];
+			}
+			public int getChildCount(Object parent) {
+				return ((Node)parent).getChildren().length;
+			}
+			public int getIndexOfChild(Object parent, Object child) {
+				Node[] children = ((Node)parent).getChildren();
+				for( int idx = 0; idx < children.length; idx++ ) {
+					if( children[ idx ].equals( child ) ) {
+						return idx;
+					}
+				}
+				return -1;
+			}
+			public Object getRoot() {
+				return new Node( null );
+			}
+			public boolean isLeaf(Object node) {
+				return !((Node)node).hasChildren();
+			}
+			public void	removeTreeModelListener(javax.swing.event.TreeModelListener l) {
+			}
+			public void valueForPathChanged(javax.swing.tree.TreePath path, Object newValue) {
+			}
+		} );
+		fileTree.setFont( new Font( "Monospaced", Font.PLAIN, 12 ) );
+		fileTree.addTreeSelectionListener( new TreeSelectionListener() {
+			public void valueChanged( TreeSelectionEvent treeSelectionEvent ) {
+				File file = ((Node)treeSelectionEvent.getPath().getLastPathComponent()).getFile();
+				if( !file.isDirectory() ){
+					try {
+						loadModule( file );
+					} catch( Exception e ) {
+					}
+				}
+			};
+		} );
+		JScrollPane fileTreePane = new JScrollPane( fileTree );
+		fileTreePane.setBorder( BorderFactory.createTitledBorder( "Module Path" ) );
 		DropTarget dropTarget = new DropTarget( this, new DropTargetAdapter() {
 			public void drop( DropTargetDropEvent dropTargetDropEvent ) {
 				try {
@@ -104,13 +152,7 @@ public class IBXMPlayer extends JFrame {
 					DataFlavor dataFlavor = DataFlavor.javaFileListFlavor;
 					List fileList = ( List ) transferable.getTransferData( dataFlavor );
 					if( fileList != null && fileList.size() > 0 ) {
-						File file = ( File ) fileList.get( 0 );
-						InputStream inputStream = new FileInputStream( file );
-						try {
-							loadModule( inputStream );
-						} finally {
-							inputStream.close();
-						}
+						loadModule( ( File ) fileList.get( 0 ) );
 					}
 					dropTargetDropEvent.dropComplete( true );
 				} catch( Exception e ) {
@@ -178,13 +220,7 @@ public class IBXMPlayer extends JFrame {
 				int result = loadFileChooser.showOpenDialog( IBXMPlayer.this );
 				if( result == JFileChooser.APPROVE_OPTION ) {
 					try {
-						File file = loadFileChooser.getSelectedFile();
-						InputStream inputStream = new FileInputStream( file );
-						try {
-							loadModule( inputStream );
-						} finally {
-							inputStream.close();
-						}
+						loadModule( loadFileChooser.getSelectedFile() );
 					} catch( Exception e ) {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
@@ -275,12 +311,21 @@ public class IBXMPlayer extends JFrame {
 		mainPanel.setBorder( BorderFactory.createEmptyBorder( 10, 10, 10, 10 ) );
 		mainPanel.setLayout( new BorderLayout( 10, 10 ) );
 		mainPanel.add( controlPanel, BorderLayout.NORTH );
-		mainPanel.add( instrumentPane, BorderLayout.CENTER );
+		mainPanel.add( fileTreePane, BorderLayout.CENTER );
+		mainPanel.add( instrumentPane, BorderLayout.EAST );
 		getContentPane().setLayout( new BorderLayout() );
 		getContentPane().add( mainPanel );
 		pack();
 	}
 
+	private void loadModule( File modFile ) throws IOException {
+		InputStream inputStream = new FileInputStream( modFile );
+		try {
+			loadModule( inputStream );
+		} finally {
+			inputStream.close();
+		}
+	}
 
 	private void loadModule( InputStream modFile ) throws IOException {
 		Module module = new Module( modFile );
@@ -415,6 +460,53 @@ public class IBXMPlayer extends JFrame {
 				reverbIdx = 0;
 			}
 			mixIdx += 2;
+		}
+	}
+
+	private static class Node {
+		private java.io.File file;
+		public Node( java.io.File file ) {
+			this.file = file;
+		}
+		public java.io.File getFile() {
+			return file;
+		}
+		public String toString() {
+			String name = "File System                     ";
+			if( file != null ) {
+				name = file.getName();
+				if( name.length() < 1 ) {
+					name = file.toString();
+				}
+			}
+			return name;
+		}
+		public int hashCode() {
+			return file != null ? file.hashCode() : 0;
+		}
+		public boolean equals( Object obj ) {
+			if( obj instanceof Node ) {
+				Node node = ( Node ) obj;
+				return ( file == node.file ) || ( file != null && file.equals( node.file ) );
+			}
+			return false;
+		}
+		public Node[] getChildren() {
+			java.io.File[] files = null;
+			if( file == null ) {
+				files = java.io.File.listRoots();
+			} else {
+				files = file.listFiles();
+			}
+			int count = files != null ? files.length : 0;
+			Node[] nodes = new Node[ count ];
+			for( int idx = 0; idx < count; idx++ ) {
+				nodes[ idx ] = new Node( files[ idx ] );
+			}
+			return nodes;
+		}
+		public boolean hasChildren() {
+			return file == null || file.isDirectory();
 		}
 	}
 
