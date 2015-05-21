@@ -100,8 +100,6 @@ public class IBXMPlayer extends JFrame {
 		instrumentList.setOpaque( false );
 		JScrollPane instrumentPane = new JScrollPane( instrumentList );
 		instrumentPane.setBorder( BorderFactory.createTitledBorder( "Instruments" ) );
-
-
 		JTree fileTree = new JTree( new TreeModel() {
 			public void addTreeModelListener(javax.swing.event.TreeModelListener l) {}
 			public Object getChild(Object parent, int index) {
@@ -321,33 +319,30 @@ public class IBXMPlayer extends JFrame {
 	private void loadModule( File modFile ) throws IOException {
 		InputStream inputStream = new FileInputStream( modFile );
 		try {
-			loadModule( inputStream );
+			Module module = new Module( inputStream );
+			IBXM ibxm = new IBXM( module, SAMPLE_RATE );
+			ibxm.setInterpolation( interpolation );
+			duration = ibxm.calculateSongDuration();
+			synchronized( this ) {
+				samplePos = sliderPos = 0;
+				seekSlider.setMinimum( 0 );
+				seekSlider.setMaximum( duration );
+				seekSlider.setValue( 0 );
+				String songName = module.songName.trim();
+				songLabel.setText( songName.length() > 0 ? songName : modFile.getName() );
+				Vector<String> vector = new Vector<String>();
+				Instrument[] instruments = module.instruments;
+				for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
+					String name = instruments[ idx ].name;
+					if( name.trim().length() > 0 )
+						vector.add( String.format( "%03d: %s", idx, name ) );
+				}
+				instrumentList.setListData( vector );
+				this.module = module;
+				this.ibxm = ibxm;
+			}
 		} finally {
 			inputStream.close();
-		}
-	}
-
-	private void loadModule( InputStream modFile ) throws IOException {
-		Module module = new Module( modFile );
-		IBXM ibxm = new IBXM( module, SAMPLE_RATE );
-		ibxm.setInterpolation( interpolation );
-		duration = ibxm.calculateSongDuration();
-		synchronized( this ) {
-			samplePos = sliderPos = 0;
-			seekSlider.setMinimum( 0 );
-			seekSlider.setMaximum( duration );
-			seekSlider.setValue( 0 );
-			songLabel.setText( module.songName.trim() );
-			Vector<String> vector = new Vector<String>();
-			Instrument[] instruments = module.instruments;
-			for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
-				String name = instruments[ idx ].name;
-				if( name.trim().length() > 0 )
-					vector.add( String.format( "%03d: %s", idx, name ) );
-			}
-			instrumentList.setListData( vector );
-			this.module = module;
-			this.ibxm = ibxm;
 		}
 	}
 
