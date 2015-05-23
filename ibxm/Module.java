@@ -81,7 +81,7 @@ public class Module {
 			for( int patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
 				int period = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
 				period = ( period | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
-				if( period > 112 ) {
+				if( period >= 112 && period <= 6848 ) {
 					int key = -12 * Channel.log2( ( period << Sample.FP_SHIFT ) / 29021 );
 					key = ( key + ( key & ( Sample.FP_ONE >> 1 ) ) ) >> Sample.FP_SHIFT;
 					pattern.data[ patDataIdx ] = ( byte ) key;

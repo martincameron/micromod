@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150512 (c)2015 mumart@gmail.com";
+		return "20150523 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -1334,7 +1334,7 @@ function IBXMModule( moduleData ) {
 			for( var patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
 				var period = ( ibxmData.uByte( moduleDataIdx ) & 0xF ) << 8;
 				period = ( period | ibxmData.uByte( moduleDataIdx + 1 ) ) * 4;
-				if( period > 112 ) {
+				if( period >= 112 && period <= 6848 ) {
 					var key = Math.round( -12 * Math.log( period / 29021 ) / Math.log( 2 ) );
 					pattern.data[ patDataIdx ] = key;
 				}
