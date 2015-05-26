@@ -56,6 +56,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.tree.TreeModel;
 
 public class IBXMPlayer extends JFrame {
+	private static final String[] EXTENSIONS = { "mod", "ft", "s3m", "xm" };
 	private static final int SAMPLE_RATE = 48000, FADE_SECONDS = 16, REVERB_MILLIS = 50;
 
 	private JLabel songLabel;
@@ -487,16 +488,25 @@ public class IBXMPlayer extends JFrame {
 			return false;
 		}
 		public Node[] getChildren() {
-			java.io.File[] files = null;
+			Vector<File> files = new Vector<File>();
 			if( file == null ) {
-				files = java.io.File.listRoots();
+				for( File root : File.listRoots() ) files.add( root );
+				files.add( new File( System.getProperty( "user.home" ) ) );
 			} else {
-				files = file.listFiles();
+				for( File child : file.listFiles() ) {
+					String filename = child.getName().toLowerCase();
+					boolean supported = false;
+					for( String extension : EXTENSIONS ) {
+						supported = supported || filename.startsWith( extension ) || filename.endsWith( extension );
+					}
+					if( !child.isHidden() && ( child.isDirectory() || supported ) ) {
+						files.add( child );
+					}
+				}
 			}
-			int count = files != null ? files.length : 0;
-			Node[] nodes = new Node[ count ];
-			for( int idx = 0; idx < count; idx++ ) {
-				nodes[ idx ] = new Node( files[ idx ] );
+			Node[] nodes = new Node[ files.size() ];
+			for( int idx = 0; idx < nodes.length; idx++ ) {
+				nodes[ idx ] = new Node( files.elementAt( idx ) );
 			}
 			return nodes;
 		}
