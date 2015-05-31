@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150523 (c)2015 mumart@gmail.com";
+		return "20150531 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -173,6 +173,12 @@ function IBXMReplay( module, samplingRate ) {
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) {
 				breakSeqPos = nextRow = 0;
+			}
+			while( module.sequence[ breakSeqPos ] >= module.numPatterns ) {
+				breakSeqPos++;
+				if( breakSeqPos >= module.sequenceLength ) {
+					breakSeqPos = nextRow = 0;
+				}
 			}
 			if( breakSeqPos <= seqPos ) {
 				songEnd = true;
@@ -1031,6 +1037,7 @@ function IBXMModule( moduleData ) {
 		this.defaultTempo = ibxmData.uleShort( 78 );
 		this.c2Rate = 8363;
 		this.gain = 64;
+		this.fastVolSlides = false;
 		this.defaultPanning = new Int32Array( this.numChannels );
 		for( var idx = 0; idx < this.numChannels; idx++ ) this.defaultPanning[ idx ] = 128;
 		this.sequence = new Int32Array( this.sequenceLength );
@@ -1321,6 +1328,8 @@ function IBXMModule( moduleData ) {
 		this.defaultGVol = 64;
 		this.defaultSpeed = 6;
 		this.defaultTempo = 125;
+		this.linearPeriods = false;
+		this.fastVolSlides = false;
 		this.defaultPanning = new Int32Array( this.numChannels );
 		for( var idx = 0; idx < this.numChannels; idx++ ) {
 			this.defaultPanning[ idx ] = 51;
