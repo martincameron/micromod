@@ -13,24 +13,19 @@ public class Macro {
 		this.speed = ( speed > 0 ) ? speed : 6;
 	}
 
-	/* Expand macro into the specified pattern until end or an instrument is set. */
-	public int expand( Module module, int patternIdx, int channelIdx, int rowIdx ) {
-		return expand( module, new int[] { patternIdx }, channelIdx, rowIdx );
-	}
-
-	/* Treat the specified patterns as a single large pattern and expand macro
-	   until the end or an instrument is set. The final row index is returned. */
-	public int expand( Module module, int[] patterns, int channelIdx, int rowIdx ) {
+	/* Expand macro into the specified position in the pattern list.
+	   Expansion will continue into the next pattern until an instrument is encountered. */
+	public int expand( Module module, Pattern[] patterns, int patternIdx, int rowIdx, int channelIdx ) {
 		int macroRowIdx = 0, srcKey = rootKey, dstKey = rootKey, distance = 0, amplitude = 64;
 		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0;
 		int sampleOffset = 0, sampleLength = 0, delta;
 		Note note = new Note();
 		while( macroRowIdx < Pattern.NUM_ROWS ) {
-			int patternsIdx = rowIdx / Pattern.NUM_ROWS;
+			int patternsIdx = patternIdx + rowIdx / Pattern.NUM_ROWS;
 			if( patternsIdx >= patterns.length ) {
 				break;
 			}
-			Pattern pattern = module.getPattern( patterns[ patternsIdx ] );
+			Pattern pattern = patterns[ patternsIdx ];
 			pattern.getNote( rowIdx % Pattern.NUM_ROWS, channelIdx, note );
 			if( note.instrument > 0 ) {
 				break;

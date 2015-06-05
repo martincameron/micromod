@@ -14,11 +14,11 @@ public class Compiler {
 		"For example, an empty note would be '--------', and instrument 1\n" +
 		"played at middle-c, with no effect would be 'C-201---'.\n" +
 		"The channel volume and fine-tune are set from the instrument.\n\n" +
-		"When a macro is played instead of an instrument, it will play until\n" +
+		"When a macro is played instead of an instrument, it will run until\n" +
 		"a note with an instrument is encountered. The transpose and volume\n" +
 		"of a macro can be adjusted by using a key or set volume (effect C)\n" +
-		"in the pattern. Macros can play over multiple patterns or loop within\n" +
-		"the same pattern using virtual patterns, for example 'Pattern 0,1'.\n\n" +
+		"in the pattern. When the end of the pattern is reached, the macro\n" +
+		"will continue to run into the next pattern in the sequence.\n\n" +
 		"The available effect/parameter combinations are:\n\n" +
 		"    0xy = Arpeggio, rapidly cycle through key, key + x, key + y.\n" +
 		"    1xx = Portamento up with speed xx.\n" +

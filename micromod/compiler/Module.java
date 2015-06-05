@@ -33,6 +33,30 @@ public class Module implements Element {
 	}
 	
 	public void end() {
+		/* Expand macros.*/
+		micromod.Note note = new micromod.Note();
+		int numChannels = module.getNumChannels();
+		micromod.Pattern[] patterns = new micromod.Pattern[ module.getSequenceLength() ];
+		for( int sequenceIdx = 0; sequenceIdx < patterns.length; sequenceIdx++ ) {
+			micromod.Pattern pattern = module.getPattern( module.getSequenceEntry( sequenceIdx ) );
+			patterns[ sequenceIdx ] = new micromod.Pattern( numChannels, pattern );
+		}
+		for( int patternIdx = 0; patternIdx < patterns.length; patternIdx++ ) {
+			for( int rowIdx = 0; rowIdx < micromod.Pattern.NUM_ROWS; rowIdx++ ) {
+				for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
+					micromod.Pattern pattern = patterns[ patternIdx ];
+					pattern.getNote( rowIdx, channelIdx, note );
+					micromod.Macro macro = macros[ note.instrument ];
+					if( macro != null ) {
+						note.instrument = 0;
+						pattern.setNote( rowIdx, channelIdx, note );
+						macro.expand( module, patterns, patternIdx, rowIdx, channelIdx );
+						pattern.getNote( rowIdx, channelIdx, note );
+					}
+					module.getPattern( module.getSequenceEntry( patternIdx ) ).setNote( rowIdx, channelIdx, note );
+				}
+			}
+		}
 		System.out.println( getToken() + " end." );
 	}
 
@@ -57,11 +81,7 @@ public class Module implements Element {
 	}
 	
 	public void setMacro( int macroIdx, micromod.Macro macro ) {
-		macros[ macroIdx ] = macro;
-	}
-	
-	public micromod.Macro getMacro( int macroIdx ) {
-		return macros[ macroIdx ];
+		if( macroIdx > 0 && macroIdx < 100 ) macros[ macroIdx ] = macro;
 	}
 	
 	public micromod.Pattern getPattern( int patIdx ) {

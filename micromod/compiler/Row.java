@@ -42,7 +42,7 @@ public class Row implements Element {
 				parent.setNote( rowIdx, chanIdx, output );
 				chanIdx++;
 			} catch( IllegalArgumentException e ) {
-				String msg = "At Pattern " + parent.getPatternList() + " Row " + rowIdx + " Channel " + chanIdx;
+				String msg = "At Pattern " + parent.getPatternIdx() + " Row " + rowIdx + " Channel " + chanIdx;
 				throw new IllegalArgumentException( msg + ": " + e.getMessage() );
 			}
 		}
@@ -54,7 +54,7 @@ public class Row implements Element {
 
 	public String description() {
 		return "\"00 C-2-1--- --------\" (Specify a single row within a pattern.)\n" +
-			"(Row index, followed by 8-character notes for each channel.)\n" +
+			"(Row index, from 0 to 63, followed by notes for each channel.)\n" +
 			"(See the '-notes' command line option for more information.)";
 	}
 	

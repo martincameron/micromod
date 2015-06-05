@@ -3,7 +3,7 @@ package micromod.compiler;
 public class Pattern implements Element {
 	private Module parent;
 	private Row child = new Row( this );
-	private int[] patterns;
+	private int patternIdx;
 
 	public Pattern( Module parent ) {
 		this.parent = parent;
@@ -26,55 +26,25 @@ public class Pattern implements Element {
 	}
 	
 	public void begin( String value ) {
-		patterns = Parser.parseIntegerArray( value );
+		patternIdx = Parser.parseInteger( value );
 		child.setRowIdx( 0 );
 	}
 	
 	public void end() {
-		/* Expand macros.*/
-		micromod.Note note = new micromod.Note();
-		int numChannels = parent.getModule().getNumChannels();
-		for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
-			int rowIdx = 0;
-			int numRows = patterns.length * micromod.Pattern.NUM_ROWS;
-			while( rowIdx < numRows ) {
-				micromod.Pattern pattern = parent.getPattern( patterns[ rowIdx / micromod.Pattern.NUM_ROWS ] );
-				pattern.getNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
-				micromod.Macro macro = ( note.instrument > 0 ) ? parent.getMacro( note.instrument ) : null;
-				if( macro != null ) {
-					note.instrument = 0;
-					pattern.setNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
-					rowIdx = macro.expand( parent.getModule(), patterns, channelIdx, rowIdx );
-				} else {
-					rowIdx++;
-				}
-			}
-		}
 	}
 
 	public String description() {
-		return "\"Index\" (Pattern index, from 0 to 127.)\n" +
-			"(There are 64 rows in each pattern.)\n" +
-			"(Virtual patterns can be combined using a list, such as '0,1,2'.)\n" +
-			"(This can be useful when expanding macros across patterns.)";
+		return "\"Index\" (Pattern index, from 0 to 127.)";
 	}
 
 	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
-		int numRows = patterns.length * micromod.Pattern.NUM_ROWS;
-		if( rowIdx >= numRows ) {
-			throw new IllegalArgumentException( "Row index out of range (0 to " + ( numRows - 1 ) + "): " + rowIdx );
+		if( rowIdx >= micromod.Pattern.NUM_ROWS ) {
+			throw new IllegalArgumentException( "Row index out of range (0 to 63): " + rowIdx );
 		}
-		int patternsIdx = rowIdx / micromod.Pattern.NUM_ROWS;
-		parent.getPattern( patterns[ patternsIdx ] ).setNote( rowIdx % micromod.Pattern.NUM_ROWS, channelIdx, note );
+		parent.getPattern( patternIdx ).setNote( rowIdx, channelIdx, note );
 	}
-	
-	public String getPatternList() {
-		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append( patterns[ 0 ] );
-		for( int idx = 1; idx < patterns.length; idx++ ) {
-			stringBuilder.append( ',' );
-			stringBuilder.append( patterns[ idx ] );
-		}
-		return stringBuilder.toString();
+
+	public int getPatternIdx() {
+		return patternIdx;
 	}
 }
