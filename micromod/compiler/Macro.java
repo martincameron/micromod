@@ -6,8 +6,7 @@ public class Macro implements Element {
 	private Pattern sibling;
 	private Scale child = new Scale( this );
 	private micromod.Pattern pattern;
-	private int macroIdx, rowIdx;
-	private int repeatRow, speed;
+	private int macroIdx, rowIdx, repeatRow;
 	private String scale, root;
 
 	public Macro( Module parent ) {
@@ -35,11 +34,10 @@ public class Macro implements Element {
 		pattern = new micromod.Pattern( 1 );
 		macroIdx = Parser.parseInteger( value );
 		rowIdx = repeatRow = 0;
-		speed = 6;
 	}
 
 	public void end() {
-		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern, speed ) );
+		parent.setMacro( macroIdx, new micromod.Macro( scale, root, pattern ) );
 	}
 
 	public String description() {
@@ -52,10 +50,6 @@ public class Macro implements Element {
 	
 	public void setRoot( String root ) {
 		this.root = root;
-	}
-
-	public void setSpeed( int ticksPerRow ) {
-		speed = ticksPerRow;
 	}
 
 	public void nextNote( micromod.Note note, int repeatParam ) {

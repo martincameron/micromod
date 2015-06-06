@@ -3,11 +3,11 @@ package micromod.compiler;
 
 public class Root implements Element {
 	private Macro parent;
-	private Speed sibling;
+	private Note sibling;
 	
 	public Root( Macro parent ) {
 		this.parent = parent;
-		sibling = new Speed( parent );
+		sibling = new Note( parent );
 	}
 	
 	public String getToken() {
@@ -34,6 +34,6 @@ public class Root implements Element {
 	}
 
 	public String description() {
-		return "\"C-2\" (The root key of the Macro, no transpose will be applied.)";
+		return "\"C-2\" (No transpose will be applied when played at this key.)";
 	}
 }

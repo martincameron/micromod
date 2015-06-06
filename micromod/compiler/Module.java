@@ -34,23 +34,30 @@ public class Module implements Element {
 	
 	public void end() {
 		/* Expand macros.*/
-		micromod.Note note = new micromod.Note();
+		int speed = 6;
 		int numChannels = module.getNumChannels();
+		micromod.Note note = new micromod.Note();
 		micromod.Pattern[] patterns = new micromod.Pattern[ module.getSequenceLength() ];
 		for( int sequenceIdx = 0; sequenceIdx < patterns.length; sequenceIdx++ ) {
 			micromod.Pattern pattern = module.getPattern( module.getSequenceEntry( sequenceIdx ) );
 			patterns[ sequenceIdx ] = new micromod.Pattern( numChannels, pattern );
 		}
 		for( int patternIdx = 0; patternIdx < patterns.length; patternIdx++ ) {
+			micromod.Pattern pattern = patterns[ patternIdx ];
 			for( int rowIdx = 0; rowIdx < micromod.Pattern.NUM_ROWS; rowIdx++ ) {
 				for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
-					micromod.Pattern pattern = patterns[ patternIdx ];
+					pattern.getNote( rowIdx, channelIdx, note );
+					if( note.effect == 0xF && note.parameter < 0x20 ) {
+						speed = note.parameter;
+					}
+				}
+				for( int channelIdx = 0; channelIdx < numChannels; channelIdx++ ) {
 					pattern.getNote( rowIdx, channelIdx, note );
 					micromod.Macro macro = macros[ note.instrument ];
 					if( macro != null ) {
 						note.instrument = 0;
 						pattern.setNote( rowIdx, channelIdx, note );
-						macro.expand( module, patterns, patternIdx, rowIdx, channelIdx );
+						macro.expand( module, patterns, patternIdx, rowIdx, channelIdx, speed );
 						pattern.getNote( rowIdx, channelIdx, note );
 					}
 					module.getPattern( module.getSequenceEntry( patternIdx ) ).setNote( rowIdx, channelIdx, note );

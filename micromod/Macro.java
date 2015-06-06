@@ -3,30 +3,31 @@ package micromod;
 
 public class Macro {
 	private Scale scale;
-	private int rootKey, speed;
+	private int rootKey;
 	private Pattern notes;
 	
-	public Macro( String scale, String rootKey, Pattern notes, int speed ) {
+	public Macro( String scale, String rootKey, Pattern notes ) {
 		this.scale = new Scale( scale != null ? scale : Scale.CHROMATIC );
 		this.rootKey = Note.parseKey( rootKey != null ? rootKey : "C-2" );
 		this.notes = new Pattern( 1, notes );
-		this.speed = ( speed > 0 ) ? speed : 6;
 	}
 
 	/* Expand macro into the specified position in the pattern list.
+	   The speed parameter must match the effect 0xF speed for proper transpose (default 6).
 	   Expansion will continue into the next pattern until an instrument is encountered. */
-	public int expand( Module module, Pattern[] patterns, int patternIdx, int rowIdx, int channelIdx ) {
+	public int expand( Module module, Pattern[] patterns, int patternIdx, int rowIdx, int channelIdx, int speed ) {
 		int macroRowIdx = 0, srcKey = rootKey, dstKey = rootKey, distance = 0, amplitude = 64;
 		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0;
 		int sampleOffset = 0, sampleLength = 0, delta;
 		Note note = new Note();
 		while( macroRowIdx < Pattern.NUM_ROWS ) {
-			int patternsIdx = patternIdx + rowIdx / Pattern.NUM_ROWS;
-			if( patternsIdx >= patterns.length ) {
+			patternIdx += rowIdx / Pattern.NUM_ROWS;
+			rowIdx = rowIdx % Pattern.NUM_ROWS;
+			if( patternIdx >= patterns.length ) {
 				break;
 			}
-			Pattern pattern = patterns[ patternsIdx ];
-			pattern.getNote( rowIdx % Pattern.NUM_ROWS, channelIdx, note );
+			Pattern pattern = patterns[ patternIdx ];
+			pattern.getNote( rowIdx, channelIdx, note );
 			if( note.instrument > 0 ) {
 				break;
 			}
@@ -244,7 +245,7 @@ public class Macro {
 				note.effect = 0xC;
 				note.parameter = divide( volume, 4, amplitude );
 			}
-			pattern.setNote( ( rowIdx++ ) % pattern.NUM_ROWS, channelIdx, note );
+			pattern.setNote( rowIdx++, channelIdx, note );
 		}
 		return rowIdx;
 	}
