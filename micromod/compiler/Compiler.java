@@ -39,6 +39,7 @@ public class Compiler {
 		"    AFx = Linear volume-slide down with speed x (Macro only).\n" +
 		"    Bxx = Pattern jump to pattern xx.\n" +
 		"    Cxx = Set volume of instrument or macro to xx (00 to 40).\n" +
+		"    CFx = Linear set volume x (Macro only).\n" +
 		"    Dnn = Pattern break, to row nn (decimal 00 to 63) of next pattern.\n" +
 		"    E1x = Fine portamento up with speed x.\n" +
 		"    E2x = Fine portamento down with speed x.\n" +

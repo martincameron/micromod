@@ -230,6 +230,10 @@ public class Macro {
 				}
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
+				if( ( note.parameter & 0xF0 ) == 0xF0 ) {
+					note.parameter = ( note.parameter & 0xF ) + 1;
+					note.parameter = ( note.parameter * note.parameter ) >> 2;
+				}
 				note.parameter = divide( note.parameter * amplitude, 64, amplitude );
 				volume = note.parameter * 4;
 			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0xA0 ) {

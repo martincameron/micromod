@@ -38,9 +38,6 @@ public class Pattern implements Element {
 	}
 
 	public void setNote( int rowIdx, int channelIdx, micromod.Note note ) {
-		if( rowIdx >= micromod.Pattern.NUM_ROWS ) {
-			throw new IllegalArgumentException( "Row index out of range (0 to 63): " + rowIdx );
-		}
 		parent.getPattern( patternIdx ).setNote( rowIdx, channelIdx, note );
 	}
 
