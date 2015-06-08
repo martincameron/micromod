@@ -94,56 +94,44 @@ public class Macro {
 				if( delta < 0 ) delta = 0;
 				if( delta > 15 ) delta = ( delta - 3 ) % 12 + 3;
 				note.parameter = ( note.parameter & 0xF0 ) + delta;
-			} else if( note.effect == 0x1 || ( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x10 ) ) {
-				if( note.effect == 0x1 ) {
-					/* Portamento up. */
-					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
-						delta = period - note.transpose( period, note.parameter & 0xF );
-					} else {
-						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
-					}
-					if( speed > 1 && delta >= speed ) {
-						note.parameter = divide( delta, speed - 1, 0xFF );
-						period = period - note.parameter * ( speed - 1 );
-					} else {
-						note.effect = 0xE;
-						note.parameter = 0x10 + ( delta & 0xF );
-						period = period - ( delta & 0xF );
-					}
+			} else if( note.effect == 0x1 ) {
+				/* Portamento up. */
+				if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
+					delta = period - Note.keyToPeriod( Note.periodToKey( period ) + ( note.parameter & 0xF ), 0 );
 				} else {
-					/* Fine portamento up. */
-					note.parameter = 0x10 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
-					period = period - ( note.parameter & 0xF );
+					delta = Note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
 				}
-			} else if( note.effect == 0x2 || ( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x20 ) ) {
-				if( note.effect == 0x2 ) {
-					/* Portamento down. */
-					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
-						delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
-					} else {
-						delta = note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
-					}
-					if( speed > 1 && delta >= speed ) {
-						note.parameter = divide( delta, speed - 1, 0xFF );
-						period = period + note.parameter * ( speed - 1 );
-					} else {
-						note.effect = 0xE;
-						note.parameter = 0x20 + ( delta & 0xF );
-						period = period + ( delta & 0xF );
-					}
+				if( speed > 1 && delta >= speed ) {
+					note.parameter = divide( delta, speed - 1, 0xFF );
+					period = period - note.parameter * ( speed - 1 );
 				} else {
-					/* Fine portamento down. */
-					note.parameter = 0x20 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
-					period = period + ( note.parameter & 0xF );
+					note.effect = 0xE;
+					note.parameter = 0x10 + ( delta & 0xF );
+					period = period - ( delta & 0xF );
+				}
+			} else if( note.effect == 0x2 ) {
+				/* Portamento down. */
+				if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
+					delta = Note.keyToPeriod( Note.periodToKey( period ) - ( note.parameter & 0xF ), 0 ) - period;
+				} else {
+					delta = Note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
+				}
+				if( speed > 1 && delta >= speed ) {
+					note.parameter = divide( delta, speed - 1, 0xFF );
+					period = period + note.parameter * ( speed - 1 );
+				} else {
+					note.effect = 0xE;
+					note.parameter = 0x20 + ( delta & 0xF );
+					period = period + ( delta & 0xF );
 				}
 			} else if( note.effect == 0x3 || note.effect == 0x5 ) {
 				/* Tone portamento. */
 				if( note.effect == 0x3 && note.parameter > 0 ) {
 					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						if( portaPeriod < period ) {
-							delta = period - note.transpose( period, note.parameter & 0xF );
+							delta = period - Note.transpose( period, note.parameter & 0xF );
 						} else {
-							delta = note.transpose( period, -( note.parameter & 0xF ) ) - period;
+							delta = Note.transpose( period, -( note.parameter & 0xF ) ) - period;
 						}
 						note.parameter = divide( delta, ( speed > 1 ) ? ( speed - 1 ) : 1, 0xFF );
 					} else {
@@ -165,6 +153,9 @@ public class Macro {
 						period = portaPeriod;
 					}
 				}
+			} else if( note.effect == 0x4 ) {
+				/* Vibrato. */
+				note.parameter = ( note.parameter & 0xF0 ) + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
 			} else if( note.effect == 0x9 ) {
 				/* Set sample offset. */
 				if( note.parameter >= 0xF0 ) {
@@ -173,13 +164,14 @@ public class Macro {
 				} else {
 					sampleOffset = ( note.parameter & 0xFF ) << 8;
 				}
-			}
-			if( note.effect == 0x4 || note.effect == 0x6 ) {
-				/* Vibrato. */
-				note.parameter = ( note.parameter & 0xF0 ) + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
-			} else if( note.effect == 0x7 ) {
-				/* Tremolo. */
-				note.parameter = ( note.parameter & 0xF0 ) + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
+			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x10 ) {
+				/* Fine portamento up. */
+				note.parameter = 0x10 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
+				period = period - ( note.parameter & 0xF );
+			} else if( note.effect == 0xE && ( note.parameter & 0xF0 ) == 0x20 ) {
+				/* Fine portamento down. */
+				note.parameter = 0x20 + transpose( note.parameter & 0xF, dstKey - srcKey, 0xF );
+				period = period + ( note.parameter & 0xF );
 			}
 			if( note.effect == 0x5 || note.effect == 0x6 || note.effect == 0xA ) {
 				/* Volume slide. */
@@ -228,6 +220,9 @@ public class Macro {
 					note.parameter = 0x1;
 					volume = volume - ( speed - 1 ) * 4;
 				}
+			} else if( note.effect == 0x7 ) {
+				/* Tremolo. */
+				note.parameter = ( note.parameter & 0xF0 ) + divide( ( note.parameter & 0xF ) * amplitude, 64, 0xF );
 			} else if( note.effect == 0xC ) {
 				/* Set volume. */
 				if( ( note.parameter & 0xF0 ) == 0xF0 ) {

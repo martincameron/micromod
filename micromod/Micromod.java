@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2015 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20150607 (c)2015 mumart@gmail.com";
+	public static final String VERSION = "20150608 (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
