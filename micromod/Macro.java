@@ -19,6 +19,9 @@ public class Macro {
 		int macroRowIdx = 0, srcKey = rootKey, dstKey = rootKey, distance = 0, amplitude = 64;
 		int volume = 0, fineTune = 0, period = 0, portaPeriod = 0, portaSpeed = 0;
 		int sampleOffset = 0, sampleLength = 0, delta;
+		if( speed < 1 ) {
+			speed = 1;
+		}
 		Note note = new Note();
 		while( macroRowIdx < Pattern.NUM_ROWS ) {
 			patternIdx += rowIdx / Pattern.NUM_ROWS;
@@ -86,13 +89,21 @@ public class Macro {
 				/* Arpeggio.*/
 				delta = scale.getDistance( srcKey, srcKey + ( ( note.parameter >> 4 ) & 0xF ) );
 				delta = scale.transpose( dstKey, delta ) - dstKey;
-				if( delta < 0 ) delta = 0;
-				if( delta > 15 ) delta = ( delta - 3 ) % 12 + 3;
+				if( delta < 0 ) {
+					delta = 0;
+				}
+				if( delta > 15 ) {
+					delta = ( delta - 3 ) % 12 + 3;
+				}
 				note.parameter = ( delta << 4 ) + ( note.parameter & 0xF );
 				delta = scale.getDistance( srcKey, srcKey + ( note.parameter & 0xF ) );
 				delta = scale.transpose( dstKey, delta ) - dstKey;
-				if( delta < 0 ) delta = 0;
-				if( delta > 15 ) delta = ( delta - 3 ) % 12 + 3;
+				if( delta < 0 ) {
+					delta = 0;
+				}
+				if( delta > 15 ) {
+					delta = ( delta - 3 ) % 12 + 3;
+				}
 				note.parameter = ( note.parameter & 0xF0 ) + delta;
 			} else if( note.effect == 0x1 ) {
 				/* Portamento up. */
@@ -101,10 +112,9 @@ public class Macro {
 				} else {
 					delta = Note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
 				}
-				if( speed > 1 && delta >= speed ) {
-					note.parameter = divide( delta, speed - 1, 0xFF );
-					period = period - note.parameter * ( speed - 1 );
-				} else {
+				note.parameter = ( speed > 1 ) ? divide( delta, speed - 1, 0xFF ) : 0;
+				period = period - note.parameter * ( speed - 1 );
+				if( note.parameter == 0 ) {
 					note.effect = 0xE;
 					note.parameter = 0x10 + ( delta & 0xF );
 					period = period - ( delta & 0xF );
@@ -116,10 +126,9 @@ public class Macro {
 				} else {
 					delta = Note.transpose( note.parameter * ( speed - 1 ), dstKey - srcKey );
 				}
-				if( speed > 1 && delta >= speed ) {
-					note.parameter = divide( delta, speed - 1, 0xFF );
-					period = period + note.parameter * ( speed - 1 );
-				} else {
+				note.parameter = ( speed > 1 ) ? divide( delta, speed - 1, 0xFF ) : 0;
+				period = period + note.parameter * ( speed - 1 );
+				if( note.parameter == 0 ) {
 					note.effect = 0xE;
 					note.parameter = 0x20 + ( delta & 0xF );
 					period = period + ( delta & 0xF );
@@ -186,10 +195,9 @@ public class Macro {
 					delta = ( note.parameter & 0xF ) + 1;
 					delta = sqrt( volume * 256 ) - divide( 256, delta * 4, 256 );
 					if( delta < 0 ) {
-						delta = -divide( delta * delta, 256, 256 ) - volume;
-					} else {
-						delta = divide( delta * delta, 256, 256 ) - volume;
+						delta = 0;
 					}
+					delta = divide( delta * delta, 256, 256 ) - volume;
 					if( delta > -1 ) {
 						delta = -1;
 					}
