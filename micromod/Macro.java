@@ -42,7 +42,7 @@ public class Macro {
 			notes.getNote( macroRowIdx++, 0, note );
 			if( effect > 0 ) {
 				if( effect == 0xC ) {
-					amplitude = param;
+					amplitude = ( param < 64 ) ? param : 64;
 				}
 				if( effect != 0xC || param == 0 ) {
 					/* Ensure C00 is passed through to empty notes. */
