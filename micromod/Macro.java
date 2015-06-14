@@ -138,9 +138,9 @@ public class Macro {
 				if( note.effect == 0x3 && note.parameter > 0 ) {
 					if( note.parameter > 0xF0 && note.parameter < 0xFE ) {
 						if( portaPeriod < period ) {
-							delta = period - Note.transpose( period, note.parameter & 0xF );
+							delta = period - Note.keyToPeriod( Note.periodToKey( period ) + ( note.parameter & 0xF ), 0 );
 						} else {
-							delta = Note.transpose( period, -( note.parameter & 0xF ) ) - period;
+							delta = Note.keyToPeriod( Note.periodToKey( period ) - ( note.parameter & 0xF ), 0 ) - period;
 						}
 						note.parameter = divide( delta, ( speed > 1 ) ? ( speed - 1 ) : 1, 0xFF );
 					} else {
