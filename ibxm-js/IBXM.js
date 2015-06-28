@@ -224,7 +224,8 @@ function IBXMReplay( module, samplingRate ) {
 					break;
 				case 0xD: case 0x83: /* Pattern Break.*/
 					if( plCount < 0 ) {
-						breakSeqPos = seqPos + 1;
+						if (breakSeqPos == -1)
+							breakSeqPos = seqPos + 1;
 						nextRow = ( note.param >> 4 ) * 10 + ( note.param & 0xF );
 					}
 					break;
