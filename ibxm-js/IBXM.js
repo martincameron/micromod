@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150531 (c)2015 mumart@gmail.com";
+		return "20150705 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -224,7 +224,8 @@ function IBXMReplay( module, samplingRate ) {
 					break;
 				case 0xD: case 0x83: /* Pattern Break.*/
 					if( plCount < 0 ) {
-						breakSeqPos = seqPos + 1;
+						if( breakSeqPos < 0 )
+							breakSeqPos = seqPos + 1;
 						nextRow = ( note.param >> 4 ) * 10 + ( note.param & 0xF );
 					}
 					break;

@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2014 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2015 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20141022';
+Const MICROMOD_VERSION : String = '20150705';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -482,7 +482,7 @@ Begin
 			End;
 		$D : Begin { Pattern Break. }
 				If PLCount < 0 Then Begin
-					BreakPattern := Pattern + 1;
+					If BreakPattern < 0 Then BreakPattern := Pattern + 1;
 					NextRow := ( Param Shr 4 ) * 10 + ( Param And $F );
 					If NextRow >= 64 Then NextRow := 0;
 				End;

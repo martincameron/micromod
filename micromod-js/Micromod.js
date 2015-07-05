@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150505 (c)2015 mumart@gmail.com";
+		return "20150705 (c)2015 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -233,7 +233,9 @@ function Micromod( module, samplingRate ) {
 					break;
 				case 0xD: /* Pattern Break.*/
 					if( plCount < 0 ) {
-						breakSeqPos = seqPos + 1;
+						if( breakSeqPos < 0 ) {
+							breakSeqPos = seqPos + 1;
+						}
 						nextRow = ( param >> 4 ) * 10 + ( param & 0xF );
 						if( nextRow >= 64 ) {
 							nextRow = 0;

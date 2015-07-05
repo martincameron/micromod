@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20141215 (c)2014 mumart@gmail.com */
+/* fast protracker replay version 20150705 (c)2015 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define FP_SHIFT 14
@@ -234,7 +234,7 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0xD: /* Pattern Break.*/
 			if( pl_count < 0 ) {
-				break_pattern = pattern + 1;
+				if( break_pattern < 0 ) break_pattern = pattern + 1;
 				next_row = ( param >> 4 ) * 10 + ( param & 0xF );
 				if( next_row >= 64 ) next_row = 0;
 			}
