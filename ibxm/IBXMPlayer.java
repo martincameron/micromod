@@ -504,6 +504,7 @@ public class IBXMPlayer extends JFrame {
 					}
 				}
 			}
+			files.sort( null );
 			Node[] nodes = new Node[ files.size() ];
 			for( int idx = 0; idx < nodes.length; idx++ ) {
 				nodes[ idx ] = new Node( files.elementAt( idx ) );
