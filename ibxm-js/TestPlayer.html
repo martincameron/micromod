@@ -19,8 +19,10 @@
 				stop();
 				var module = new IBXMModule( moduleData );
 				var replay = new IBXMReplay( module, player.getSamplingRate() );
+				var duration = Math.round( replay.calculateSongDuration() / player.getSamplingRate() );
 				player.setAudioSource( replay );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
+				document.getElementById( "duration" ).innerHTML = "Duration: " + duration + " seconds.";
 			}
 			function loadFile( file ) {
 				var reader = new FileReader();
@@ -47,6 +49,9 @@
 		</p>
 		<p>
 			<div id="songName">No song loaded.</div>
+		</p>
+		<p>
+			<div id="duration"></div>
 		</p>
 		<p>
 			<input type="file" id="input" onchange="loadFile( this.files[ 0 ] )"></input>

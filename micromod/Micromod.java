@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2015 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20150705 (c)2015 mumart@gmail.com";
+	public static final String VERSION = "20150716 (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -15,6 +15,7 @@ public class Micromod {
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, tempo, plCount, plChannel;
 	private boolean interpolation;
+	private byte[][] playCount;
 
 	/* Play the specified Module at the specified sampling rate. */
 	public Micromod( Module module, int samplingRate ) {
@@ -22,6 +23,7 @@ public class Micromod {
 		setSampleRate( samplingRate );
 		rampBuf = new int[ 128 ];
 		note = new Note();
+		playCount = new byte[ module.getSequenceLength() ][];
 		channels = new Channel[ module.getNumChannels() ];
 		setSequencePos( 0 );
 	}
@@ -70,6 +72,8 @@ public class Micromod {
 		speed = 6;
 		tempo = 125;
 		plCount = plChannel = -1;
+		for( int idx = 0; idx < playCount.length; idx++ )
+			playCount[ idx ] = new byte[ Pattern.NUM_ROWS ];
 		for( int idx = 0; idx < channels.length; idx++ )
 			channels[ idx ] = new Channel( module, idx );
 		for( int idx = 0; idx < 128; idx++ )
@@ -170,26 +174,27 @@ public class Micromod {
 	}
 
 	private boolean tick() {
-		boolean songEnd = false;
 		if( --tick <= 0 ) {
 			tick = speed;
-			songEnd = row();
+			row();
 		} else {
 			for( int idx = 0; idx < channels.length; idx++ ) channels[ idx ].tick();
 		}
-		return songEnd;
+		return playCount[ seqPos ][ row ] > 1;
 	}
 
-	private boolean row() {
-		boolean songEnd = false;
+	private void row() {
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.getSequenceLength() ) breakSeqPos = nextRow = 0;
-			if( breakSeqPos <= seqPos ) songEnd = true;
 			seqPos = breakSeqPos;
 			for( int idx = 0; idx < channels.length; idx++ ) channels[ idx ].plRow = 0;
 			breakSeqPos = -1;
 		}
 		row = nextRow;
+		int count = playCount[ seqPos ][ row ];
+		if( count < 127 ) {
+			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
+		}
 		nextRow = row + 1;
 		if( nextRow >= 64 ) {
 			breakSeqPos = seqPos + 1;
@@ -253,6 +258,5 @@ public class Micromod {
 					break;
 			}
 		}
-		return songEnd;
 	}
 }

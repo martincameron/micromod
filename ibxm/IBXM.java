@@ -5,10 +5,11 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2015 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a70dev (c)2015 mumart@gmail.com";
+	public static final String VERSION = "a70 (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
+	private byte[][] playCount;
 	private Channel[] channels;
 	private int sampleRate, interpolation;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
@@ -22,6 +23,7 @@ public class IBXM {
 		setSampleRate( samplingRate );
 		interpolation = Channel.LINEAR;
 		rampBuf = new int[ 128 ];
+		playCount = new byte[ module.sequenceLength ][];
 		channels = new Channel[ module.numChannels ];
 		globalVol = new GlobalVol();
 		note = new Note();
@@ -73,6 +75,11 @@ public class IBXM {
 		speed = module.defaultSpeed > 0 ? module.defaultSpeed : 6;
 		tempo = module.defaultTempo > 0 ? module.defaultTempo : 125;
 		plCount = plChannel = -1;
+		for( int idx = 0; idx < playCount.length; idx++ ) {
+			int patIdx = module.sequence[ idx ];
+			int numRows = ( patIdx < module.numPatterns ) ? module.patterns[ patIdx ].numRows : 0;
+			playCount[ idx ] = new byte[ numRows ];
+		}
 		for( int idx = 0; idx < module.numChannels; idx++ )
 			channels[ idx ] = new Channel( module, idx, globalVol );
 		for( int idx = 0; idx < 128; idx++ )
@@ -173,25 +180,22 @@ public class IBXM {
 	}
 
 	private boolean tick() {
-		boolean songEnd = false;
 		if( --tick <= 0 ) {
 			tick = speed;
-			songEnd = row();
+			row();
 		} else {
 			for( int idx = 0; idx < module.numChannels; idx++ ) channels[ idx ].tick();
 		}
-		return songEnd;
+		return playCount[ seqPos ][ row ] > 1;
 	}
 
-	private boolean row() {
-		boolean songEnd = false;
+	private void row() {
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) breakSeqPos = nextRow = 0;
 			while( module.sequence[ breakSeqPos ] >= module.numPatterns ) {
 				breakSeqPos++;
 				if( breakSeqPos >= module.sequenceLength ) breakSeqPos = nextRow = 0;
 			}
-			if( breakSeqPos <= seqPos ) songEnd = true;
 			seqPos = breakSeqPos;
 			for( int idx = 0; idx < module.numChannels; idx++ ) channels[ idx ].plRow = 0;
 			breakSeqPos = -1;
@@ -199,6 +203,10 @@ public class IBXM {
 		Pattern pattern = module.patterns[ module.sequence[ seqPos ] ];
 		row = nextRow;
 		if( row >= pattern.numRows ) row = 0;
+		int count = playCount[ seqPos ][ row ];
+		if( count < 127 ) {
+			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
+		}
 		nextRow = row + 1;
 		if( nextRow >= pattern.numRows ) {
 			breakSeqPos = seqPos + 1;
@@ -273,6 +281,5 @@ public class IBXM {
 					break;
 			}
 		}
-		return songEnd;
 	}
 }

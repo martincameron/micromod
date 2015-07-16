@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150705 (c)2015 mumart@gmail.com";
+		return "20150716 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -41,6 +41,11 @@ function IBXMReplay( module, samplingRate ) {
 		speed = module.defaultSpeed > 0 ? module.defaultSpeed : 6;
 		tempo = module.defaultTempo > 0 ? module.defaultTempo : 125;
 		plCount = plChannel = -1;
+		for( var idx = 0; idx < playCount.length; idx++ ) {
+			var patIdx = module.sequence[ idx ];
+			var numRows = ( patIdx < module.numPatterns ) ? module.patterns[ patIdx ].numRows : 0;
+			playCount[ idx ] = new Int8Array( numRows );
+		}
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			channels[ idx ] = new IBXMChannel( this, idx );
 		}
@@ -157,19 +162,17 @@ function IBXMReplay( module, samplingRate ) {
 		}
 	}
 	var seqTick = function() {
-		var songEnd = false;
 		if( --tick <= 0 ) {
 			tick = speed;
-			songEnd = seqRow();
+			seqRow();
 		} else {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
 				channels[ idx ].tick();
 			}
 		}
-		return songEnd;
+		return playCount[ seqPos ][ row ] > 1;
 	}
 	var seqRow = function() {
-		var songEnd = false;
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) {
 				breakSeqPos = nextRow = 0;
@@ -180,9 +183,6 @@ function IBXMReplay( module, samplingRate ) {
 					breakSeqPos = nextRow = 0;
 				}
 			}
-			if( breakSeqPos <= seqPos ) {
-				songEnd = true;
-			}
 			seqPos = breakSeqPos;
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
 				channels[ idx ].plRow = 0;
@@ -192,6 +192,10 @@ function IBXMReplay( module, samplingRate ) {
 		var pattern = module.patterns[ module.sequence[ seqPos ] ];
 		row = nextRow;
 		if( row >= pattern.numRows ) row = 0;
+		var count = playCount[ seqPos ][ row ];
+		if( count < 127 ) {
+			playCount[ seqPos ][ row ] = count + 1;
+		}
 		nextRow = row + 1;
 		if( nextRow >= pattern.numRows ) {
 			breakSeqPos = seqPos + 1;
@@ -266,7 +270,6 @@ function IBXMReplay( module, samplingRate ) {
 					break;
 			}
 		}
-		return songEnd;
 	}
 	var interpolation = true;
 	var rampBuf = new Float32Array( 64 * 2 );
@@ -274,6 +277,7 @@ function IBXMReplay( module, samplingRate ) {
 	var mixIdx = 0, mixLen = 0;
 	var seqPos = 0, breakSeqPos = 0, row = 0, nextRow = 0, tick = 0;
 	var speed = 0, tempo = 0, plCount = 0, plChannel = 0;
+	var playCount = new Array( module.sequenceLength );
 	var channels = new Array( module.numChannels );
 	var note = new IBXMNote();
 	this.module = module;
