@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2015 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20150716 (c)2015 mumart@gmail.com";
+	public static final String VERSION = "20150717 (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -192,7 +192,7 @@ public class Micromod {
 		}
 		row = nextRow;
 		int count = playCount[ seqPos ][ row ];
-		if( count < 127 ) {
+		if( plCount < 0 && count < 127 ) {
 			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
 		}
 		nextRow = row + 1;

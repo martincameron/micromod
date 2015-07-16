@@ -5,7 +5,7 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2015 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a70 (c)2015 mumart@gmail.com";
+	public static final String VERSION = "a71 (c)2015 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -204,7 +204,7 @@ public class IBXM {
 		row = nextRow;
 		if( row >= pattern.numRows ) row = 0;
 		int count = playCount[ seqPos ][ row ];
-		if( count < 127 ) {
+		if( plCount < 0 && count < 127 ) {
 			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
 		}
 		nextRow = row + 1;

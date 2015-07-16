@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150716 (c)2015 mumart@gmail.com";
+		return "20150717 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -193,7 +193,7 @@ function IBXMReplay( module, samplingRate ) {
 		row = nextRow;
 		if( row >= pattern.numRows ) row = 0;
 		var count = playCount[ seqPos ][ row ];
-		if( count < 127 ) {
+		if( plCount < 0 && count < 127 ) {
 			playCount[ seqPos ][ row ] = count + 1;
 		}
 		nextRow = row + 1;
