@@ -79,7 +79,7 @@ public class IBXMPlayer extends JFrame {
 
 	public IBXMPlayer() {
 		super( "IBXM " + IBXM.VERSION );
-		URL icon = IBXMPlayer.class.getResource( "ibxm.png" );
+		URL icon = IBXMPlayer.class.getResource( "/ibxm.png" );
 		setIconImage( Toolkit.getDefaultToolkit().createImage( icon ) );
 		JPanel controlPanel = new JPanel();
 		controlPanel.setLayout( new BorderLayout( 5, 5 ) );
