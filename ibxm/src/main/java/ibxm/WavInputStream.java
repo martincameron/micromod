@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.ChannelInterpolation;
+
 import java.io.InputStream;
 
 /*
@@ -126,14 +128,15 @@ public class WavInputStream extends InputStream {
 	public static void main( String[] args ) throws java.io.IOException {
 		java.io.File modFile = null, wavFile = null;
 		boolean fadeOut = false;
-		int argIdx = 0, interpolation = Channel.NEAREST;
+		int argIdx = 0;
+		ChannelInterpolation interpolation = ChannelInterpolation.NEAREST;
 		while( argIdx < args.length ) {
 			// Parse arguments.
 			String arg = args[ argIdx++ ];
 			if( "-linear".equals( arg ) ) {
-				interpolation = Channel.LINEAR;
+				interpolation = ChannelInterpolation.LINEAR;
 			} else if( "-sinc".equals( arg ) ) {
-				interpolation = Channel.SINC;
+				interpolation = ChannelInterpolation.SINC;
 			} else if( "-fade".equals( arg ) ) {
 				fadeOut = true;
 			} else if( modFile == null ) {

@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.ChannelInterpolation;
+
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.KeyboardFocusManager;
@@ -73,7 +75,8 @@ public class IBXMPlayer extends JFrame {
 	private IBXM ibxm;
 	private volatile boolean playing;
 	private int[] reverbBuf;
-	private int interpolation, reverbIdx, reverbLen;
+	private ChannelInterpolation interpolation;
+	private int reverbIdx, reverbLen;
 	private int sliderPos, samplePos, duration;
 	private Thread playThread;
 
@@ -273,7 +276,7 @@ public class IBXMPlayer extends JFrame {
 		JRadioButtonMenuItem noneMenuItem = new JRadioButtonMenuItem( "No interpolation" );
 		noneMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.NEAREST );
+				setInterpolation( ChannelInterpolation.NEAREST );
 			}
 		} );
 		interpolationGroup.add( noneMenuItem );
@@ -281,17 +284,17 @@ public class IBXMPlayer extends JFrame {
 		JRadioButtonMenuItem lineMenuItem = new JRadioButtonMenuItem( "Linear interpolation" );
 		lineMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.LINEAR );
+				setInterpolation( ChannelInterpolation.LINEAR );
 			}
 		} );
 		interpolationGroup.add( lineMenuItem );
 		interpolationGroup.setSelected( lineMenuItem.getModel(), true );
-		setInterpolation( Channel.LINEAR );
+		setInterpolation( ChannelInterpolation.LINEAR );
 		optionsMenu.add( lineMenuItem );
 		JRadioButtonMenuItem sincMenuItem = new JRadioButtonMenuItem( "Sinc interpolation" );
 		sincMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.SINC );
+				setInterpolation( ChannelInterpolation.SINC );
 			}
 		} );
 		interpolationGroup.add( sincMenuItem );
@@ -405,7 +408,7 @@ public class IBXMPlayer extends JFrame {
 		samplePos = ibxm.seek( pos );
 	}
 
-	private synchronized void setInterpolation( int interpolation ) {
+	private synchronized void setInterpolation( ChannelInterpolation interpolation ) {
 		this.interpolation = interpolation;
 		if( ibxm != null ) ibxm.setInterpolation( interpolation );
 	}

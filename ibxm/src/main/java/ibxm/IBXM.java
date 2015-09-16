@@ -1,6 +1,7 @@
 
 package ibxm;
 
+import micromod.ChannelInterpolation;
 import micromod.Note;
 
 /*
@@ -13,7 +14,8 @@ public class IBXM {
 	private int[] rampBuf;
 	private byte[][] playCount;
 	private Channel[] channels;
-	private int sampleRate, interpolation;
+	private int sampleRate;
+	private ChannelInterpolation interpolation;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, tempo, plCount, plChannel;
 	private GlobalVol globalVol;
@@ -23,7 +25,7 @@ public class IBXM {
 	public IBXM( Module module, int samplingRate ) {
 		this.module = module;
 		setSampleRate( samplingRate );
-		interpolation = Channel.LINEAR;
+		interpolation = ChannelInterpolation.LINEAR;
 		rampBuf = new int[ 128 ];
 		playCount = new byte[ module.sequenceLength ][];
 		channels = new Channel[ module.numChannels ];
@@ -48,7 +50,7 @@ public class IBXM {
 
 	/* Set the resampling quality to one of
 	   Channel.NEAREST, Channel.LINEAR, or Channel.SINC. */
-	public void setInterpolation( int interpolation ) {
+	public void setInterpolation( ChannelInterpolation interpolation ) {
 		this.interpolation = interpolation;
 	}
 

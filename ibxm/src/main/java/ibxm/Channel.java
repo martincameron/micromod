@@ -1,11 +1,10 @@
-
 package ibxm;
 
+import micromod.AbstractChannel;
+import micromod.ChannelInterpolation;
 import micromod.Note;
 
-public class Channel {
-	public static final int NEAREST = 0, LINEAR = 1, SINC = 2;
-
+public class Channel extends AbstractChannel {
 	private static int[] exp2Table = {
 		32768, 32946, 33125, 33305, 33486, 33667, 33850, 34034,
 		34219, 34405, 34591, 34779, 34968, 35158, 35349, 35541,
@@ -61,7 +60,8 @@ public class Channel {
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 
-	public void resample( int[] outBuf, int offset, int length, int sampleRate, int interpolation ) {
+	@Override
+	public void resample( int[] outBuf, int offset, int length, int sampleRate, ChannelInterpolation interpolation ) {
 		if( ampl <= 0 ) return;
 		int lAmpl = ampl * ( 255 - pann ) >> 8;
 		int rAmpl = ampl * pann >> 8;
@@ -79,6 +79,7 @@ public class Channel {
 		}
 	}
 
+	@Override
 	public void updateSampleIdx( int length, int sampleRate ) {
 		int step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * length;
@@ -86,6 +87,7 @@ public class Channel {
 		sampleFra &= Sample.FP_MASK;
 	}
 
+	@Override
 	public void row( Note note ) {
 		noteKey = note.key;
 		noteIns = note.instrument;
@@ -219,7 +221,8 @@ public class Channel {
 		calculateAmplitude();
 		updateEnvelopes();
 	}
-	
+
+	@Override
 	public void tick() {
 		vibratoAdd = 0;
 		fxCount++;

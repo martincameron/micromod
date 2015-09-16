@@ -14,7 +14,7 @@ public class Micromod {
 	private int sampleRate;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, tempo, plCount, plChannel;
-	private boolean interpolation;
+	private ChannelInterpolation interpolation;
 	private byte[][] playCount;
 
 	/* Play the specified Module at the specified sampling rate. */
@@ -44,7 +44,7 @@ public class Micromod {
 	}
 
 	/* Enable or disable the linear interpolation filter. */
-	public void setInterpolation( boolean interpolation ) {
+	public void setInterpolation( ChannelInterpolation interpolation ) {
 		this.interpolation = interpolation;
 	}
 
@@ -203,42 +203,42 @@ public class Micromod {
 		for( int chanIdx = 0; chanIdx < channels.length; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
 			module.getPattern( module.getSequenceEntry( seqPos ) ).getNote( row, chanIdx, note );
-			int effect = note.effect & 0xFF;
-			int param  = note.parameter & 0xFF;
-			if( effect == 0xE ) {
-				effect = 0x10 | ( param >> 4 );
-				param &= 0xF;
+			note.effect &= 0xFF;
+			note.parameter &= 0xFF;
+			if( note.effect == 0xE ) {
+				note.effect = 0x10 | ( note.parameter >> 4 );
+				note.parameter &= 0xF;
 			}
-			if( effect == 0 && param > 0 ) effect = 0xE;
-			channel.row( note.key, note.instrument, effect, param );
-			switch( effect ) {
+			if( note.effect == 0 && note.parameter > 0 ) note.effect = 0xE;
+			channel.row( note );
+			switch( note.effect ) {
 				case 0xB: /* Pattern Jump.*/
 					if( plCount < 0 ) {
-						breakSeqPos = param;
+						breakSeqPos = note.parameter;
 						nextRow = 0;
 					}
 					break;
 				case 0xD: /* Pattern Break.*/
 					if( plCount < 0 ) {
 						if( breakSeqPos < 0 ) breakSeqPos = seqPos + 1;
-						nextRow = ( param >> 4 ) * 10 + ( param & 0xF );
+						nextRow = ( note.parameter >> 4 ) * 10 + ( note.parameter & 0xF );
 						if( nextRow >= 64 ) nextRow = 0;
 					}
 					break;
 				case 0xF: /* Set Speed.*/
-					if( param > 0 ) {
-						if( param < 32 )
-							tick = speed = param;
+					if( note.parameter > 0 ) {
+						if( note.parameter < 32 )
+							tick = speed = note.parameter;
 						else
-							tempo = param;
+							tempo = note.parameter;
 					}
 					break;
 				case 0x16: /* Pattern Loop.*/
-					if( param == 0 ) /* Set loop marker on this channel. */
+					if( note.parameter == 0 ) /* Set loop marker on this channel. */
 						channel.plRow = row;
 					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
-							plCount = param;
+							plCount = note.parameter;
 							plChannel = chanIdx;
 						}
 						if( plChannel == chanIdx ) { /* Next Loop.*/
@@ -254,7 +254,7 @@ public class Micromod {
 					}
 					break;
 				case 0x1E: /* Pattern Delay.*/
-					tick = speed + speed * param;
+					tick = speed + speed * note.parameter;
 					break;
 			}
 		}

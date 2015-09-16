@@ -1,6 +1,8 @@
 
 package micromod.compiler;
 
+import micromod.ChannelInterpolation;
+
 /* Compiles textual MT files to Protracker MOD files. */
 public class Compiler {
 	private static final String NOTE_INFO =
@@ -61,7 +63,8 @@ public class Compiler {
 
 	public static void main( String[] args ) throws java.io.IOException {
 		String mtFile = null, modFile = null, outDir = null, wavFile = null;
-		boolean printNotes = false, printSyntax = false, interpolation = false;
+		boolean printNotes = false, printSyntax = false;
+		ChannelInterpolation interpolation = ChannelInterpolation.NONE;
 		int[] sequence = null;
 		int argsIdx = 0, key = 0;
 		while( argsIdx < args.length ) {
@@ -73,7 +76,7 @@ public class Compiler {
 			} else if( "-dir".equals( arg ) ) {
 				outDir = args[ argsIdx++ ];
 			} else if( "-hq".equals( arg ) ) {
-				interpolation = true;
+				interpolation = ChannelInterpolation.LINEAR;
 			} else if( "-key".equals( arg ) ) {
 				key = micromod.Note.parseKey( args[ argsIdx++ ] );
 			} else if( "-mod".equals( arg ) || "-out".equals( arg ) ) {
@@ -127,7 +130,7 @@ public class Compiler {
 		}
 	}
 
-	private static void play( micromod.Module module, int[] sequence, boolean interpolation ) throws java.io.IOException {
+	private static void play( micromod.Module module, int[] sequence, ChannelInterpolation interpolation ) throws java.io.IOException {
 		if( sequence != null ) {
 			module.setSequenceLength( sequence.length );
 			for( int idx = 0; idx < sequence.length; idx++ ) {
@@ -229,7 +232,7 @@ public class Compiler {
 		}
 	}
 
-	private static void patternToSample( java.io.File modFile, java.io.File wavFile, int pattern, int key, boolean interpolation ) throws java.io.IOException {
+	private static void patternToSample( java.io.File modFile, java.io.File wavFile, int pattern, int key, ChannelInterpolation interpolation ) throws java.io.IOException {
 		micromod.Module module = new micromod.Module( new java.io.FileInputStream( modFile ) );
 		module.setSequenceLength( 1 );
 		module.setSequenceEntry( 0, pattern );
