@@ -1,24 +1,18 @@
-
 package micromod;
 
-public class Module {
-	public static final int C2_PAL = 8287, C2_NTSC = 8363;
-
-	private String songName;
-	private int sequenceLength, restartPos, c2Rate, gain;
-	private byte[] sequence;
+public class Module extends AbstractModule<Pattern, Instrument> {
+	private int restartPos;
 	private Pattern[] patterns;
 	private Instrument[] instruments;
 
 	public Module() {
 		setSongName( "Untitled" );
-		sequence = new byte[ 128 ];
-		patterns = new Pattern[ 128 ];
-		setSequenceLength( 1 );
+		initSequence( ( byte ) 127 );
+		initPatterns( 128 );
 		setNumChannels( 4 );
-		instruments = new Instrument[ 32 ];
-		for( int instIdx = 1; instIdx < instruments.length; instIdx++ ) {
-			instruments[ instIdx ] = new Instrument();
+		initInstruments( 32 );
+		for( int instIdx = 1; instIdx < getNumInstruments(); instIdx++ ) {
+			setInstrument( instIdx, new Instrument() );
 		}
 	}
 
@@ -32,32 +26,14 @@ public class Module {
 		load( module );
 	}
 
-	public String getSongName() {
-		return songName;
-	}
-	
-	public void setSongName( String name ) {
-		if( name == null ) {
-			songName = "";
-		} else if( name.length() > 20 ) {
-			songName = name.substring( 0, 20 );
-		} else {
-			songName = name;
-		}
-	}
-
-	public int getNumChannels() {
-		return patterns[ 0 ].getNumChannels();
-	}
-
 	public void setNumChannels( int numChannels ) {
 		if( numChannels < 1 || numChannels > 32 ) {
 			throw new IllegalArgumentException( "Number of channels out of range (1 to 32): " + numChannels );
 		}
 		setC2Rate( numChannels == 4 ? C2_PAL : C2_NTSC );
 		setGain( numChannels == 4 ? 64 : 32 );
-		for( int patIdx = 0; patIdx < patterns.length; patIdx++ ) {
-			Pattern pattern = patterns[ patIdx ];
+		for( int patIdx = 0; patIdx < getNumPatterns(); patIdx++ ) {
+			Pattern pattern = getPattern( patIdx );
 			if( pattern != null ) {
 				patterns[ patIdx ] = new Pattern( numChannels, pattern );
 			}
@@ -65,71 +41,6 @@ public class Module {
 		if( patterns[ 0 ] == null ) {
 			patterns[ 0 ] = new Pattern( numChannels );
 		}
-	}
-
-	public int getSequenceLength() {
-		return sequenceLength;
-	}
-	
-	public void setSequenceLength( int sequenceLength ) {
-		if( sequenceLength < 1 || sequenceLength > 128 ) {
-			throw new IllegalArgumentException( "Song length out of range (1 to 128): " + sequenceLength );
-		}
-		this.sequenceLength = sequenceLength;
-	}
-	
-	public int getC2Rate() {
-		return c2Rate;
-	}
-	
-	public void setC2Rate( int c2Rate ) {
-		if( c2Rate < 1 || c2Rate > 65536 ) {
-			throw new IllegalArgumentException( "C2Rate out of range (1 to 65536): " + c2Rate );
-		}
-		this.c2Rate = c2Rate;
-	}
-	
-	public int getGain() {
-		return gain;
-	}
-	
-	public void setGain( int gain ) {
-		if( gain < 0 || gain > 512 ) {
-			throw new IllegalArgumentException( "Gain out of range (0 to 512): " + gain );
-		}
-		this.gain = gain;
-	}
-
-	public int getSequenceEntry( int seqIdx ) {
-		if( seqIdx < 0 || seqIdx > 127 ) {
-			throw new IllegalArgumentException( "Sequence index out of range (0 to 127): " + seqIdx );
-		}
-		return sequence[ seqIdx ];
-	}
-	
-	public void setSequenceEntry( int seqIdx, int patIdx ) {
-		getSequenceEntry( seqIdx );
-		if( patIdx < 0 || patIdx > 127 ) {
-			throw new IllegalArgumentException( "Pattern index out of range (0 to 127): " + patIdx );
-		}
-		sequence[ seqIdx ] = ( byte ) patIdx;
-	}
-	
-	public Pattern getPattern( int patIdx ) {
-		if( patIdx < 0 || patIdx > 127 ) {
-			throw new IllegalArgumentException( "Pattern index out of range (0 to 127): " + patIdx );
-		}
-		if( patterns[ patIdx ] == null ) {
-			patterns[ patIdx ] = new Pattern( getNumChannels() );
-		}
-		return patterns[ patIdx ];
-	}
-	
-	public Instrument getInstrument( int instIdx ) {
-		if( instIdx < 1 || instIdx > 31 ) {
-			throw new IllegalArgumentException( "Instrument index out of range (1 to 31): " + instIdx );
-		}
-		return instruments[ instIdx ];
 	}
 
 	public static int calculateModuleLength( byte[] moduleHeader ) {
@@ -147,9 +58,10 @@ public class Module {
 			name[ idx ] = chr > 32 ? ( char ) chr : 32;
 		}
 		setSongName( new String( name ) );
-		setSequenceLength( module[ 950 ] & 0x7F );
+		int sequenceLength = module[ 950 ] & 0x7F;
+		initSequence( ( byte ) ( sequenceLength - 1 ) );
 		restartPos = module[ 951 ] & 0x7F;
-		if( restartPos >= sequenceLength ) {
+		if( restartPos >= getSequenceLength() ) {
 			restartPos = 0;
 		}
 		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
@@ -184,8 +96,8 @@ public class Module {
 	
 	public int save( byte[] outBuf ) {
 		if( outBuf != null ) {
-			writeAscii( songName, outBuf, 0, 20 );
-			outBuf[ 950 ] = ( byte ) sequenceLength;
+			writeAscii( getSongName(), outBuf, 0, 20 );
+			outBuf[ 950 ] = ( byte ) getSequenceLength();
 			outBuf[ 951 ] = ( byte ) ( restartPos & 0x7F );
 			int numChannels = getNumChannels();
 			if( numChannels == 4 ) {
@@ -201,7 +113,7 @@ public class Module {
 		}
 		int numPatterns = 0;
 		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
-			int patIdx = seqIdx < sequenceLength ? getSequenceEntry( seqIdx ) : 0;
+			int patIdx = seqIdx < getSequenceLength() ? getSequenceEntry( seqIdx ) : 0;
 			if( outBuf != null ) {
 				outBuf[ 952 + seqIdx ] = ( byte ) patIdx;
 			}
@@ -260,5 +172,59 @@ public class Module {
 			read = inputStream.read( buffer, offset, end - offset );
 			offset += read;
 		}
+	}
+
+	@Override
+	public int getNumChannels() {
+		return patterns[ 0 ].getNumChannels();
+	}
+
+	@Override
+	public int getNumInstruments() {
+		return instruments.length;
+	}
+
+	@Override
+	public int getNumPatterns() {
+		return patterns.length;
+	}
+
+	@Override
+	public void initPatterns( int size ) {
+		patterns = new Pattern[ size ];
+	}
+
+	@Override
+	public Pattern getPattern( int patIdx ) {
+		if( patIdx < 0 || patIdx > patterns.length ) {
+			throw new IllegalArgumentException( "Pattern index out of range (0 to " + patterns.length + "): " + patIdx );
+		}
+		if( patterns[ patIdx ] == null ) {
+			patterns[ patIdx ] = new Pattern( getNumChannels() );
+		}
+		return patterns[ patIdx ];
+	}
+
+	@Override
+	public void setPattern( int patIdx, Pattern pattern ) {
+		this.patterns[ patIdx ] = pattern;
+	}
+
+	@Override
+	public void initInstruments( int size ) {
+		this.instruments = new Instrument[ size ];
+	}
+
+	@Override
+	public Instrument getInstrument( int instIdx ) {
+		if( instIdx < 1 || instIdx > instruments.length ) {
+			throw new IllegalArgumentException( "Instrument index out of range (1 to " + (instruments.length - 1) + "): " + instIdx );
+		}
+		return instruments[ instIdx ];
+	}
+
+	@Override
+	public void setInstrument( int instIdx, Instrument instrument ) {
+		this.instruments[ instIdx ] = instrument;
 	}
 }

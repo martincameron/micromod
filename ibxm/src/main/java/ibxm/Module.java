@@ -1,18 +1,16 @@
-
 package ibxm;
 
+import micromod.AbstractModule;
 import micromod.Note;
 
-public class Module {
-	public String songName = "Blank";
-	public int numChannels = 4, numInstruments = 1;
-	public int numPatterns = 1, sequenceLength = 1, restartPos = 0;
-	public int defaultGVol = 64, defaultSpeed = 6, defaultTempo = 125, c2Rate = Sample.C2_PAL, gain = 64;
+public class Module extends AbstractModule<Pattern, Instrument> {
+	private int numChannels = 4, numInstruments = 1;
+	private int numPatterns = 1, restartPos = 0;
+	public int defaultGVol = 64, defaultSpeed = 6, defaultTempo = 125;
 	public boolean linearPeriods = false, fastVolSlides = false;
 	public int[] defaultPanning = { 51, 204, 204, 51 };
-	public int[] sequence = { 0 };
-	public Pattern[] patterns = { new Pattern( 4, 64 ) };
-	public Instrument[] instruments = { new Instrument(), new Instrument() };
+	private Pattern[] patterns = { new Pattern( 4, 64 ) };
+	private Instrument[] instruments = { new Instrument(), new Instrument() };
 
 	public Module() {}
 	
@@ -21,6 +19,9 @@ public class Module {
 	}
 
 	public Module( Data moduleData ) throws java.io.IOException {
+		setSongName( "Blank" );
+		setC2Rate( C2_PAL );
+		setGain( 64 );
 		if( moduleData.strLatin1( 0, 17 ).equals( "Extended Module: " ) ) {
 			loadXM( moduleData );
 		} else if( moduleData.strLatin1( 44, 4 ).equals( "SCRM" ) ) {
@@ -35,14 +36,14 @@ public class Module {
 	}
 
 	private void loadMod( Data moduleData ) throws java.io.IOException {
-		songName = moduleData.strLatin1( 0, 20 );
-		sequenceLength = moduleData.uByte( 950 ) & 0x7F;
+		setSongName( moduleData.strLatin1( 0, 20 ) );
+		final int sequenceLength = moduleData.uByte( 950 ) & 0x7F;
 		restartPos = moduleData.uByte( 951 ) & 0x7F;
 		if( restartPos >= sequenceLength ) restartPos = 0;
-		sequence = new int[ 128 ];
+		initSequence( ( byte ) 127 );
 		for( int seqIdx = 0; seqIdx < 128; seqIdx++ ) {
 			int patIdx = moduleData.uByte( 952 + seqIdx ) & 0x7F;
-			sequence[ seqIdx ] = patIdx;
+			setSequenceEntry( seqIdx, patIdx );
 			if( patIdx >= numPatterns ) numPatterns = patIdx + 1;
 		}
 		switch( moduleData.ubeShort( 1082 ) ) {
@@ -50,19 +51,19 @@ public class Module {
 			case 0x4b21: /* M!K! */
 			case 0x5434: /* FLT4 */
 				numChannels = 4;
-				c2Rate = Sample.C2_PAL;
-				gain = 64;
+				setC2Rate( C2_PAL );
+				setGain( 64 );
 				break;
 			case 0x484e: /* xCHN */
 				numChannels = moduleData.uByte( 1080 ) - 48;
-				c2Rate = Sample.C2_NTSC;
-				gain = 32;
+				setC2Rate( C2_NTSC );
+				setGain( 32 );
 				break;
 			case 0x4348: /* xxCH */
 				numChannels  = ( moduleData.uByte( 1080 ) - 48 ) * 10;
 				numChannels += moduleData.uByte( 1081 ) - 48;
-				c2Rate = Sample.C2_NTSC;
-				gain = 32;
+				setC2Rate( C2_NTSC );
+				setGain( 32 );
 				break;
 			default:
 				throw new IllegalArgumentException( "MOD Format not recognised!" );
@@ -77,7 +78,7 @@ public class Module {
 				defaultPanning[ idx ] = 204;
 		}
 		int moduleDataIdx = 1084;
-		patterns = new Pattern[ numPatterns ];
+		initPatterns( numPatterns );
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, 64 );
 			final Note note = new Note();
@@ -106,10 +107,11 @@ public class Module {
 			}
 		}
 		numInstruments = 31;
-		instruments = new Instrument[ numInstruments + 1 ];
-		instruments[ 0 ] = new Instrument();
+		initInstruments( numInstruments + 1 );
+		setInstrument( 0, new Instrument() );
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
-			Instrument instrument = instruments[ instIdx ] = new Instrument();
+			Instrument instrument = new Instrument();
+			setInstrument( instIdx, instrument );
 			Sample sample = instrument.samples[ 0 ];
 			instrument.name = moduleData.strLatin1( instIdx * 30 - 10, 22 );
 			int sampleLength = moduleData.ubeShort( instIdx * 30 + 12 ) * 2;
@@ -132,8 +134,8 @@ public class Module {
 	}
 
 	private void loadS3M( Data moduleData ) throws java.io.IOException {
-		songName = moduleData.strCp850( 0, 28 );
-		sequenceLength = moduleData.uleShort( 32 );
+		setSongName( moduleData.strCp850( 0, 28 ) );
+		final int sequenceLength = moduleData.uleShort( 32 );
 		numInstruments = moduleData.uleShort( 34 );
 		numPatterns = moduleData.uleShort( 36 );
 		int flags = moduleData.uleShort( 38 );
@@ -145,8 +147,8 @@ public class Module {
 		defaultGVol = moduleData.uByte( 48 );
 		defaultSpeed = moduleData.uByte( 49 );
 		defaultTempo = moduleData.uByte( 50 );
-		c2Rate = Sample.C2_NTSC;
-		gain = moduleData.uByte( 51 ) & 0x7F;
+		setC2Rate( C2_NTSC );
+		setGain( moduleData.uByte( 51 ) & 0x7F );
 		boolean stereoMode = ( moduleData.uByte( 51 ) & 0x80 ) == 0x80;
 		boolean defaultPan = moduleData.uByte( 53 ) == 0xFC;
 		int[] channelMap = new int[ 32 ];
@@ -155,14 +157,15 @@ public class Module {
 			if( moduleData.uByte( 64 + chanIdx ) < 16 )
 				channelMap[ chanIdx ] = numChannels++;
 		}
-		sequence = new int[ sequenceLength ];
+		initSequence( ( short ) ( sequenceLength - 1 ) );
 		for( int seqIdx = 0; seqIdx < sequenceLength; seqIdx++ )
-			sequence[ seqIdx ] = moduleData.uByte( 96 + seqIdx );
+			setSequenceEntry( seqIdx , moduleData.uByte( 96 + seqIdx ) );
 		int moduleDataIdx = 96 + sequenceLength;
-		instruments = new Instrument[ numInstruments + 1 ];
-		instruments[ 0 ] = new Instrument();
+		initInstruments( numInstruments + 1 );
+		setInstrument( 0, new Instrument() );
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
-			Instrument instrument = instruments[ instIdx ] = new Instrument();
+			Instrument instrument = new Instrument();
+			setInstrument( instIdx, instrument );
 			Sample sample = instrument.samples[ 0 ];
 			int instOffset = moduleData.uleShort( moduleDataIdx ) << 4;
 			moduleDataIdx += 2;
@@ -188,7 +191,7 @@ public class Module {
 			boolean sixteenBit = ( moduleData.uByte( instOffset + 31 ) & 0x4 ) == 0x4;
 			if( packed ) throw new IllegalArgumentException( "Packed samples not supported!" );
 			int c2Rate = moduleData.uleInt( instOffset + 32 );
-			int tune = ( Channel.log2( c2Rate ) - Channel.log2( this.c2Rate ) ) * 12;
+			int tune = ( Channel.log2( c2Rate ) - Channel.log2( getC2Rate() ) ) * 12;
 			sample.relNote = tune >> Sample.FP_SHIFT;
 			sample.fineTune = ( tune & Sample.FP_MASK ) >> ( Sample.FP_SHIFT - 7 );
 			if( sixteenBit ) {
@@ -205,9 +208,10 @@ public class Module {
 				}
 			}
 		}
-		patterns = new Pattern[ numPatterns ];
+		initPatterns( numPatterns );
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
-			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, 64 );
+			Pattern pattern = new Pattern( numChannels, 64 );
+			setPattern( patIdx, pattern );
 			int inOffset = ( moduleData.uleShort( moduleDataIdx ) << 4 ) + 2;
 			int rowIdx = 0;
 			while( rowIdx < 64 ) {
@@ -266,10 +270,10 @@ public class Module {
 	private void loadXM( Data moduleData ) throws java.io.IOException {
 		if( moduleData.uleShort( 58 ) != 0x0104 )
 			throw new IllegalArgumentException( "XM format version must be 0x0104!" );
-		songName = moduleData.strCp850( 17, 20 );
+		setSongName( moduleData.strCp850( 17, 20 ) );
 		boolean deltaEnv = moduleData.strLatin1( 38, 20 ).startsWith( "DigiBooster Pro" );
 		int dataOffset = 60 + moduleData.uleInt( 60 );
-		sequenceLength = moduleData.uleShort( 64 );
+		final int sequenceLength = moduleData.uleShort( 64 );
 		restartPos = moduleData.uleShort( 66 );
 		numChannels = moduleData.uleShort( 68 );
 		numPatterns = moduleData.uleShort( 70 );
@@ -278,22 +282,23 @@ public class Module {
 		defaultGVol = 64;
 		defaultSpeed = moduleData.uleShort( 76 );
 		defaultTempo = moduleData.uleShort( 78 );
-		c2Rate = Sample.C2_NTSC;
-		gain = 64;
+		setC2Rate( C2_NTSC );
+		setGain( 64 );
 		defaultPanning = new int[ numChannels ];
 		for( int idx = 0; idx < numChannels; idx++ ) defaultPanning[ idx ] = 128;
-		sequence = new int[ sequenceLength ];
+		initSequence( ( short ) ( sequenceLength - 1 ) );
 		for( int seqIdx = 0; seqIdx < sequenceLength; seqIdx++ ) {
 			int entry = moduleData.uByte( 80 + seqIdx );
-			sequence[ seqIdx ] = entry < numPatterns ? entry : 0;
+			setSequenceEntry( seqIdx, entry < numPatterns ? entry : 0 );
 		}
-		patterns = new Pattern[ numPatterns ];
+		initPatterns( numPatterns );
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			if( moduleData.uByte( dataOffset + 4 ) != 0 )
 				throw new IllegalArgumentException( "Unknown pattern packing type!" );
 			int numRows = moduleData.uleShort( dataOffset + 5 );
 			int numNotes = numRows * numChannels;
-			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, numRows );
+			Pattern pattern = new Pattern( numChannels, numRows );
+			setPattern( patIdx, pattern );
 			int patternDataLength = moduleData.uleShort( dataOffset + 7 );
 			dataOffset += moduleData.uleInt( dataOffset );
 			int nextOffset = dataOffset + patternDataLength;
@@ -314,10 +319,11 @@ public class Module {
 			}
 			dataOffset = nextOffset;
 		}
-		instruments = new Instrument[ numInstruments + 1 ];
-		instruments[ 0 ] = new Instrument();
-		for( int insIdx = 1; insIdx <= numInstruments; insIdx++ ) {
-			Instrument instrument = instruments[ insIdx ] = new Instrument();
+		initInstruments( numInstruments + 1 );
+		setInstrument( 0, new Instrument() );
+		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
+			Instrument instrument = new Instrument();
+			setInstrument( instIdx, instrument );
 			instrument.name = moduleData.strCp850( dataOffset + 4, 22 );
 			int numSamples = instrument.numSamples = moduleData.uleShort( dataOffset + 27 );
 			if( numSamples > 0 ) {
@@ -398,26 +404,72 @@ public class Module {
 	}
 
 	public void toStringBuffer( StringBuffer out ) {
-		out.append( "Song Name: " + songName + '\n'
-			+ "Num Channels: " + numChannels + '\n'
-			+ "Num Instruments: " + numInstruments + '\n'
-			+ "Num Patterns: " + numPatterns + '\n'
-			+ "Sequence Length: " + sequenceLength + '\n'
-			+ "Restart Pos: " + restartPos + '\n'
-			+ "Default Speed: " + defaultSpeed + '\n'
-			+ "Default Tempo: " + defaultTempo + '\n'
-			+ "Linear Periods: " + linearPeriods + '\n' );
+		out
+				.append( "Song Name: " ).append( getSongName() ).append( '\n' )
+				.append( "Num Channels: " ).append( getNumChannels() ).append( '\n' )
+				.append( "Num Instruments: " ).append( getNumInstruments() ).append( '\n' )
+				.append( "Num Patterns: " ).append( getNumPatterns() ).append( '\n' )
+				.append( "Sequence Length: " ).append( getSequenceLength() ).append( '\n' )
+				.append( "Restart Pos: " ).append( restartPos ).append( '\n' )
+				.append( "Default Speed: " ).append( defaultSpeed ).append( '\n' )
+				.append( "Default Tempo: " ).append( defaultTempo ).append( '\n' )
+				.append( "Linear Periods: " ).append( linearPeriods ).append( '\n' );
 		out.append( "Sequence: " );
-		for( int seqIdx = 0; seqIdx < sequence.length; seqIdx++ )
-			out.append( sequence[ seqIdx ] + ", " );
+		for( int seqIdx = 0; seqIdx < getSequenceLength(); seqIdx++ )
+			out.append( getSequenceEntry( seqIdx ) ).append( ", " );
 		out.append( '\n' );
-		for( int patIdx = 0; patIdx < patterns.length; patIdx++ ) {
-			out.append( "Pattern " + patIdx + ":\n" );
-			patterns[ patIdx ].toStringBuffer( out );
+		for( int patIdx = 0; patIdx < getNumPatterns(); patIdx++ ) {
+			out.append( "Pattern " ).append( patIdx ).append( ":\n" );
+			getPattern( patIdx ).toStringBuffer( out );
 		}
-		for( int insIdx = 1; insIdx < instruments.length; insIdx++ ) {
-			out.append( "Instrument " + insIdx + ":\n" );
-			instruments[ insIdx ].toStringBuffer( out );
+		for( int insIdx = 1; insIdx < getNumInstruments(); insIdx++ ) {
+			out.append( "Instrument " ).append( insIdx ).append( ":\n" );
+			getInstrument( insIdx ).toStringBuffer( out );
 		}
+	}
+
+	@Override
+	public int getNumChannels() {
+		return numChannels;
+	}
+
+	@Override
+	public int getNumInstruments() {
+		return numInstruments;
+	}
+
+	@Override
+	public int getNumPatterns() {
+		return numPatterns;
+	}
+
+	@Override
+	public void initPatterns( int size ) {
+		patterns = new Pattern[ size ];
+	}
+
+	@Override
+	public Pattern getPattern( int patIdx ) {
+		return patterns[ patIdx ];
+	}
+
+	@Override
+	public void setPattern( int patIdx, Pattern pattern ) {
+		this.patterns[ patIdx ] = pattern;
+	}
+
+	@Override
+	public void initInstruments( int size ) {
+		this.instruments = new Instrument[ size ];
+	}
+
+	@Override
+	public Instrument getInstrument( int instIdx ) {
+		return instruments[ instIdx ];
+	}
+
+	@Override
+	public void setInstrument( int instIdx, Instrument instrument ) {
+		this.instruments[ instIdx ] = instrument;
 	}
 }

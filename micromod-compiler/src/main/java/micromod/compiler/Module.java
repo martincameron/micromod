@@ -1,4 +1,3 @@
-
 package micromod.compiler;
 
 public class Module implements Element {
@@ -75,8 +74,8 @@ public class Module implements Element {
 		module.setNumChannels( numChannels );
 	}
 
-	public void setSequenceLength( int length ) {
-		module.setSequenceLength( length );
+	public void initSequence( byte maxIdx ) {
+		module.initSequence( maxIdx );
 	}
 
 	public void setSequenceEntry( int seqIdx, int patIdx ) {

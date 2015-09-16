@@ -478,12 +478,12 @@ public class Channel extends AbstractChannel {
 		if( module.linearPeriods ) {
 			per = per - ( arpeggioAdd << 6 );
 			if( per < 28 || per > 7680 ) per = 7680;
-			freq = ( ( module.c2Rate >> 4 ) * exp2( ( ( 4608 - per ) << Sample.FP_SHIFT ) / 768 ) ) >> ( Sample.FP_SHIFT - 4 );
+			freq = ( ( module.getC2Rate() >> 4 ) * exp2( ( ( 4608 - per ) << Sample.FP_SHIFT ) / 768 ) ) >> ( Sample.FP_SHIFT - 4 );
 		} else {
 			if( per > 29021 ) per = 29021;
 			per = ( per << Sample.FP_SHIFT ) / exp2( ( arpeggioAdd << Sample.FP_SHIFT ) / 12 );
 			if( per < 28 ) per = 29021;
-			freq = module.c2Rate * 1712 / per;
+			freq = module.getC2Rate() * 1712 / per;
 		}
 	}
 
@@ -494,7 +494,7 @@ public class Channel extends AbstractChannel {
 		int vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		vol = ( vol * module.gain * Sample.FP_ONE ) >> 13;
+		vol = ( vol * module.getGain() * Sample.FP_ONE ) >> 13;
 		vol = ( vol * fadeOutVol ) >> 15;
 		ampl = ( vol * globalVol.volume * envVol ) >> 12;
 		int envPan = 32;
@@ -505,8 +505,8 @@ public class Channel extends AbstractChannel {
 	}
 
 	private void trigger() {
-		if( noteIns > 0 && noteIns <= module.numInstruments ) {
-			instrument = module.instruments[ noteIns ];
+		if( noteIns > 0 && noteIns <= module.getNumInstruments() ) {
+			instrument = module.getInstrument( noteIns );
 			Sample sam = instrument.samples[ instrument.keyToSample[ noteKey < 97 ? noteKey : 0 ] ];
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;

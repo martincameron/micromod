@@ -237,7 +237,7 @@ public class IBXMPlayer extends JFrame {
 				if( module != null ) {
 					fadeOutCheckBox.setSelected( false );
 					fadeOutTextField.setText( String.valueOf( duration / SAMPLE_RATE ) );
-					saveFileChooser.setSelectedFile( new File( module.songName.trim() + ".wav" ) );
+					saveFileChooser.setSelectedFile( new File( module.getSongName().trim() + ".wav" ) );
 					int result = saveFileChooser.showSaveDialog( IBXMPlayer.this );
 					if( result == JFileChooser.APPROVE_OPTION ) {
 						try {
@@ -332,12 +332,11 @@ public class IBXMPlayer extends JFrame {
 				seekSlider.setMinimum( 0 );
 				seekSlider.setMaximum( duration );
 				seekSlider.setValue( 0 );
-				String songName = module.songName.trim();
+				String songName = module.getSongName().trim();
 				songLabel.setText( songName.length() > 0 ? songName : modFile.getName() );
 				Vector<String> vector = new Vector<String>();
-				Instrument[] instruments = module.instruments;
-				for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
-					String name = instruments[ idx ].name;
+				for( int idx = 0, len = module.getNumInstruments(); idx < len; idx++ ) {
+					String name = module.getInstrument( idx ).name;
 					if( name.trim().length() > 0 )
 						vector.add( String.format( "%03d: %s", idx, name ) );
 				}

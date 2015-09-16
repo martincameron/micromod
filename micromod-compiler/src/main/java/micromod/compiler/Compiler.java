@@ -1,4 +1,3 @@
-
 package micromod.compiler;
 
 import micromod.ChannelInterpolation;
@@ -132,7 +131,7 @@ public class Compiler {
 
 	private static void play( micromod.Module module, int[] sequence, ChannelInterpolation interpolation ) throws java.io.IOException {
 		if( sequence != null ) {
-			module.setSequenceLength( sequence.length );
+			module.initSequence( ( byte ) ( sequence.length - 1 ) );
 			for( int idx = 0; idx < sequence.length; idx++ ) {
 				module.setSequenceEntry( idx, sequence[ idx ] );
 			}
@@ -234,7 +233,7 @@ public class Compiler {
 
 	private static void patternToSample( java.io.File modFile, java.io.File wavFile, int pattern, int key, ChannelInterpolation interpolation ) throws java.io.IOException {
 		micromod.Module module = new micromod.Module( new java.io.FileInputStream( modFile ) );
-		module.setSequenceLength( 1 );
+		module.initSequence( ( byte ) 1 );
 		module.setSequenceEntry( 0, pattern );
 		int samplingRate = module.getC2Rate() * 428 / micromod.Note.keyToPeriod( key, 0 );
 		micromod.Micromod replay = new micromod.Micromod( module, samplingRate );

@@ -27,7 +27,7 @@ public class Sequence implements Element {
 	
 	public void begin( String value ) {
 		int[] sequence = Parser.parseIntegerArray( value );
-		parent.setSequenceLength( sequence.length );
+		parent.initSequence( ( byte ) ( sequence.length - 1 ) );
 		for( int idx = 0; idx < sequence.length; idx++ ) {
 			parent.setSequenceEntry( idx, sequence[ idx ] );
 		}
