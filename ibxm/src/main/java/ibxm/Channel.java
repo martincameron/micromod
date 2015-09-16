@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.Note;
+
 public class Channel {
 	public static final int NEAREST = 0, LINEAR = 1, SINC = 2;
 
@@ -89,7 +91,7 @@ public class Channel {
 		noteIns = note.instrument;
 		noteVol = note.volume;
 		noteEffect = note.effect;
-		noteParam = note.param;
+		noteParam = note.parameter;
 		retrigCount++;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
 		if( !( ( noteEffect == 0x7D || noteEffect == 0xFD ) && noteParam > 0 ) ) {

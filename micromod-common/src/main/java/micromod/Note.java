@@ -2,7 +2,19 @@
 package micromod;
 
 public class Note {
-	public int key, instrument, effect, parameter;
+	public int key, instrument, volume, effect, parameter;
+
+	public Note() {
+
+	}
+
+	public Note( int key, int instrument, int volume, int effect, int parameter ) {
+		this.key = key;
+		this.instrument = instrument;
+		this.volume = volume;
+		this.effect = effect;
+		this.parameter = parameter;
+	}
 
 	private static final String  hexToString = "0123456789ABCDEF";
 	private static final String  keyToString = "A-A#B-C-C#D-D#E-F-F#G-G#";

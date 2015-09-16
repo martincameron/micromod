@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.Note;
+
 public class Pattern {
 	public int numRows;
 	public byte[] data;
@@ -16,7 +18,7 @@ public class Pattern {
 		note.instrument = data[ offset + 1 ] & 0xFF;
 		note.volume = data[ offset + 2 ] & 0xFF;
 		note.effect = data[ offset + 3 ] & 0xFF;
-		note.param = data[ offset + 4 ] & 0xFF;
+		note.parameter = data[ offset + 4 ] & 0xFF;
 	}
 
 	public void toStringBuffer( StringBuffer out ) {

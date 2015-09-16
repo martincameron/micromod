@@ -11,4 +11,11 @@
 	</parent>
 	<artifactId>ibxm</artifactId>
 
+	<dependencies>
+		<dependency>
+			<groupId>com.github.micromod</groupId>
+			<artifactId>micromod-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
 </project>

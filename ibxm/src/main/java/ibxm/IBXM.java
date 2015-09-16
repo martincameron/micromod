@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.Note;
+
 /*
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2015 mumart@gmail.com
 */
@@ -217,23 +219,23 @@ public class IBXM {
 			Channel channel = channels[ chanIdx ];
 			pattern.getNote( noteIdx + chanIdx, note );
 			if( note.effect == 0xE ) {
-				note.effect = 0x70 | ( note.param >> 4 );
-				note.param &= 0xF;
+				note.effect = 0x70 | ( note.parameter >> 4 );
+				note.parameter &= 0xF;
 			}
 			if( note.effect == 0x93 ) {
-				note.effect = 0xF0 | ( note.param >> 4 );
-				note.param &= 0xF;
+				note.effect = 0xF0 | ( note.parameter >> 4 );
+				note.parameter &= 0xF;
 			}
-			if( note.effect == 0 && note.param > 0 ) note.effect = 0x8A;
+			if( note.effect == 0 && note.parameter > 0 ) note.effect = 0x8A;
 			channel.row( note );
 			switch( note.effect ) {
 				case 0x81: /* Set Speed. */
-					if( note.param > 0 )
-						tick = speed = note.param;
+					if( note.parameter > 0 )
+						tick = speed = note.parameter;
 					break;
 				case 0xB: case 0x82: /* Pattern Jump.*/
 					if( plCount < 0 ) {
-						breakSeqPos = note.param;
+						breakSeqPos = note.parameter;
 						nextRow = 0;
 					}
 					break;
@@ -241,27 +243,27 @@ public class IBXM {
 					if( plCount < 0 ) {
 						if( breakSeqPos < 0 )
 							breakSeqPos = seqPos + 1;
-						nextRow = ( note.param >> 4 ) * 10 + ( note.param & 0xF );
+						nextRow = ( note.parameter >> 4 ) * 10 + ( note.parameter & 0xF );
 					}
 					break;
 				case 0xF: /* Set Speed/Tempo.*/
-					if( note.param > 0 ) {
-						if( note.param < 32 )
-							tick = speed = note.param;
+					if( note.parameter > 0 ) {
+						if( note.parameter < 32 )
+							tick = speed = note.parameter;
 						else
-							tempo = note.param;
+							tempo = note.parameter;
 					}
 					break;
 				case 0x94: /* Set Tempo.*/
-					if( note.param > 32 )
-						tempo = note.param;
+					if( note.parameter > 32 )
+						tempo = note.parameter;
 					break;
 				case 0x76: case 0xFB : /* Pattern Loop.*/
-					if( note.param == 0 ) /* Set loop marker on this channel. */
+					if( note.parameter == 0 ) /* Set loop marker on this channel. */
 						channel.plRow = row;
 					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
-							plCount = note.param;
+							plCount = note.parameter;
 							plChannel = chanIdx;
 						}
 						if( plChannel == chanIdx ) { /* Next Loop.*/
@@ -277,7 +279,7 @@ public class IBXM {
 					}
 					break;
 				case 0x7E: case 0xFE: /* Pattern Delay.*/
-					tick = speed + speed * note.param;
+					tick = speed + speed * note.parameter;
 					break;
 			}
 		}
