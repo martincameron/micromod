@@ -4,63 +4,39 @@ package micromod;
 /*
 	Java ProTracker Replay (c)2015 mumart@gmail.com
 */
-public class Micromod {
+public class Micromod extends AbstractReplay<Module, Pattern, Instrument, Channel> {
 	public static final String VERSION = "20150717 (c)2015 mumart@gmail.com";
 
-	private Module module;
-	private int[] rampBuf;
 	private Note note;
 	private Channel[] channels;
-	private int sampleRate;
-	private int seqPos, breakSeqPos, row, nextRow, tick;
-	private int speed, tempo, plCount, plChannel;
-	private ChannelInterpolation interpolation;
-	private byte[][] playCount;
+	private int breakSeqPos, nextRow;
+	private int plCount, plChannel;
 
 	/* Play the specified Module at the specified sampling rate. */
 	public Micromod( Module module, int samplingRate ) {
-		this.module = module;
+		super( module );
 		setSampleRate( samplingRate );
-		rampBuf = new int[ 128 ];
 		note = new Note();
-		playCount = new byte[ module.getSequenceLength() ][];
 		channels = new Channel[ module.getNumChannels() ];
 		setSequencePos( 0 );
 	}
 
-	/* Return the sampling rate of playback. */
-	public int getSampleRate() {
-		return sampleRate;
-	}
-
-	/* Set the sampling rate of playback. */
-	public void setSampleRate( int rate ) {
-		// Use with Module.c2Rate to adjust the tempo of playback.
-		// To play at half speed, multiply both the samplingRate and Module.c2Rate by 2.
-		if( rate < 8000 || rate > 128000 ) {
-			throw new IllegalArgumentException( "Unsupported sampling rate!" );
-		}
-		sampleRate = rate;
-	}
-
 	/* Enable or disable the linear interpolation filter. */
 	public void setInterpolation( ChannelInterpolation interpolation ) {
-		this.interpolation = interpolation;
+		if (interpolation != ChannelInterpolation.LINEAR && interpolation != ChannelInterpolation.NONE) {
+			throw new RuntimeException( "Only NONE and LINEAR interpolations supported" );
+		}
+		super.setInterpolation( interpolation );
 	}
 
-	/* Return the length of the buffer required by getAudio(). */
-	public int getMixBufferLength() {
-		return ( calculateTickLen( 32, 128000 ) + 65 ) * 4;
+	@Override
+	protected int getNumChannels() {
+		return channels.length;
 	}
 
-	/* Get the current row position. */
-	public int getRow() {
-		return row;
-	}
-
-	/* Get the current pattern position in the sequence. */
-	public int getSequencePos() {
-		return seqPos;
+	@Override
+	protected Channel getChannel( int idx ) {
+		return channels[idx];
 	}
 
 	/* Set the pattern in the sequence to play. The tempo is reset to the default. */
@@ -81,109 +57,8 @@ public class Micromod {
 		tick();
 	}
 
-	/* Returns the song duration in samples at the current sampling rate. */
-	public int calculateSongDuration() {
-		int duration = 0;
-		setSequencePos( 0 );
-		boolean songEnd = false;
-		while( !songEnd ) {
-			duration += calculateTickLen( tempo, sampleRate );
-			songEnd = tick();
-		}
-		setSequencePos( 0 );
-		return duration;
-	}
-
-	/* Seek to approximately the specified sample position.
-	   The actual sample position reached is returned. */
-	public int seek( int samplePos ) {
-		setSequencePos( 0 );
-		int currentPos = 0;
-		int tickLen = calculateTickLen( tempo, sampleRate );
-		while( ( samplePos - currentPos ) >= tickLen ) {
-			for( int idx = 0; idx < channels.length; idx++ )
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
-			currentPos += tickLen;
-			tick();
-			tickLen = calculateTickLen( tempo, sampleRate );
-		}
-		return currentPos;
-	}
-
-	/* Seek to the specified position and row in the sequence. */
-	public void seekSequencePos( int sequencePos, int sequenceRow ) {
-		setSequencePos( 0 );
-		if( sequencePos < 0 || sequencePos >= module.getSequenceLength() )
-			sequencePos = 0;
-		if( sequenceRow >= 64 )
-			sequenceRow = 0;
-		while( seqPos < sequencePos || row < sequenceRow ) {
-			int tickLen = calculateTickLen( tempo, sampleRate );
-			for( int idx = 0; idx < channels.length; idx++ )
-				channels[ idx ].updateSampleIdx( tickLen * 2, sampleRate * 2 );
-			if( tick() ) {
-				// Song end reached.
-				setSequencePos( sequencePos );
-				return;
-			}
-		}
-	}
-
-	/* Generate audio.
-	   The number of samples placed into outputBuf is returned.
-	   The output buffer length must be at least that returned by getMixBufferLength().
-	   A "sample" is a pair of 16-bit integer amplitudes, one for each of the stereo channels. */
-	public int getAudio( int[] outputBuf ) {
-		int tickLen = calculateTickLen( tempo, sampleRate );
-		// Clear output buffer.
-		for( int idx = 0, end = ( tickLen + 65 ) * 4; idx < end; idx++ )
-			outputBuf[ idx ] = 0;
-		// Resample.
-		for( int chanIdx = 0; chanIdx < channels.length; chanIdx++ ) {
-			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
-			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
-		}
-		downsample( outputBuf, tickLen + 64 );
-		volumeRamp( outputBuf, tickLen );
-		tick();
-		return tickLen;
-	}
-
-	private int calculateTickLen( int tempo, int samplingRate ) {
-		return ( samplingRate * 5 ) / ( tempo * 2 );
-	}
-
-	private void volumeRamp( int[] mixBuf, int tickLen ) {
-		int rampRate = 256 * 2048 / sampleRate;
-		for( int idx = 0, a1 = 0; a1 < 256; idx += 2, a1 += rampRate ) {
-			int a2 = 256 - a1;
-			mixBuf[ idx     ] = ( mixBuf[ idx     ] * a1 + rampBuf[ idx     ] * a2 ) >> 8;
-			mixBuf[ idx + 1 ] = ( mixBuf[ idx + 1 ] * a1 + rampBuf[ idx + 1 ] * a2 ) >> 8;
-		}
-		System.arraycopy( mixBuf, tickLen * 2, rampBuf, 0, 128 );
-	}
-
-	private void downsample( int[] buf, int count ) {
-		// 2:1 downsampling with simple but effective anti-aliasing. Buf must contain count * 2 + 1 stereo samples.
-		int outLen = count * 2;
-		for( int inIdx = 0, outIdx = 0; outIdx < outLen; inIdx += 4, outIdx += 2 ) {
-			buf[ outIdx     ] = ( buf[ inIdx     ] >> 2 ) + ( buf[ inIdx + 2 ] >> 1 ) + ( buf[ inIdx + 4 ] >> 2 );
-			buf[ outIdx + 1 ] = ( buf[ inIdx + 1 ] >> 2 ) + ( buf[ inIdx + 3 ] >> 1 ) + ( buf[ inIdx + 5 ] >> 2 );
-		}
-	}
-
-	private boolean tick() {
-		if( --tick <= 0 ) {
-			tick = speed;
-			row();
-		} else {
-			for( int idx = 0; idx < channels.length; idx++ ) channels[ idx ].tick();
-		}
-		return playCount[ seqPos ][ row ] > 1;
-	}
-
-	private void row() {
+	@Override
+	protected void row() {
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.getSequenceLength() ) breakSeqPos = nextRow = 0;
 			seqPos = breakSeqPos;
