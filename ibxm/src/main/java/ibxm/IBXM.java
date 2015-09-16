@@ -81,7 +81,7 @@ public class IBXM {
 		plCount = plChannel = -1;
 		for( int idx = 0; idx < playCount.length; idx++ ) {
 			int patIdx = module.sequence[ idx ];
-			int numRows = ( patIdx < module.numPatterns ) ? module.patterns[ patIdx ].numRows : 0;
+			int numRows = ( patIdx < module.numPatterns ) ? module.patterns[ patIdx ].getNumRows() : 0;
 			playCount[ idx ] = new byte[ numRows ];
 		}
 		for( int idx = 0; idx < module.numChannels; idx++ )
@@ -125,7 +125,7 @@ public class IBXM {
 		setSequencePos( 0 );
 		if( sequencePos < 0 || sequencePos >= module.sequenceLength )
 			sequencePos = 0;
-		if( sequenceRow >= module.patterns[ module.sequence[ sequencePos ] ].numRows )
+		if( sequenceRow >= module.patterns[ module.sequence[ sequencePos ] ].getNumRows() )
 			sequenceRow = 0;
 		while( seqPos < sequencePos || row < sequenceRow ) {
 			int tickLen = calculateTickLen( tempo, sampleRate );
@@ -206,20 +206,20 @@ public class IBXM {
 		}
 		Pattern pattern = module.patterns[ module.sequence[ seqPos ] ];
 		row = nextRow;
-		if( row >= pattern.numRows ) row = 0;
+		if( row >= pattern.getNumRows() ) row = 0;
 		int count = playCount[ seqPos ][ row ];
 		if( plCount < 0 && count < 127 ) {
 			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
 		}
 		nextRow = row + 1;
-		if( nextRow >= pattern.numRows ) {
+		if( nextRow >= pattern.getNumRows() ) {
 			breakSeqPos = seqPos + 1;
 			nextRow = 0;
 		}
 		int noteIdx = row * module.numChannels;
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
-			pattern.getNote( noteIdx + chanIdx, note );
+			pattern.getNote( noteIdx + chanIdx, 0, note );
 			if( note.effect == 0xE ) {
 				note.effect = 0x70 | ( note.parameter >> 4 );
 				note.parameter &= 0xF;

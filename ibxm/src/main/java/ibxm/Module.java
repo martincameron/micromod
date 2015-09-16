@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.Note;
+
 public class Module {
 	public String songName = "Blank";
 	public int numChannels = 4, numInstruments = 1;
@@ -78,24 +80,28 @@ public class Module {
 		patterns = new Pattern[ numPatterns ];
 		for( int patIdx = 0; patIdx < numPatterns; patIdx++ ) {
 			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, 64 );
-			for( int patDataIdx = 0; patDataIdx < pattern.data.length; patDataIdx += 5 ) {
+			final Note note = new Note();
+			for( int patDataIdx = 0; patDataIdx < pattern.getNumChannels() * pattern.getNumRows(); patDataIdx++ ) {
 				int period = ( moduleData.uByte( moduleDataIdx ) & 0xF ) << 8;
 				period = ( period | moduleData.uByte( moduleDataIdx + 1 ) ) * 4;
+				note.key = 0;
+				note.volume = defaultGVol;
 				if( period >= 112 && period <= 6848 ) {
 					int key = -12 * Channel.log2( ( period << Sample.FP_SHIFT ) / 29021 );
 					key = ( key + ( key & ( Sample.FP_ONE >> 1 ) ) ) >> Sample.FP_SHIFT;
-					pattern.data[ patDataIdx ] = ( byte ) key;
+					note.key = key;
 				}
 				int ins = ( moduleData.uByte( moduleDataIdx + 2 ) & 0xF0 ) >> 4;
 				ins = ins | moduleData.uByte( moduleDataIdx ) & 0x10;
-				pattern.data[ patDataIdx + 1 ] = ( byte ) ins;
+				note.instrument = ins;
 				int effect = moduleData.uByte( moduleDataIdx + 2 ) & 0x0F;
 				int param  = moduleData.uByte( moduleDataIdx + 3 );
 				if( param == 0 && ( effect < 3 || effect == 0xA ) ) effect = 0;
 				if( param == 0 && ( effect == 5 || effect == 6 ) ) effect -= 2;
 				if( effect == 8 && numChannels == 4 ) effect = param = 0;
-				pattern.data[ patDataIdx + 3 ] = ( byte ) effect;
-				pattern.data[ patDataIdx + 4 ] = ( byte ) param;
+				note.effect = effect;
+				note.parameter = param;
+				pattern.setNote( patDataIdx, 0, note );
 				moduleDataIdx += 4;
 			}
 		}
@@ -235,12 +241,8 @@ public class Module {
 				}
 				int chanIdx = channelMap[ token & 0x1F ];
 				if( chanIdx >= 0 ) {
-					int noteOffset = ( rowIdx * numChannels + chanIdx ) * 5;
-					pattern.data[ noteOffset     ] = ( byte ) noteKey;
-					pattern.data[ noteOffset + 1 ] = ( byte ) noteIns;
-					pattern.data[ noteOffset + 2 ] = ( byte ) noteVol;
-					pattern.data[ noteOffset + 3 ] = ( byte ) noteEffect;
-					pattern.data[ noteOffset + 4 ] = ( byte ) noteParam;
+					Note note = new Note( noteKey, noteIns, noteVol, noteEffect, noteParam );
+					pattern.setNote( ( rowIdx * numChannels + chanIdx ), 0, note );
 				}
 			}
 			moduleDataIdx += 2;
@@ -296,21 +298,18 @@ public class Module {
 			dataOffset += moduleData.uleInt( dataOffset );
 			int nextOffset = dataOffset + patternDataLength;
 			if( patternDataLength > 0 ) {
-				int patternDataOffset = 0;
-				for( int note = 0; note < numNotes; note++ ) {
+				Note note = new Note();
+				for( int noteIdx = 0; noteIdx < numNotes; noteIdx++ ) {
 					int flags = moduleData.uByte( dataOffset );
 					if( ( flags & 0x80 ) == 0 ) flags = 0x1F; else dataOffset++;
-					byte key = ( flags & 0x01 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					pattern.data[ patternDataOffset++ ] = key;
-					byte ins = ( flags & 0x02 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					pattern.data[ patternDataOffset++ ] = ins;
-					byte vol = ( flags & 0x04 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					pattern.data[ patternDataOffset++ ] = vol;
-					byte fxc = ( flags & 0x08 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					byte fxp = ( flags & 0x10 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
-					if( fxc >= 0x40 ) fxc = fxp = 0;
-					pattern.data[ patternDataOffset++ ] = fxc;
-					pattern.data[ patternDataOffset++ ] = fxp;
+					note.key = ( flags & 0x01 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					note.instrument = ( flags & 0x02 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					note.volume = ( flags & 0x04 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					note.effect = ( flags & 0x08 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					note.parameter = ( flags & 0x10 ) > 0 ? moduleData.sByte( dataOffset++ ) : 0;
+					if( note.effect >= 0x40 ) note.effect = note.parameter = 0;
+
+					pattern.setNote( noteIdx, 0, note );
 				}
 			}
 			dataOffset = nextOffset;
