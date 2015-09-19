@@ -1,7 +1,6 @@
-
 package micromod;
 
-public class Channel {
+public class Channel extends AbstractChannel {
 	private static final short[] sineTable = {
 		   0,  24,  49,  74,  97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253,
 		 255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120,  97,  74,  49,  24
@@ -28,17 +27,19 @@ public class Channel {
 		}
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
-	
-	public void resample( int[] mixBuf, int offset, int count, int sampleRate, boolean interpolation ) {
+
+	@Override
+	public void resample( int[] mixBuf, int offset, int count, int sampleRate, ChannelInterpolation interpolation ) {
 		if( instrument > 0 && ampl > 0 ) {
 			int leftGain = ( ampl * panning ) >> 8;
 			int rightGain = ( ampl * ( 255 - panning ) ) >> 8;
 			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 			module.getInstrument( instrument ).getAudio( sampleIdx, sampleFra, step,
-				leftGain, rightGain, mixBuf, offset, count, interpolation );
+				leftGain, rightGain, mixBuf, offset, count, interpolation == ChannelInterpolation.LINEAR );
 		}
 	}
 
+	@Override
 	public void updateSampleIdx( int length, int sampleRate ) {
 		if( instrument > 0 ) {
 			int step = ( freq << ( Instrument.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
@@ -49,70 +50,72 @@ public class Channel {
 		}
 	}
 
-	public void row( int key, int ins, int effect, int param ) {
-		noteKey = key;
-		noteIns = ins;
-		noteEffect = effect;
-		noteParam = param;
+	@Override
+	public void row( Note note ) {
+		noteKey = note.key;
+		noteIns = note.instrument;
+		noteEffect = note.effect;
+		noteParam = note.parameter;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
-		if( !( effect == 0x1D && param > 0 ) ) {
+		if( !( noteEffect == 0x1D && noteParam > 0 ) ) {
 			/* Not note delay. */
 			trigger();
 		}
-		switch( effect ) {
+		switch( noteEffect ) {
 			case 0x3: /* Tone Portamento.*/
-				if( param > 0 ) portaSpeed = param;
+				if( noteParam > 0 ) portaSpeed = noteParam;
 				break;
 			case 0x4: /* Vibrato.*/
-				if( ( param & 0xF0 ) > 0 ) vibratoSpeed = param >> 4;
-				if( ( param & 0x0F ) > 0 ) vibratoDepth = param & 0xF;
+				if( ( noteParam & 0xF0 ) > 0 ) vibratoSpeed = noteParam >> 4;
+				if( ( noteParam & 0x0F ) > 0 ) vibratoDepth = noteParam & 0xF;
 				vibrato();
 				break;
 			case 0x6: /* Vibrato + Volume Slide.*/
 				vibrato();
 				break;
 			case 0x7: /* Tremolo.*/
-				if( ( param & 0xF0 ) > 0 ) tremoloSpeed = param >> 4;
-				if( ( param & 0x0F ) > 0 ) tremoloDepth = param & 0xF;
+				if( ( noteParam & 0xF0 ) > 0 ) tremoloSpeed = noteParam >> 4;
+				if( ( noteParam & 0x0F ) > 0 ) tremoloDepth = noteParam & 0xF;
 				tremolo();
 				break;
 			case 0x8: /* Set Panning. Not for 4-channel ProTracker. */
 				if( module.getNumChannels() != 4 ) {
-					panning = ( param < 128 ) ? ( param << 1 ) : 255;
+					panning = ( noteParam < 128 ) ? ( noteParam << 1 ) : 255;
 				}
 				break;
 			case 0xC: /* Set Volume.*/
-				volume = param > 64 ? 64 : param;
+				volume = noteParam > 64 ? 64 : noteParam;
 				break;
 			case 0x11: /* Fine Portamento Up.*/
-				period -= param;
+				period -= noteParam;
 				if( period < 0 ) period = 0;
 				break;
 			case 0x12: /* Fine Portamento Down.*/
-				period += param;
+				period += noteParam;
 				if( period > 65535 ) period = 65535;
 				break;
 			case 0x14: /* Set Vibrato Waveform.*/
-				if( param < 8 ) vibratoType = param;
+				if( noteParam < 8 ) vibratoType = noteParam;
 				break;
 			case 0x17: /* Set Tremolo Waveform.*/
-				if( param < 8 ) tremoloType = param;
+				if( noteParam < 8 ) tremoloType = noteParam;
 				break;
 			case 0x1A: /* Fine Volume Up.*/
-				volume += param;
+				volume += noteParam;
 				if( volume > 64 ) volume = 64;
 				break;
 			case 0x1B: /* Fine Volume Down.*/
-				volume -= param;
+				volume -= noteParam;
 				if( volume < 0 ) volume = 0;
 				break;
 			case 0x1C: /* Note Cut.*/
-				if( param <= 0 ) volume = 0;
+				if( noteParam <= 0 ) volume = 0;
 				break;
 		}
 		updateFrequency();
 	}
 
+	@Override
 	public void tick() {
 		fxCount++;
 		switch( noteEffect ) {

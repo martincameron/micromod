@@ -12,7 +12,7 @@ public class Player implements Runnable {
 	private boolean playing, loop;
 	private int duration;
 
-	public Player( Module module, boolean interpolation, boolean loop ) {
+	public Player( Module module, ChannelInterpolation interpolation, boolean loop ) {
 		this.module = module;
 		micromod = new Micromod( module, SAMPLE_RATE );
 		micromod.setInterpolation( interpolation );
@@ -77,9 +77,9 @@ public class Player implements Runnable {
 	public static void main( String[] args ) throws java.io.IOException {
 		// Parse arguments.
 		String modFile = "";
-		boolean interpolation = false;
+		ChannelInterpolation interpolation = ChannelInterpolation.NONE;
 		if( args.length == 2 && "-int".equals( args[ 0 ] ) ) {
-			interpolation = true;
+			interpolation = ChannelInterpolation.LINEAR;
 			modFile = args[ 1 ];
 		} else if( args.length == 1 ) {
 			modFile = args[ 0 ];

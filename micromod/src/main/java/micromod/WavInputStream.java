@@ -125,13 +125,14 @@ public class WavInputStream extends InputStream {
 	/* Simple Mod to Wav converter. */
 	public static void main( String[] args ) throws java.io.IOException {
 		java.io.File modFile = null, wavFile = null;
-		boolean interpolation = false, fadeOut = false;
+		ChannelInterpolation interpolation = ChannelInterpolation.NONE;
+		boolean fadeOut = false;
 		int argIdx = 0;
 		while( argIdx < args.length ) {
 			// Parse arguments.
 			String arg = args[ argIdx++ ];
 			if( "-hq".equals( arg ) ) {
-				interpolation = true;
+				interpolation = ChannelInterpolation.LINEAR;
 			} else if( "-fade".equals( arg ) ) {
 				fadeOut = true;
 			} else if( modFile == null ) {

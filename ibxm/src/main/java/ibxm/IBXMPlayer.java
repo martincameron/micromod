@@ -1,6 +1,8 @@
 
 package ibxm;
 
+import micromod.ChannelInterpolation;
+
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.KeyboardFocusManager;
@@ -73,13 +75,14 @@ public class IBXMPlayer extends JFrame {
 	private IBXM ibxm;
 	private volatile boolean playing;
 	private int[] reverbBuf;
-	private int interpolation, reverbIdx, reverbLen;
+	private ChannelInterpolation interpolation;
+	private int reverbIdx, reverbLen;
 	private int sliderPos, samplePos, duration;
 	private Thread playThread;
 
 	public IBXMPlayer() {
 		super( "IBXM " + IBXM.VERSION );
-		URL icon = IBXMPlayer.class.getResource( "ibxm.png" );
+		URL icon = IBXMPlayer.class.getResource( "/ibxm.png" );
 		setIconImage( Toolkit.getDefaultToolkit().createImage( icon ) );
 		JPanel controlPanel = new JPanel();
 		controlPanel.setLayout( new BorderLayout( 5, 5 ) );
@@ -234,7 +237,7 @@ public class IBXMPlayer extends JFrame {
 				if( module != null ) {
 					fadeOutCheckBox.setSelected( false );
 					fadeOutTextField.setText( String.valueOf( duration / SAMPLE_RATE ) );
-					saveFileChooser.setSelectedFile( new File( module.songName.trim() + ".wav" ) );
+					saveFileChooser.setSelectedFile( new File( module.getSongName().trim() + ".wav" ) );
 					int result = saveFileChooser.showSaveDialog( IBXMPlayer.this );
 					if( result == JFileChooser.APPROVE_OPTION ) {
 						try {
@@ -273,7 +276,7 @@ public class IBXMPlayer extends JFrame {
 		JRadioButtonMenuItem noneMenuItem = new JRadioButtonMenuItem( "No interpolation" );
 		noneMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.NEAREST );
+				setInterpolation( ChannelInterpolation.NEAREST );
 			}
 		} );
 		interpolationGroup.add( noneMenuItem );
@@ -281,17 +284,17 @@ public class IBXMPlayer extends JFrame {
 		JRadioButtonMenuItem lineMenuItem = new JRadioButtonMenuItem( "Linear interpolation" );
 		lineMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.LINEAR );
+				setInterpolation( ChannelInterpolation.LINEAR );
 			}
 		} );
 		interpolationGroup.add( lineMenuItem );
 		interpolationGroup.setSelected( lineMenuItem.getModel(), true );
-		setInterpolation( Channel.LINEAR );
+		setInterpolation( ChannelInterpolation.LINEAR );
 		optionsMenu.add( lineMenuItem );
 		JRadioButtonMenuItem sincMenuItem = new JRadioButtonMenuItem( "Sinc interpolation" );
 		sincMenuItem.addActionListener( new ActionListener() {
 			public void actionPerformed( ActionEvent actionEvent ) {
-				setInterpolation( Channel.SINC );
+				setInterpolation( ChannelInterpolation.SINC );
 			}
 		} );
 		interpolationGroup.add( sincMenuItem );
@@ -329,12 +332,11 @@ public class IBXMPlayer extends JFrame {
 				seekSlider.setMinimum( 0 );
 				seekSlider.setMaximum( duration );
 				seekSlider.setValue( 0 );
-				String songName = module.songName.trim();
+				String songName = module.getSongName().trim();
 				songLabel.setText( songName.length() > 0 ? songName : modFile.getName() );
 				Vector<String> vector = new Vector<String>();
-				Instrument[] instruments = module.instruments;
-				for( int idx = 0, len = instruments.length; idx < len; idx++ ) {
-					String name = instruments[ idx ].name;
+				for( int idx = 0, len = module.getNumInstruments(); idx < len; idx++ ) {
+					String name = module.getInstrument( idx ).name;
 					if( name.trim().length() > 0 )
 						vector.add( String.format( "%03d: %s", idx, name ) );
 				}
@@ -405,7 +407,7 @@ public class IBXMPlayer extends JFrame {
 		samplePos = ibxm.seek( pos );
 	}
 
-	private synchronized void setInterpolation( int interpolation ) {
+	private synchronized void setInterpolation( ChannelInterpolation interpolation ) {
 		this.interpolation = interpolation;
 		if( ibxm != null ) ibxm.setInterpolation( interpolation );
 	}

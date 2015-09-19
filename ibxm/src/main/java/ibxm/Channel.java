@@ -1,9 +1,10 @@
-
 package ibxm;
 
-public class Channel {
-	public static final int NEAREST = 0, LINEAR = 1, SINC = 2;
+import micromod.AbstractChannel;
+import micromod.ChannelInterpolation;
+import micromod.Note;
 
+public class Channel extends AbstractChannel {
 	private static int[] exp2Table = {
 		32768, 32946, 33125, 33305, 33486, 33667, 33850, 34034,
 		34219, 34405, 34591, 34779, 34968, 35158, 35349, 35541,
@@ -59,7 +60,8 @@ public class Channel {
 		randomSeed = ( id + 1 ) * 0xABCDEF;
 	}
 
-	public void resample( int[] outBuf, int offset, int length, int sampleRate, int interpolation ) {
+	@Override
+	public void resample( int[] outBuf, int offset, int length, int sampleRate, ChannelInterpolation interpolation ) {
 		if( ampl <= 0 ) return;
 		int lAmpl = ampl * ( 255 - pann ) >> 8;
 		int rAmpl = ampl * pann >> 8;
@@ -77,6 +79,7 @@ public class Channel {
 		}
 	}
 
+	@Override
 	public void updateSampleIdx( int length, int sampleRate ) {
 		int step = ( freq << ( Sample.FP_SHIFT - 3 ) ) / ( sampleRate >> 3 );
 		sampleFra += step * length;
@@ -84,12 +87,13 @@ public class Channel {
 		sampleFra &= Sample.FP_MASK;
 	}
 
+	@Override
 	public void row( Note note ) {
 		noteKey = note.key;
 		noteIns = note.instrument;
 		noteVol = note.volume;
 		noteEffect = note.effect;
-		noteParam = note.param;
+		noteParam = note.parameter;
 		retrigCount++;
 		vibratoAdd = tremoloAdd = arpeggioAdd = fxCount = 0;
 		if( !( ( noteEffect == 0x7D || noteEffect == 0xFD ) && noteParam > 0 ) ) {
@@ -217,7 +221,8 @@ public class Channel {
 		calculateAmplitude();
 		updateEnvelopes();
 	}
-	
+
+	@Override
 	public void tick() {
 		vibratoAdd = 0;
 		fxCount++;
@@ -473,12 +478,12 @@ public class Channel {
 		if( module.linearPeriods ) {
 			per = per - ( arpeggioAdd << 6 );
 			if( per < 28 || per > 7680 ) per = 7680;
-			freq = ( ( module.c2Rate >> 4 ) * exp2( ( ( 4608 - per ) << Sample.FP_SHIFT ) / 768 ) ) >> ( Sample.FP_SHIFT - 4 );
+			freq = ( ( module.getC2Rate() >> 4 ) * exp2( ( ( 4608 - per ) << Sample.FP_SHIFT ) / 768 ) ) >> ( Sample.FP_SHIFT - 4 );
 		} else {
 			if( per > 29021 ) per = 29021;
 			per = ( per << Sample.FP_SHIFT ) / exp2( ( arpeggioAdd << Sample.FP_SHIFT ) / 12 );
 			if( per < 28 ) per = 29021;
-			freq = module.c2Rate * 1712 / per;
+			freq = module.getC2Rate() * 1712 / per;
 		}
 	}
 
@@ -489,7 +494,7 @@ public class Channel {
 		int vol = volume + tremoloAdd;
 		if( vol > 64 ) vol = 64;
 		if( vol < 0 ) vol = 0;
-		vol = ( vol * module.gain * Sample.FP_ONE ) >> 13;
+		vol = ( vol * module.getGain() * Sample.FP_ONE ) >> 13;
 		vol = ( vol * fadeOutVol ) >> 15;
 		ampl = ( vol * globalVol.volume * envVol ) >> 12;
 		int envPan = 32;
@@ -500,8 +505,8 @@ public class Channel {
 	}
 
 	private void trigger() {
-		if( noteIns > 0 && noteIns <= module.numInstruments ) {
-			instrument = module.instruments[ noteIns ];
+		if( noteIns > 0 && noteIns <= module.getNumInstruments() ) {
+			instrument = module.getInstrument( noteIns );
 			Sample sam = instrument.samples[ instrument.keyToSample[ noteKey < 97 ? noteKey : 0 ] ];
 			volume = sam.volume >= 64 ? 64 : sam.volume & 0x3F;
 			if( sam.panning >= 0 ) panning = sam.panning & 0xFF;
