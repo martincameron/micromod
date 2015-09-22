@@ -5,7 +5,7 @@ Unit Micromod;
 
 Interface
 
-Const MICROMOD_VERSION : String = '20150705';
+Const MICROMOD_VERSION : String = '20150922';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -59,8 +59,8 @@ Const FP_ONE   : LongInt = 32768;
 Const FP_MASK  : LongInt = 32767;
 
 Const FineTuning : Array[ 0..15 ] Of Word = (
-	4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
-	4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
+	4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
+	4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
 );
 
 Const ArpTuning : Array[ 0..15 ] Of Word = (
@@ -138,7 +138,7 @@ Var
 	NumPatterns : LongInt;
 	StrIndex, PatIndex, SeqEntry, PatternDataLength : LongInt;
 	SampleOffset, SampleLength, LoopStart, LoopLength : LongInt;
-	InstIndex, Volume : LongInt;
+	InstIndex, Volume, FineTune : LongInt;
 	Instrument : TInstrument;
 Begin
 	NumChannels := CalculateNumChannels( Module );
@@ -182,7 +182,8 @@ Begin
 		SetLength( Instrument.Name, 22 );
 		For StrIndex := 1 To 22 Do
 			Instrument.Name[ StrIndex ] := Char( Module[ InstIndex * 30 + StrIndex - 11 ] And $FF );
-		Instrument.FineTune := Module[ InstIndex * 30 + 14 ] And $F;
+		FineTune := Module[ InstIndex * 30 + 14 ] And $F;
+		Instrument.FineTune := ( FineTune And $7 ) - ( FineTune And $8 ) + 8;
 		Volume := Module[ InstIndex * 30 + 15 ] And $7F;
 		If Volume > 64 Then Volume := 64;		
 		Instrument.Volume := Volume;

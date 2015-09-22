@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20150705 (c)2015 mumart@gmail.com */
+/* fast protracker replay version 20150922 (c)2015 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define FP_SHIFT 14
@@ -31,8 +31,8 @@ struct channel {
 };
 
 static const unsigned short fine_tuning[] = {
-	4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
-	4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
+	4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
+	4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
 };
 
 static const unsigned short arp_tuning[] = {
@@ -477,7 +477,7 @@ long micromod_calculate_mod_file_len( signed char *module_header ) {
 long micromod_initialise( signed char *data, long sampling_rate ) {
 	struct instrument *inst;
 	long sample_data_offset, inst_idx;
-	long sample_length, volume, loop_start, loop_length;
+	long sample_length, volume, fine_tune, loop_start, loop_length;
 	num_channels = calculate_num_channels( data );
 	if( num_channels <= 0 ) {
 		num_channels = 0;
@@ -496,7 +496,8 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 	for( inst_idx = 1; inst_idx < 32; inst_idx++ ) {
 		inst = &instruments[ inst_idx ];
 		sample_length = unsigned_short_big_endian( module_data, inst_idx * 30 + 12 ) * 2;
-		inst->fine_tune = module_data[ inst_idx * 30 + 14 ] & 0xF;
+		fine_tune = module_data[ inst_idx * 30 + 14 ] & 0xF;
+		inst->fine_tune = ( fine_tune & 0x7 ) - ( fine_tune & 0x8 ) + 8;
 		volume = module_data[ inst_idx * 30 + 15 ] & 0x7F;
 		inst->volume = volume > 64 ? 64 : volume;
 		loop_start = unsigned_short_big_endian( module_data, inst_idx * 30 + 16 ) * 2;

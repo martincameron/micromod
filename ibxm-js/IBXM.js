@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150717 (c)2015 mumart@gmail.com";
+		return "20150922 (c)2015 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -805,8 +805,7 @@ function IBXMChannel( replay, id ) {
 				if( !isPorta ) sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
 				var fineTune = sample.fineTune;
 				if( noteEffect == 0x75 || noteEffect == 0xF2 ) { /* Set Fine Tune. */
-					fineTune = ( noteParam & 0xF ) << 4;
-					if( fineTune > 127 ) fineTune -= 256;
+					fineTune = ( ( noteParam & 0xF ) << 4 ) - 128;
 				}
 				var key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;

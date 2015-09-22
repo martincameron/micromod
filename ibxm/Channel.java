@@ -549,8 +549,7 @@ public class Channel {
 				if( !isPorta ) sample = instrument.samples[ instrument.keyToSample[ noteKey ] ];
 				int fineTune = sample.fineTune;
 				if( noteEffect == 0x75 || noteEffect == 0xF2 ) { /* Set Fine Tune. */
-					fineTune = ( noteParam & 0xF ) << 4;
-					if( fineTune > 127 ) fineTune -= 256;
+					fineTune = ( ( noteParam & 0xF ) << 4 ) - 128;
 				}
 				int key = noteKey + sample.relNote;
 				if( key < 1 ) key = 1;

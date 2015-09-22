@@ -192,7 +192,7 @@ public class Channel {
 		if( noteEffect == 0x09 ) {
 			sampleOffset = ( noteParam & 0xFF ) << 8;
 		} else if( noteEffect == 0x15 ) {
-			fineTune = ( noteParam & 0x7 ) - ( noteParam & 0x8 );
+			fineTune = ( noteParam & 0xF ) - 8;
 		}
 		if( noteKey > 0 ) {
 			portaPeriod = Note.keyToPeriod( noteKey, fineTune );

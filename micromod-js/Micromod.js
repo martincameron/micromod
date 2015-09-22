@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150705 (c)2015 mumart@gmail.com";
+		return "20150922 (c)2015 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -294,8 +294,8 @@ function Micromod( module, samplingRate ) {
 
 function Channel( module, id ) {
 	var fineTuning = new Int16Array([
-		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894,
-		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126
+		4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
+		4096, 4067, 4037, 4008, 3979, 3951, 3922, 3894
 	]);
 
 	var sineTable = new Int16Array([
@@ -699,7 +699,8 @@ function Module( module ) {
 			var inst = new Instrument();
 			inst.instrumentName = ascii( module, instIdx * 30 - 10, 22 );
 			var sampleLength = ushortbe( module, instIdx * 30 + 12 ) * 2;
-			inst.fineTune = module[ instIdx * 30 + 14 ] & 0xF;
+			var fineTune = module[ instIdx * 30 + 14 ] & 0xF;
+			inst.fineTune = ( fineTune & 0x7 ) - ( fineTune & 0x8 ) + 8;
 			inst.volume = module[ instIdx * 30 + 15 ] & 0x7F;
 			if( inst.volume > 64 ) {
 				inst.volume = 64;

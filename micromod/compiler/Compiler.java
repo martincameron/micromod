@@ -45,7 +45,7 @@ public class Compiler {
 		"    E2x = Fine portamento down with speed x.\n" +
 		"    E3x = Glissando. (Not supported in Micromod).\n" +
 		"    E4x = Set vibrato waveform x (Sine 0, Saw 1, Square 2, Random 3).\n" +
-		"    E5x = Set channel fine-tune x (1 to 7 up, F to 8 down).\n" +
+		"    E5x = Set channel fine-tune x eighths of a semitone.\n" +
 		"    E60 = Set pattern loop marker.\n" +
 		"    E6x = Pattern loop (replay from the marker x times).\n" +
 		"    E7x = Set tremolo waveform x (Sine 0, Saw 1, Square 2, Random 3).\n" +
