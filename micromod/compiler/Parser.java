@@ -118,8 +118,8 @@ public class Parser {
 
 	/* Split a string, separated by whitespace or separator. */
 	public static String[] split( String input, char separator ) {
-		String[] output = new String[ split( input, ',', null ) ];
-		split( input, ',', output );
+		String[] output = new String[ split( input, separator, null ) ];
+		split( input, separator, output );
 		return output;
 	}
 	
