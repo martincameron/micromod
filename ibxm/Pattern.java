@@ -20,25 +20,24 @@ public class Pattern {
 	}
 
 	public void toStringBuffer( StringBuffer out ) {
-		char[] hex = {
-			'0', '1', '2', '3', '4', '5', '6', '7',
-			'8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-		int channels = data.length / ( numRows * 5 );
-		int data_offset = 0;
+		Note note = new Note();
+		char[] chars = new char[ 10 ];
+		int numChannels = data.length / ( numRows * 5 );
 		for( int row = 0; row < numRows; row++ ) {
-			for( int channel = 0; channel < channels; channel++ ) {
-				for( int n = 0; n < 5; n++ ) {
-					int b = data[ data_offset++ ];
-					if( b == 0 ) {
-						out.append( "--" );
-					} else {
-						out.append( hex[ ( b >> 4 ) & 0xF ] );
-						out.append( hex[ b & 0xF ] );
-					}
-				}
+			for( int channel = 0; channel < numChannels; channel++ ) {
+				getNote( numChannels * row + channel, note );
+				note.noteToChars( chars );
+				out.append( chars );
 				out.append( ' ' );
 			}
 			out.append( '\n' );
 		}
+	}
+
+	public String toString() {
+		int numChannels = data.length / ( numRows * 5 );
+		StringBuffer stringBuffer = new StringBuffer( numRows * numChannels * 11 + numRows );
+		toStringBuffer( stringBuffer );
+		return stringBuffer.toString();
 	}
 }
