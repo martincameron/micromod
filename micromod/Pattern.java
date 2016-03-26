@@ -28,7 +28,7 @@ public class Pattern {
 		return numChannels;
 	}
 
-	public void getNote( int row, int channel, Note note ) {
+	public Note getNote( int row, int channel, Note note ) {
 		if( row < 0 || row >= NUM_ROWS ) {
 			throw new IllegalArgumentException( "Row out of range (0 to " + ( NUM_ROWS - 1 ) + "): " + row );
 		}
@@ -40,6 +40,7 @@ public class Pattern {
 		note.instrument = patternData[ patternDataIdx + 1 ] & 0xFF;
 		note.effect = patternData[ patternDataIdx + 2 ] & 0xFF;
 		note.parameter = patternData[ patternDataIdx + 3 ] & 0xFF;
+		return note;
 	}
 	
 	public void setNote( int row, int channel, Note note ) {

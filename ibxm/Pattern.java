@@ -10,13 +10,14 @@ public class Pattern {
 		data = new byte[ numChannels * numRows * 5 ];
 	}
 
-	public void getNote( int index, Note note ) {
+	public Note getNote( int index, Note note ) {
 		int offset = index * 5;
 		note.key = data[ offset ] & 0xFF;
 		note.instrument = data[ offset + 1 ] & 0xFF;
 		note.volume = data[ offset + 2 ] & 0xFF;
 		note.effect = data[ offset + 3 ] & 0xFF;
 		note.param = data[ offset + 4 ] & 0xFF;
+		return note;
 	}
 
 	public void toStringBuffer( StringBuffer out ) {
@@ -26,7 +27,7 @@ public class Pattern {
 		for( int row = 0; row < numRows; row++ ) {
 			for( int channel = 0; channel < numChannels; channel++ ) {
 				getNote( numChannels * row + channel, note );
-				note.noteToChars( chars );
+				note.toChars( chars );
 				out.append( chars );
 				out.append( ' ' );
 			}

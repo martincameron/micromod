@@ -55,14 +55,17 @@ public class Note {
 	}
 
 	public String toString() {
-		char[] note = new char[ 8 ];
-		keyToChars( key, note );
-		note[ 3 ] = ( instrument > 9 && instrument < 100 ) ? ( char ) ( '0' + instrument / 10 ) : '-';
-		note[ 4 ] = ( instrument > 0 && instrument < 100 ) ? ( char ) ( '0' + instrument % 10 ) : '-';
-		note[ 5 ] = ( effect > 0 && effect < 16 ) ? hexToString.charAt( effect ) : '-';
-		note[ 6 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
-		note[ 7 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
-		return new String( note );
+		return new String( toChars( new char[ 8 ] ) );
+	}
+
+	public char[] toChars( char[] chars ) {
+		keyToChars( key, chars );
+		chars[ 3 ] = ( instrument > 9 && instrument < 100 ) ? ( char ) ( '0' + instrument / 10 ) : '-';
+		chars[ 4 ] = ( instrument > 0 && instrument < 100 ) ? ( char ) ( '0' + instrument % 10 ) : '-';
+		chars[ 5 ] = ( ( effect > 0 || parameter > 0 ) && effect < 16 ) ? hexToString.charAt( effect ) : '-';
+		chars[ 6 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( ( parameter >> 4 ) & 0xF ) : '-';
+		chars[ 7 ] = ( effect > 0 || parameter > 0 ) ? hexToString.charAt( parameter & 0xF ) : '-';
+		return chars;
 	}
 
 	/* Convert key to period, returns zero if key out of range. */
