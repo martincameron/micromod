@@ -118,7 +118,7 @@ public class Compiler {
 		} else {
 			System.err.println( "Micromod Compiler! " + micromod.Micromod.VERSION );
 			System.err.println( "             Play: input.mt [-hq] [-seq 1,2,3]" );
-			System.err.println( "          Compile: input.mt [-out output.mod]" );
+			System.err.println( "          Compile: input.mt -out output.mod" );
 			System.err.println( "         Play Mod: -mod module.mod [-hq]" );
 			System.err.println( "        Decompile: -mod input.mod -dir outputdir" );
 			System.err.println( "    Mod To Sample: -mod input.mod -wav output.wav [-pat 0] [-key C-2] [-hq]" );
