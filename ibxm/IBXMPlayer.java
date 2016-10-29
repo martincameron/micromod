@@ -74,8 +74,10 @@ public class IBXMPlayer extends JFrame {
 	private volatile boolean playing;
 	private int[] reverbBuf;
 	private int interpolation, reverbIdx, reverbLen;
-	private int sliderPos, samplePos, duration;
+	private int sliderPos, samplePos, duration, row, seqPos;
+	private java.util.Timer displayTimer;
 	private Thread playThread;
+	private PatternDisplay patternDisplay;
 
 	public IBXMPlayer() {
 		super( "IBXM " + IBXM.VERSION );
@@ -306,12 +308,14 @@ public class IBXMPlayer extends JFrame {
 		optionsMenu.add( reverbMenuItem );
 		menuBar.add( optionsMenu );
 		setJMenuBar( menuBar );
+		patternDisplay = new PatternDisplay();
 		JPanel mainPanel = new JPanel();
 		mainPanel.setBorder( BorderFactory.createEmptyBorder( 10, 10, 10, 10 ) );
 		mainPanel.setLayout( new BorderLayout( 10, 10 ) );
 		mainPanel.add( controlPanel, BorderLayout.NORTH );
 		mainPanel.add( fileTreePane, BorderLayout.CENTER );
 		mainPanel.add( instrumentPane, BorderLayout.EAST );
+		mainPanel.add( patternDisplay, BorderLayout.SOUTH );
 		getContentPane().setLayout( new BorderLayout() );
 		getContentPane().add( mainPanel );
 		pack();
@@ -347,9 +351,34 @@ public class IBXMPlayer extends JFrame {
 		}
 	}
 
+	private void updateDisplay( int delay ) {
+		int p = ibxm.getSequencePos();
+		int r = ibxm.getRow();
+		if( !( p == seqPos && r == row ) ) {
+			row = r;
+			seqPos = p;
+			displayTimer.schedule( new java.util.TimerTask() {
+				private ibxm.Module module;
+				private int pat, row;
+				public java.util.TimerTask init( ibxm.Module module, int pat, int row ) {
+					this.module = module;
+					this.pat = pat;
+					this.row = row;
+					return this;
+				}
+				public void run() {
+					patternDisplay.display( module, pat, row );
+					java.awt.Toolkit.getDefaultToolkit().sync();
+				}
+			}.init( module, module.sequence[ seqPos ], row ), delay > 0 ? delay : 0 );
+		}
+	}
+
 	private synchronized void play() {
 		if( ibxm != null ) {
 			playing = true;
+			seqPos = row = -1;
+			displayTimer = new java.util.Timer();
 			playThread = new Thread( new Runnable() {
 				public void run() {
 					int[] mixBuf = new int[ ibxm.getMixBufferLength() ];
@@ -362,6 +391,7 @@ public class IBXMPlayer extends JFrame {
 						audioLine.open();
 						audioLine.start();
 						while( playing ) {
+							updateDisplay( ( audioLine.getBufferSize() - audioLine.available() ) * 250 / SAMPLE_RATE );
 							int count = getAudio( mixBuf );
 							if( reverbLen > 0 ) {
 								reverb( mixBuf, count );
@@ -381,8 +411,11 @@ public class IBXMPlayer extends JFrame {
 						JOptionPane.showMessageDialog( IBXMPlayer.this,
 							e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
 					} finally {
-						if( audioLine != null && audioLine.isOpen() ) audioLine.close();
-					}	
+						displayTimer.cancel();
+						if( audioLine != null && audioLine.isOpen() ) {
+							audioLine.close();
+						}
+					}
 				}
 			} );
 			playThread.start();
