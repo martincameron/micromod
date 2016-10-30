@@ -12,6 +12,8 @@ import java.awt.dnd.DropTargetAdapter;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.io.File;
@@ -40,6 +42,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSlider;
@@ -68,6 +71,7 @@ public class IBXMPlayer extends JFrame {
 	private JFileChooser loadFileChooser, saveFileChooser;
 	private JCheckBox fadeOutCheckBox;
 	private JTextField fadeOutTextField;
+	private JScrollBar patternScrollBar;
 
 	private Module module;
 	private IBXM ibxm;
@@ -131,6 +135,7 @@ public class IBXMPlayer extends JFrame {
 			public void valueForPathChanged(javax.swing.tree.TreePath path, Object newValue) {
 			}
 		} );
+		fileTree.setVisibleRowCount( 10 );
 		fileTree.setFont( new Font( "Monospaced", Font.PLAIN, 12 ) );
 		fileTree.addTreeSelectionListener( new TreeSelectionListener() {
 			public void valueChanged( TreeSelectionEvent treeSelectionEvent ) {
@@ -145,6 +150,18 @@ public class IBXMPlayer extends JFrame {
 		} );
 		JScrollPane fileTreePane = new JScrollPane( fileTree );
 		fileTreePane.setBorder( BorderFactory.createTitledBorder( "Module Path" ) );
+		patternDisplay = new PatternDisplay();
+		patternScrollBar = new JScrollBar( JScrollBar.HORIZONTAL, 0, 0, 0, 0 );
+		JPanel patternPanel = new JPanel();
+		patternPanel.setLayout( new BorderLayout() );
+		patternPanel.add( patternDisplay, BorderLayout.CENTER );
+		patternPanel.add( patternScrollBar, BorderLayout.SOUTH );
+		patternPanel.addComponentListener( new ComponentAdapter() {
+			@Override
+			public void componentResized( ComponentEvent e ) {
+				updatePatternScrollBar();
+			}
+		});
 		DropTarget dropTarget = new DropTarget( this, new DropTargetAdapter() {
 			public void drop( DropTargetDropEvent dropTargetDropEvent ) {
 				try {
@@ -308,14 +325,13 @@ public class IBXMPlayer extends JFrame {
 		optionsMenu.add( reverbMenuItem );
 		menuBar.add( optionsMenu );
 		setJMenuBar( menuBar );
-		patternDisplay = new PatternDisplay();
 		JPanel mainPanel = new JPanel();
 		mainPanel.setBorder( BorderFactory.createEmptyBorder( 10, 10, 10, 10 ) );
 		mainPanel.setLayout( new BorderLayout( 10, 10 ) );
 		mainPanel.add( controlPanel, BorderLayout.NORTH );
 		mainPanel.add( fileTreePane, BorderLayout.CENTER );
 		mainPanel.add( instrumentPane, BorderLayout.EAST );
-		mainPanel.add( patternDisplay, BorderLayout.SOUTH );
+		mainPanel.add( patternPanel, BorderLayout.SOUTH );
 		getContentPane().setLayout( new BorderLayout() );
 		getContentPane().add( mainPanel );
 		pack();
@@ -333,6 +349,8 @@ public class IBXMPlayer extends JFrame {
 				seekSlider.setMinimum( 0 );
 				seekSlider.setMaximum( duration );
 				seekSlider.setValue( 0 );
+				patternDisplay.display( module, 0, 0 );
+				updatePatternScrollBar();
 				String songName = module.songName.trim();
 				songLabel.setText( songName.length() > 0 ? songName : modFile.getName() );
 				Vector<String> vector = new Vector<String>();
@@ -349,6 +367,11 @@ public class IBXMPlayer extends JFrame {
 		} finally {
 			inputStream.close();
 		}
+	}
+
+	private void updatePatternScrollBar() {
+		patternScrollBar.setVisibleAmount( patternDisplay.getWidth() );
+		patternScrollBar.setMaximum( patternDisplay.getPreferredSize().width );
 	}
 
 	private void updateDisplay( int delay ) {

@@ -28,16 +28,14 @@ public class PatternDisplay extends Canvas {
 		   5,5,5,5,5,0,5,5,5,5,0,0,0,0,0,0,0,1,1,5,5,5,1
 	};
 
-	private void drawBuffer( int x0, int y0, int x1, int y1 ) {
+	private synchronized void drawBuffer( int x0, int y0, int x1, int y1 ) {
 		int cols = getBufferWidth();
 		int rows = getBufferHeight();
 		if( charset == null ) {
 			initCharset();
 		}
-		synchronized( this ) {
-			if( image == null ) {
-				image = createImage( cols * 8, rows * 16 );
-			}
+		if( image == null ) {
+			image = createImage( cols * 8, rows * 16 );
 		}
 		//System.out.println(x0 + "," + x1 + "," +y0 + "," +y1);
 		if( x0 < cols && y0 < rows ) {
