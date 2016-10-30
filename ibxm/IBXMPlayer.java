@@ -53,6 +53,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -152,6 +154,14 @@ public class IBXMPlayer extends JFrame {
 		fileTreePane.setBorder( BorderFactory.createTitledBorder( "Module Path" ) );
 		patternDisplay = new PatternDisplay();
 		patternScrollBar = new JScrollBar( JScrollBar.HORIZONTAL, 0, 0, 0, 0 );
+		patternScrollBar.setUnitIncrement( PatternDisplay.CHANNEL_WIDTH );
+		patternScrollBar.setBlockIncrement( PatternDisplay.CHANNEL_WIDTH * 4 );
+		patternScrollBar.getModel().addChangeListener( new ChangeListener() {
+			@Override
+			public void stateChanged( ChangeEvent e ) {
+				patternDisplay.setPan( patternScrollBar.getValue() );
+			}
+		} );
 		JPanel patternPanel = new JPanel();
 		patternPanel.setLayout( new BorderLayout() );
 		patternPanel.add( patternDisplay, BorderLayout.CENTER );
@@ -161,7 +171,7 @@ public class IBXMPlayer extends JFrame {
 			public void componentResized( ComponentEvent e ) {
 				updatePatternScrollBar();
 			}
-		});
+		} );
 		DropTarget dropTarget = new DropTarget( this, new DropTargetAdapter() {
 			public void drop( DropTargetDropEvent dropTargetDropEvent ) {
 				try {
@@ -349,6 +359,7 @@ public class IBXMPlayer extends JFrame {
 				seekSlider.setMinimum( 0 );
 				seekSlider.setMaximum( duration );
 				seekSlider.setValue( 0 );
+				patternDisplay.setPan( 0 );
 				patternDisplay.display( module, 0, 0 );
 				updatePatternScrollBar();
 				String songName = module.songName.trim();

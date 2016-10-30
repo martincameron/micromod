@@ -6,7 +6,9 @@ import java.awt.Graphics;
 import java.awt.Image;
 
 public class PatternDisplay extends Canvas {
-	private int channels = 4;
+	public static final int CHANNEL_WIDTH = 88;
+
+	private int pan, channels = 4;
 	private Image charset, image;
 
 	private short[][] buffer;
@@ -66,11 +68,11 @@ public class PatternDisplay extends Canvas {
 		int ch = getHeight();
 		int bw = getBufferWidth() * 8;
 		int bh = getBufferHeight() * 16;
-		drawBuffer( 0, 0, cw / 8, ch / 16 );
-		g.drawImage( image, 0, 0, this );
+		drawBuffer( pan / 8, 0, ( pan + cw ) / 8, ch / 16 );
+		g.drawImage( image, -pan, 0, this );
 		g.setColor( java.awt.Color.BLACK );
-		if( cw > bw ) {
-			g.fillRect( bw, 0, cw - bw, bh );
+		if( cw > ( bw - pan ) ) {
+			g.fillRect( bw - pan, 0, cw - bw + pan, bh );
 		}
 		if( ch > bh ) {
 			g.fillRect( 0, bh, cw, ch - bh );
@@ -94,16 +96,18 @@ public class PatternDisplay extends Canvas {
 		return 16;
 	}
 
-	public void display( ibxm.Module module, int pat, int row ) {
+	public void setPan( int x ) {
+		pan = x;
+	}
+
+	public synchronized void display( ibxm.Module module, int pat, int row ) {
 		ibxm.Pattern pattern = module.patterns[ pat ];
 		if( buffer == null || module.numChannels != channels ) {
 			channels = module.numChannels;
 			buffer = new short[ getBufferHeight() ][ getBufferWidth() ];
-			synchronized( this ) {
-				if( image != null ) {
-					image.flush();
-					image = null;
-				}
+			if( image != null ) {
+				image.flush();
+				image = null;
 			}
 		}
 		drawInt( pat, 0, 0, 3, 3 );
