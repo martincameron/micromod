@@ -381,8 +381,8 @@ public class IBXMPlayer extends JFrame {
 	}
 
 	private void updatePatternScrollBar() {
-		patternScrollBar.setVisibleAmount( patternDisplay.getWidth() );
 		patternScrollBar.setMaximum( patternDisplay.getPreferredSize().width );
+		patternScrollBar.setVisibleAmount( patternDisplay.getWidth() );
 	}
 
 	private void updateDisplay( int delay ) {

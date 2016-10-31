@@ -98,6 +98,7 @@ public class PatternDisplay extends Canvas {
 
 	public void setPan( int x ) {
 		pan = x;
+		repaint();
 	}
 
 	public synchronized void display( ibxm.Module module, int pat, int row ) {
