@@ -17,7 +17,13 @@ public class Note {
 		chars[ 4 ] = ( instrument > 0x0 && instrument < 0xFF ) ? b36ToString.charAt( instrument & 0xF ) : '-';
 		chars[ 5 ] = ( volume > 0xF && volume < 0xFF ) ? b36ToString.charAt( ( volume >> 4 ) & 0xF ) : '-';
 		chars[ 6 ] = ( volume > 0x0 && volume < 0xFF ) ? b36ToString.charAt( volume & 0xF ) : '-';
-		chars[ 7 ] = ( ( effect > 0 || param > 0 ) && effect < 36 ) ? b36ToString.charAt( effect ) : '-';
+		if( ( effect > 0 || param > 0 ) && effect < 36 ) {
+			chars[ 7 ] = b36ToString.charAt( effect );
+		} else if( effect > 0x80 && effect < 0x9F ) {
+			chars[ 7 ] = ( char ) ( 96 + ( effect & 0x1F ) );
+		} else {
+			chars[ 7 ] = '-';
+		}
 		chars[ 8 ] = ( effect > 0 || param > 0 ) ? b36ToString.charAt( ( param >> 4 ) & 0xF ) : '-';
 		chars[ 9 ] = ( effect > 0 || param > 0 ) ? b36ToString.charAt( param & 0xF ) : '-';
 		return chars;

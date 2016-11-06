@@ -14,15 +14,26 @@ public class PatternDisplay extends Canvas {
 	private short[][] buffer;
 
 	private int[] fxclr = new int[] {
-		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
-		   1,1,1,1,1,7,7,5,5,4,0,0,0,0,0,0,0,5,6,5,6,0,6,
-		/* G H I J K L M N O P Q R S T U V W X Y Z */
-		   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? */
+		   1,1,1,1,1,7,7,5,5,4,0,0,0,0,0,0,
+		/* @ A B C D E F G H I J K L M N O */
+		   0,5,6,5,6,0,6,5,5,0,0,0,4,0,0,0,
+		/* P Q R S T U V W X Y Z [ \ ] ^ _ */
+		   5,0,4,0,5,0,0,0,1,0,0,0,0,0,0,0,
+		/* ` a b c d e f g h i j k l m n o */
+		   0,6,6,6,5,1,1,1,1,5,1,7,7,0,0,4,
+		/* p q r s t u v w x y z { | } ~ */
+		   0,4,5,0,6,1,5,0,0,0,0,0,0,0,0
 	};
 
 	private int[] exclr = new int[] {
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
 		   0,1,1,1,1,1,6,5,0,4,0,0,0,0,0,0,0,5,5,4,4,4,4
+	};
+
+	private int[] sxclr = new int[] {
+		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
+		   5,4,1,1,5,0,0,0,5,0,0,0,0,0,0,0,0,5,4,4,4,4,4
 	};
 
 	private int[] vcclr = new int[] {
@@ -148,9 +159,14 @@ public class PatternDisplay extends Canvas {
 						if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
 							clr = clr + exclr[ chars[ 8 ] - '0' ];
 						}
+					} else if( chars[ 7 ] == 's' ) {
+						clr = bcol;
+						if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
+							clr = clr + sxclr[ chars[ 8 ] - '0' ];
+						}
 					} else {
 						clr = bcol;
-						if( chars[ 7 ] >= '0' && chars[ 7 ] <= 'Z' ) {
+						if( chars[ 7 ] >= '0' && chars[ 7 ] <= '~' ) {
 							clr = clr + fxclr[ chars[ 7 ] - '0' ];
 						}
 					}
