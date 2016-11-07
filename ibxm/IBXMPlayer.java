@@ -162,7 +162,7 @@ public class IBXMPlayer extends JFrame {
 				patternDisplay.setPan( patternScrollBar.getValue() );
 			}
 		} );
-		JPanel patternPanel = new JPanel();
+		final JPanel patternPanel = new JPanel();
 		patternPanel.setLayout( new BorderLayout() );
 		patternPanel.add( patternDisplay, BorderLayout.CENTER );
 		patternPanel.add( patternScrollBar, BorderLayout.SOUTH );
@@ -298,6 +298,14 @@ public class IBXMPlayer extends JFrame {
 		fileMenu.add( exitMenuItem );
 		menuBar.add( fileMenu );
 		JMenu optionsMenu = new JMenu( "Options" );
+		final JCheckBoxMenuItem patternMenuItem = new JCheckBoxMenuItem( "Pattern Display", true );
+		patternMenuItem.addActionListener( new ActionListener() {
+			public void actionPerformed( ActionEvent actionEvent ) {
+				patternPanel.setVisible( patternMenuItem.isSelected() );
+			}
+		} );
+		optionsMenu.add( patternMenuItem );
+		optionsMenu.addSeparator();
 		ButtonGroup interpolationGroup = new ButtonGroup();
 		JRadioButtonMenuItem noneMenuItem = new JRadioButtonMenuItem( "No interpolation" );
 		noneMenuItem.addActionListener( new ActionListener() {
@@ -386,25 +394,27 @@ public class IBXMPlayer extends JFrame {
 	}
 
 	private void updateDisplay( int delay ) {
-		int p = ibxm.getSequencePos();
-		int r = ibxm.getRow();
-		if( !( p == seqPos && r == row ) ) {
-			row = r;
-			seqPos = p;
-			displayTimer.schedule( new java.util.TimerTask() {
-				private ibxm.Module module;
-				private int pat, row;
-				public java.util.TimerTask init( ibxm.Module module, int pat, int row ) {
-					this.module = module;
-					this.pat = pat;
-					this.row = row;
-					return this;
-				}
-				public void run() {
-					patternDisplay.display( module, pat, row );
-					java.awt.Toolkit.getDefaultToolkit().sync();
-				}
-			}.init( module, module.sequence[ seqPos ], row ), delay > 0 ? delay : 0 );
+		if( patternDisplay.isShowing() ) {
+			int p = ibxm.getSequencePos();
+			int r = ibxm.getRow();
+			if( !( p == seqPos && r == row ) ) {
+				row = r;
+				seqPos = p;
+				displayTimer.schedule( new java.util.TimerTask() {
+					private ibxm.Module module;
+					private int pat, row;
+					public java.util.TimerTask init( ibxm.Module module, int pat, int row ) {
+						this.module = module;
+						this.pat = pat;
+						this.row = row;
+						return this;
+					}
+					public void run() {
+						patternDisplay.display( module, pat, row );
+						java.awt.Toolkit.getDefaultToolkit().sync();
+					}
+				}.init( module, module.sequence[ seqPos ], row ), delay > 0 ? delay : 0 );
+			}
 		}
 	}
 
