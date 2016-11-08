@@ -8,9 +8,10 @@ import java.awt.Image;
 public class PatternDisplay extends Canvas {
 	public static final int CHANNEL_WIDTH = 88;
 
-	private int pan, channels = 4;
+	private int pan, channels = 0;
 	private Image charset, image;
 
+	private boolean[] muted;
 	private short[][] buffer;
 
 	private int[] fxclr = new int[] {
@@ -112,10 +113,34 @@ public class PatternDisplay extends Canvas {
 		repaint();
 	}
 
+	public int getChannel( int x ) {
+		x = x - 32 + pan;
+		int channel = x / CHANNEL_WIDTH;
+		if( x < 0 || channel >= channels ) {
+			channel = -1;
+		}
+		return channel;
+	}
+
+	public void setMuted( int channel, boolean mute ) {
+		if( channel < 0 ) {
+			for( int idx = 0; idx < channels; idx++ ) {
+				muted[ idx ] = mute;
+			}
+		} else if( channel < channels ) {
+			muted[ channel ] = mute;
+		}
+	}
+
+	public boolean isMuted( int channel ) {
+		return muted[ channel ];
+	}
+
 	public synchronized void display( ibxm.Module module, int pat, int row ) {
 		ibxm.Pattern pattern = module.patterns[ pat ];
 		if( buffer == null || module.numChannels != channels ) {
 			channels = module.numChannels;
+			muted = new boolean[ channels ];
 			buffer = new short[ getBufferHeight() ][ getBufferWidth() ];
 			if( image != null ) {
 				image.flush();
@@ -125,8 +150,12 @@ public class PatternDisplay extends Canvas {
 		drawInt( pat, 0, 0, 3, 3 );
 		drawChar( ' ', 0, 3, 0 );
 		for( int c = 0; c < channels; c++ ) {
-			drawString( "Channel ", 0, c * 11 + 4, 0 );
-			drawInt( c, 0, c * 11 + 12, 0, 2 );
+			if( muted[ c ] ) {
+				drawString( "   Mute   ", 0, c * 11 + 4, 3 );
+			} else {
+				drawString( "Channel ", 0, c * 11 + 4, 0 );
+				drawInt( c, 0, c * 11 + 12, 0, 2 );
+			}
 			drawString( " ", 0, c * 11 + 14, 0 );
 		}
 		ibxm.Note note = new ibxm.Note();
@@ -140,38 +169,44 @@ public class PatternDisplay extends Canvas {
 				for( int c = 0; c < channels; c++ ) {
 					int x = 4 + c * 11;
 					pattern.getNote( r * module.numChannels + c, note ).toChars( chars );
-					int clr = chars[ 0 ] == '-' ? bcol : bcol + 2;
-					for( int idx = 0; idx < 3; idx++ ) {
-						drawChar( chars[ idx ], y, x + idx, clr );
-					}
-					for( int idx = 3; idx < 5; idx++ ) {
-						clr = chars[ idx ] == '-' ? bcol : bcol + 3;
-						drawChar( chars[ idx ], y, x + idx, clr );
-					}
-					clr = bcol;
-					if( chars[ 5 ] >= '0' && chars[ 5 ] <= 'F' ) {
-						clr = bcol + vcclr[ chars[ 5 ] - '0' ];
-					}
-					drawChar( chars[ 5 ], y, x + 5, clr );
-					drawChar( chars[ 6 ], y, x + 6, clr );
-					if( chars[ 7 ] == 'E' ) {
-						clr = bcol;
-						if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
-							clr = clr + exclr[ chars[ 8 ] - '0' ];
-						}
-					} else if( chars[ 7 ] == 's' ) {
-						clr = bcol;
-						if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
-							clr = clr + sxclr[ chars[ 8 ] - '0' ];
+					if( muted[ c ] ) {
+						for( int idx = 0; idx < 10; idx++ ) {
+							drawChar( chars[ idx ], y, x + idx, bcol );
 						}
 					} else {
-						clr = bcol;
-						if( chars[ 7 ] >= '0' && chars[ 7 ] <= '~' ) {
-							clr = clr + fxclr[ chars[ 7 ] - '0' ];
+						int clr = chars[ 0 ] == '-' ? bcol : bcol + 2;
+						for( int idx = 0; idx < 3; idx++ ) {
+							drawChar( chars[ idx ], y, x + idx, clr );
 						}
-					}
-					for( int idx = 7; idx < 10; idx++ ) {
-						drawChar( chars[ idx ], y, x + idx, clr );
+						for( int idx = 3; idx < 5; idx++ ) {
+							clr = chars[ idx ] == '-' ? bcol : bcol + 3;
+							drawChar( chars[ idx ], y, x + idx, clr );
+						}
+						clr = bcol;
+						if( chars[ 5 ] >= '0' && chars[ 5 ] <= 'F' ) {
+							clr = bcol + vcclr[ chars[ 5 ] - '0' ];
+						}
+						drawChar( chars[ 5 ], y, x + 5, clr );
+						drawChar( chars[ 6 ], y, x + 6, clr );
+						if( chars[ 7 ] == 'E' ) {
+							clr = bcol;
+							if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
+								clr = clr + exclr[ chars[ 8 ] - '0' ];
+							}
+						} else if( chars[ 7 ] == 's' ) {
+							clr = bcol;
+							if( chars[ 8 ] >= '0' && chars[ 8 ] <= 'F' ) {
+								clr = clr + sxclr[ chars[ 8 ] - '0' ];
+							}
+						} else {
+							clr = bcol;
+							if( chars[ 7 ] >= '0' && chars[ 7 ] <= '~' ) {
+								clr = clr + fxclr[ chars[ 7 ] - '0' ];
+							}
+						}
+						for( int idx = 7; idx < 10; idx++ ) {
+							drawChar( chars[ idx ], y, x + idx, clr );
+						}
 					}
 					drawChar( ' ', y, x + 10, 0 );
 				}

@@ -16,6 +16,8 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -153,6 +155,30 @@ public class IBXMPlayer extends JFrame {
 		JScrollPane fileTreePane = new JScrollPane( fileTree );
 		fileTreePane.setBorder( BorderFactory.createTitledBorder( "Module Path" ) );
 		patternDisplay = new PatternDisplay();
+		patternDisplay.addMouseListener( new MouseAdapter() {
+			@Override
+			public void mousePressed( MouseEvent e ) {
+				if( ibxm != null ) {
+					int channel = patternDisplay.getChannel( e.getX() );
+					if( channel < 0 || e.getButton() > 1 ) {
+						patternDisplay.setMuted( -1, false );
+						ibxm.setMuted( -1, false );
+					} else if( patternDisplay.isMuted( channel ) ) {
+						patternDisplay.setMuted( channel, false );
+						ibxm.setMuted( channel, false );
+					} else {
+						patternDisplay.setMuted( -1, true );
+						ibxm.setMuted( -1, true );
+						patternDisplay.setMuted( channel, false );
+						ibxm.setMuted( channel, false );
+					}
+					if( !playing ) {
+						patternDisplay.display( module,
+							module.sequence[ ibxm.getSequencePos() ], ibxm.getRow() );
+					}
+				}
+			}
+		} );
 		patternScrollBar = new JScrollBar( JScrollBar.HORIZONTAL, 0, 0, 0, 0 );
 		patternScrollBar.setUnitIncrement( PatternDisplay.CHANNEL_WIDTH );
 		patternScrollBar.setBlockIncrement( PatternDisplay.CHANNEL_WIDTH * 4 );
@@ -368,6 +394,7 @@ public class IBXMPlayer extends JFrame {
 				seekSlider.setMaximum( duration );
 				seekSlider.setValue( 0 );
 				patternDisplay.setPan( 0 );
+				patternDisplay.setMuted( -1, false );
 				patternDisplay.display( module, 0, 0 );
 				updatePatternScrollBar();
 				String songName = module.songName.trim();

@@ -9,6 +9,7 @@ public class IBXM {
 
 	private Module module;
 	private int[] rampBuf;
+	private boolean[] muted;
 	private byte[][] playCount;
 	private Channel[] channels;
 	private int sampleRate, interpolation;
@@ -25,6 +26,7 @@ public class IBXM {
 		rampBuf = new int[ 128 ];
 		playCount = new byte[ module.sequenceLength ][];
 		channels = new Channel[ module.numChannels ];
+		muted = new boolean[ module.numChannels ];
 		globalVol = new GlobalVol();
 		note = new Note();
 		setSequencePos( 0 );
@@ -53,6 +55,18 @@ public class IBXM {
 	/* Returns the length of the buffer required by getAudio(). */
 	public int getMixBufferLength() {
 		return ( calculateTickLen( 32, 128000 ) + 65 ) * 4;
+	}
+
+	/* Mute or unmute the specified channel.
+	   If channel is negative, mute or unmute all channels. */
+	public void setMuted( int channel, boolean mute ) {
+		if( channel < 0 ) {
+			for( int idx = 0; idx < module.numChannels; idx++ ) {
+				muted[ idx ] = mute;
+			}
+		} else if( channel < module.numChannels ) {
+			muted[ channel ] = mute;
+		}
 	}
 
 	/* Get the current row position. */
@@ -97,7 +111,7 @@ public class IBXM {
 			songEnd = tick();
 		}
 		setSequencePos( 0 );
-		return duration;	
+		return duration;
 	}
 
 	/* Seek to approximately the specified sample position.
@@ -147,7 +161,9 @@ public class IBXM {
 		/* Resample. */
 		for( int chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
 			Channel chan = channels[ chanIdx ];
-			chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
+			if( muted[ chanIdx ] == false ) {
+				chan.resample( outputBuf, 0, ( tickLen + 65 ) * 2, sampleRate * 2, interpolation );
+			}
 			chan.updateSampleIdx( tickLen * 2, sampleRate * 2 );
 		}
 		downsample( outputBuf, tickLen + 64 );
