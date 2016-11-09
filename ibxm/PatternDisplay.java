@@ -151,7 +151,8 @@ public class PatternDisplay extends Canvas {
 		drawChar( ' ', 0, 3, 0 );
 		for( int c = 0; c < channels; c++ ) {
 			if( muted[ c ] ) {
-				drawString( "   Mute   ", 0, c * 11 + 4, 3 );
+				drawString( " Muted  ", 0, c * 11 + 4, 3 );
+				drawInt( c, 0, c * 11 + 12, 3, 2 );
 			} else {
 				drawString( "Channel ", 0, c * 11 + 4, 0 );
 				drawInt( c, 0, c * 11 + 12, 0, 2 );
