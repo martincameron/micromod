@@ -105,6 +105,21 @@ public class IBXMPlayer extends JFrame {
 		} );
 		controlPanel.add( playButton, BorderLayout.EAST );
 		seekSlider = new JSlider( JSlider.HORIZONTAL, 0, 0, 0 );
+		seekSlider.addChangeListener( new ChangeListener() {
+			@Override
+			public void stateChanged( ChangeEvent e ) {
+				if( ibxm != null && !playing ) {
+					if( seekSlider.getValue() != sliderPos ) {
+						seek( seekSlider.getValue() );
+					}
+					sliderPos = samplePos;
+					seekSlider.setValue( sliderPos );
+					updateTimeLabel();
+					patternDisplay.display( module,
+						module.sequence[ ibxm.getSequencePos() ], ibxm.getRow() );
+				}
+			}
+		} );
 		controlPanel.add( seekSlider, BorderLayout.CENTER );
 		instrumentList = new JList<String>();
 		instrumentList.setFont( new Font( "Monospaced", Font.BOLD, 12 ) );
@@ -224,10 +239,7 @@ public class IBXMPlayer extends JFrame {
 					if( sliderPos > duration ) sliderPos = duration;
 					seekSlider.setValue( sliderPos );
 				}
-				int secs = sliderPos / SAMPLE_RATE;
-				int mins = secs / 60;
-				secs = secs % 60;
-				timeLabel.setText( mins + ( secs < 10 ? ":0" : ":" ) + secs );
+				updateTimeLabel();
 			}
 		} );
 		UIManager.put( "FileChooser.readOnly", Boolean.TRUE );
@@ -413,6 +425,13 @@ public class IBXMPlayer extends JFrame {
 		} finally {
 			inputStream.close();
 		}
+	}
+
+	private void updateTimeLabel() {
+		int secs = sliderPos / SAMPLE_RATE;
+		int mins = secs / 60;
+		secs = secs % 60;
+		timeLabel.setText( mins + ( secs < 10 ? ":0" : ":" ) + secs );
 	}
 
 	private void updatePatternScrollBar() {
