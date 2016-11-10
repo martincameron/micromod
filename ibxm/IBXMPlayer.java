@@ -108,7 +108,7 @@ public class IBXMPlayer extends JFrame {
 		seekSlider.addChangeListener( new ChangeListener() {
 			@Override
 			public void stateChanged( ChangeEvent e ) {
-				if( ibxm != null && !playing ) {
+				if( !seekSlider.getValueIsAdjusting() && ibxm != null && !playing ) {
 					if( seekSlider.getValue() != sliderPos ) {
 						seek( seekSlider.getValue() );
 					}
