@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <signal.h>
 
-#include "SDL/SDL.h"
-#include "SDL/SDL_main.h"
+#include "SDL.h"
+#include "SDL_main.h"
 
 #include "micromod.h"
 
