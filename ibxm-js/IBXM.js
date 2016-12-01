@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150922 (c)2015 mumart@gmail.com";
+		return "20161201 (c)2016 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -173,6 +173,10 @@ function IBXMReplay( module, samplingRate ) {
 		return playCount[ seqPos ][ row ] > 1;
 	}
 	var seqRow = function() {
+		if( nextRow < 0 ) {
+			breakSeqPos = seqPos + 1;
+			nextRow = 0;
+		}
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) {
 				breakSeqPos = nextRow = 0;
@@ -198,8 +202,7 @@ function IBXMReplay( module, samplingRate ) {
 		}
 		nextRow = row + 1;
 		if( nextRow >= pattern.numRows ) {
-			breakSeqPos = seqPos + 1;
-			nextRow = 0;
+			nextRow = -1;
 		}
 		var noteIdx = row * module.numChannels;
 		for( var chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
@@ -248,7 +251,7 @@ function IBXMReplay( module, samplingRate ) {
 				case 0x76: case 0xFB : /* Pattern Loop.*/
 					if( note.param == 0 ) /* Set loop marker on this channel. */
 						channel.plRow = row;
-					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
+					if( channel.plRow < row && breakSeqPos < 0 ) { /* Marker valid. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
 							plCount = note.param;
 							plChannel = chanIdx;
@@ -257,9 +260,8 @@ function IBXMReplay( module, samplingRate ) {
 							if( plCount == 0 ) { /* Loop finished. */
 								/* Invalidate current marker. */
 								channel.plRow = row + 1;
-							} else { /* Loop and cancel any breaks on this row. */
+							} else { /* Loop. */
 								nextRow = channel.plRow;
-								breakSeqPos = -1;
 							}
 							plCount--;
 						}

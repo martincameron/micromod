@@ -5,7 +5,7 @@ package micromod;
 	Java ProTracker Replay (c)2016 mumart@gmail.com
 */
 public class Micromod {
-	public static final String VERSION = "20160326 (c)2016 mumart@gmail.com";
+	public static final String VERSION = "20161201 (c)2016 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
@@ -184,6 +184,10 @@ public class Micromod {
 	}
 
 	private void row() {
+		if( nextRow < 0 ) {
+			breakSeqPos = seqPos + 1;
+			nextRow = 0;
+		}
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.getSequenceLength() ) breakSeqPos = nextRow = 0;
 			seqPos = breakSeqPos;
@@ -196,9 +200,8 @@ public class Micromod {
 			playCount[ seqPos ][ row ] = ( byte ) ( count + 1 );
 		}
 		nextRow = row + 1;
-		if( nextRow >= 64 ) {
-			breakSeqPos = seqPos + 1;
-			nextRow = 0;
+		if( nextRow >= Pattern.NUM_ROWS ) {
+			nextRow = -1;
 		}
 		for( int chanIdx = 0; chanIdx < channels.length; chanIdx++ ) {
 			Channel channel = channels[ chanIdx ];
@@ -236,7 +239,7 @@ public class Micromod {
 				case 0x16: /* Pattern Loop.*/
 					if( param == 0 ) /* Set loop marker on this channel. */
 						channel.plRow = row;
-					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
+					if( channel.plRow < row && breakSeqPos < 0 ) { /* Marker valid. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
 							plCount = param;
 							plChannel = chanIdx;
@@ -245,9 +248,8 @@ public class Micromod {
 							if( plCount == 0 ) { /* Loop finished. */
 								/* Invalidate current marker. */
 								channel.plRow = row + 1;
-							} else { /* Loop and cancel any breaks on this row. */
+							} else { /* Loop. */
 								nextRow = channel.plRow;
-								breakSeqPos = -1;
 							}
 							plCount--;
 						}
