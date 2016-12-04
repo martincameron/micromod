@@ -5,7 +5,7 @@
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20150922 (c)2015 mumart@gmail.com";
+		return "20161204 (c)2016 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -189,6 +189,10 @@ function Micromod( module, samplingRate ) {
 
 	var seqRow = function() {
 		var songEnd = false;
+		if( nextRow < 0 ) {
+			breakSeqPos = seqPos + 1;
+			nextRow = 0;
+		}
 		if( breakSeqPos >= 0 ) {
 			if( breakSeqPos >= module.sequenceLength ) {
 				breakSeqPos = nextRow = 0;
@@ -205,8 +209,7 @@ function Micromod( module, samplingRate ) {
 		row = nextRow;
 		nextRow = row + 1;
 		if( nextRow >= 64 ) {
-			breakSeqPos = seqPos + 1;
-			nextRow = 0;
+			nextRow = -1;
 		}
 		var patOffset = ( module.sequence[ seqPos ] * 64 + row ) * module.numChannels * 4;
 		for( var chanIdx = 0; chanIdx < module.numChannels; chanIdx++ ) {
@@ -256,7 +259,7 @@ function Micromod( module, samplingRate ) {
 						/* Set loop marker on this channel. */
 						channel.plRow = row;
 					}
-					if( channel.plRow < row ) { /* Marker valid. Begin looping. */
+					if( channel.plRow < row && breakSeqPos < 0 ) { /* Marker valid. */
 						if( plCount < 0 ) { /* Not already looping, begin. */
 							plCount = param;
 							plChannel = chanIdx;
@@ -265,9 +268,8 @@ function Micromod( module, samplingRate ) {
 							if( plCount == 0 ) { /* Loop finished. */
 								/* Invalidate current marker. */
 								channel.plRow = row + 1;
-							} else { /* Loop and cancel any breaks on this row. */
+							} else { /* Loop. */
 								nextRow = channel.plRow;
-								breakSeqPos = -1;
 							}
 							plCount--;
 						}

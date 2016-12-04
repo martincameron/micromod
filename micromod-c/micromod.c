@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20150922 (c)2015 mumart@gmail.com */
+/* fast protracker replay version 20161204 (c)2016 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define FP_SHIFT 14
@@ -259,7 +259,7 @@ static void channel_row( struct channel *chan ) {
 		case 0x16: /* Pattern Loop.*/
 			if( param == 0 ) /* Set loop marker on this channel. */
 				chan->pl_row = row;
-			if( chan->pl_row < row ) { /* Marker valid. Begin looping. */
+			if( chan->pl_row < row && break_pattern < 0 ) { /* Marker valid. */
 				if( pl_count < 0 ) { /* Not already looping, begin. */
 					pl_count = param;
 					pl_channel = chan->id;
@@ -268,9 +268,8 @@ static void channel_row( struct channel *chan ) {
 					if( pl_count == 0 ) { /* Loop finished. */
 						/* Invalidate current marker. */
 						chan->pl_row = row + 1;
-					} else { /* Loop and cancel any breaks on this row. */
+					} else { /* Loop. */
 						next_row = chan->pl_row;
-						break_pattern = -1;
 					}
 					pl_count--;
 				}
@@ -361,6 +360,10 @@ static long sequence_row() {
 	long effect, param;
 	struct note *note;
 	song_end = 0;
+	if( next_row < 0 ) {
+		break_pattern = pattern + 1;
+		next_row = 0;
+	}
 	if( break_pattern >= 0 ) {
 		if( break_pattern >= song_length ) break_pattern = next_row = 0;
 		if( break_pattern <= pattern ) song_end = 1;
@@ -370,10 +373,7 @@ static long sequence_row() {
 	}
 	row = next_row;
 	next_row = row + 1;
-	if( next_row >= 64 ) {
-		break_pattern = pattern + 1;
-		next_row = 0;
-	}
+	if( next_row >= 64 ) next_row = -1;
 	pat_offset = ( sequence[ pattern ] * 64 + row ) * num_channels * 4;
 	for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
 		note = &channels[ chan_idx ].note;

@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2015 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2016 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20150922';
+Const MICROMOD_VERSION : String = '20161204';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -509,7 +509,7 @@ Begin
 			End;
 		$16 : Begin { Pattern Loop }
 				If Param = 0 Then Channel.PLRow := Row;
-				If Channel.PLRow < Row Then Begin
+				If ( Channel.PLRow < Row ) And ( BreakPattern < 0 ) Then Begin
 					If PlCount < 0 Then Begin
 						PLCount := Param;
 						PLChannel := Channel.ID;
@@ -519,7 +519,6 @@ Begin
 							Channel.PLRow := Row + 1;
 						End Else Begin
 							NextRow := Channel.PLRow;
-							BreakPattern := -1;
 						End;
 						PLCount := PLCount - 1;
 					End;
@@ -553,6 +552,10 @@ Var
 	Note : TNote;
 Begin
 	SongEnd := False;
+	If NextRow < 0 Then Begin
+		BreakPattern := Pattern + 1;
+		NextRow := 0;
+	End;
 	If BreakPattern >= 0 Then Begin
 		If BreakPattern >= SequenceLength Then Begin
 			BreakPattern := 0;
@@ -565,10 +568,7 @@ Begin
 	End;
 	Row := NextRow;
 	NextRow := Row + 1;
-	If NextRow >= 64 Then Begin
-		BreakPattern := Pattern + 1;
-		NextRow := 0;
-	End;
+	If NextRow >= 64 Then NextRow := -1;
 	PatternOffset := ( Sequence[ Pattern ] * 64 + Row ) * NumChannels * 4;
 	For Chan := 0 To NumChannels - 1 Do Begin
 		Note.Key := ( Patterns[ PatternOffset ] And $F ) Shl 8;
