@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20161201 (c)2016 mumart@gmail.com";
+		return "20170121 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -836,6 +836,27 @@ function IBXMNote() {
 	this.volume = 0;
 	this.effect = 0;
 	this.param = 0;
+	this.toChars = function( chars ) {
+		const keyToString = "A-A#B-C-C#D-D#E-F-F#G-G#";
+		const b36ToString = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		chars[ 0 ] = ( this.key > 0 && this.key < 118 ) ? keyToString.codePointAt( ( ( this.key + 2 ) % 12 ) * 2 ) : 45;
+		chars[ 1 ] = ( this.key > 0 && this.key < 118 ) ? keyToString.codePointAt( ( ( this.key + 2 ) % 12 ) * 2 + 1 ) : 45;
+		chars[ 2 ] = ( this.key > 0 && this.key < 118 ) ? 48 + ( ( ( this.key + 2 ) / 12 ) | 0 ) : 45;
+		chars[ 3 ] = ( this.instrument > 0xF && this.instrument < 0xFF ) ? b36ToString.codePointAt( ( this.instrument >> 4 ) & 0xF ) : 45;
+		chars[ 4 ] = ( this.instrument > 0x0 && this.instrument < 0xFF ) ? b36ToString.codePointAt( this.instrument & 0xF ) : 45;
+		chars[ 5 ] = ( this.volume > 0xF && this.volume < 0xFF ) ? b36ToString.codePointAt( ( this.volume >> 4 ) & 0xF ) : 45;
+		chars[ 6 ] = ( this.volume > 0x0 && this.volume < 0xFF ) ? b36ToString.codePointAt( this.volume & 0xF ) : 45;
+		if( ( this.effect > 0 || this.param > 0 ) && this.effect < 36 ) {
+			chars[ 7 ] = b36ToString.codePointAt( this.effect );
+		} else if( this.effect > 0x80 && this.effect < 0x9F ) {
+			chars[ 7 ] = 96 + ( this.effect & 0x1F );
+		} else {
+			chars[ 7 ] = 45;
+		}
+		chars[ 8 ] = ( this.effect > 0 || this.param > 0 ) ? b36ToString.codePointAt( ( this.param >> 4 ) & 0xF ) : 45;
+		chars[ 9 ] = ( this.effect > 0 || this.param > 0 ) ? b36ToString.codePointAt( this.param & 0xF ) : 45;
+		return chars;
+	}
 }
 
 function IBXMPattern( numChannels, numRows ) {
@@ -848,6 +869,7 @@ function IBXMPattern( numChannels, numRows ) {
 		note.volume = this.data[ offset + 2 ] & 0xFF;
 		note.effect = this.data[ offset + 3 ] & 0xFF;
 		note.param = this.data[ offset + 4 ] & 0xFF;
+		return note;
 	}
 }
 

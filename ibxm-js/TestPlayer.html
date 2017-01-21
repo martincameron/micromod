@@ -4,25 +4,50 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 		<title>IBXM for JavaScript</title>
 	</head>
-	<body>
+	<body onload="init()">
 		<script type="text/javascript" src="AudioPlayer.js"></script>
 		<script type="text/javascript" src="IBXM.js"></script>
+		<script type="text/javascript" src="PatternDisplay.js"></script>
 		<script type="text/javascript">
-			var player = new AudioPlayer();
+			var ibxmModule, ibxmReplay;
+			var patternDisplay, patternCanvas;
+			var audioPlayer = new AudioPlayer();
+			var interval;
+			function init() {
+				patternCanvas = document.getElementById( "patternCanvas" )
+				initCharset( document.getElementById( "patternCharset" ),
+					function( chs ) {
+						patternDisplay = new PatternDisplay( chs );
+					}
+				);
+			}
+			function clearDisplay() {
+				var ctx = patternCanvas.getContext( "2d" );
+				ctx.fillStyle = "black";
+				ctx.fillRect( 0, 0, patternCanvas.width, patternCanvas.height );
+			}
+			function updateDisplay() {
+				var pat = ibxmModule.sequence[ ibxmReplay.getSequencePos() ];
+				patternDisplay.display( ibxmModule, pat, ibxmReplay.getRow(), patternCanvas );
+			}
 			function play() {
-				player.play();
+				audioPlayer.play();
+				interval = setInterval( updateDisplay, 50 );
 			}
 			function stop() {
-				player.stop();
+				clearInterval( interval );
+				audioPlayer.stop();
 			}
 			function setModule( moduleData ) {
 				stop();
-				var module = new IBXMModule( moduleData );
-				var replay = new IBXMReplay( module, player.getSamplingRate() );
-				var duration = Math.round( replay.calculateSongDuration() / player.getSamplingRate() );
-				player.setAudioSource( replay );
-				document.getElementById( "songName" ).innerHTML = "Song Name: " + module.songName;
+				ibxmModule = new IBXMModule( moduleData );
+				ibxmReplay = new IBXMReplay( ibxmModule, audioPlayer.getSamplingRate() );
+				var duration = Math.round( ibxmReplay.calculateSongDuration() / audioPlayer.getSamplingRate() );
+				audioPlayer.setAudioSource( ibxmReplay );
+				document.getElementById( "songName" ).innerHTML = "Song Name: " + ibxmModule.songName;
 				document.getElementById( "duration" ).innerHTML = "Duration: " + duration + " seconds.";
+				clearDisplay();
+				updateDisplay();
 			}
 			function loadFile( file ) {
 				var reader = new FileReader();
@@ -58,5 +83,7 @@
 			<button onclick="play()">Play</button>
 			<button onclick="stop()">Stop</button>
 		</p>
+		<img id="patternCharset" src="topaz8.png" hidden="true"></img>
+		<canvas id="patternCanvas" width="736" height="256"></canvas>
 	</body>
 </html>
