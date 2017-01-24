@@ -12,6 +12,7 @@
 			var ibxmModule, ibxmReplay;
 			var patternDisplay, patternCanvas;
 			var audioPlayer = new AudioPlayer();
+			var latency = audioPlayer.getBufferSize() * 1000 / audioPlayer.getSamplingRate();
 			var interval;
 			function init() {
 				patternCanvas = document.getElementById( "patternCanvas" )
@@ -28,11 +29,12 @@
 			}
 			function updateDisplay() {
 				var pat = ibxmModule.sequence[ ibxmReplay.getSequencePos() ];
-				patternDisplay.display( ibxmModule, pat, ibxmReplay.getRow(), patternCanvas );
+				var row = ibxmReplay.getRow();
+				setTimeout( patternDisplay.display, latency, ibxmModule, pat, row, patternCanvas );
 			}
 			function play() {
 				audioPlayer.play();
-				interval = setInterval( updateDisplay, 50 );
+				interval = setInterval( updateDisplay, 100 );
 			}
 			function stop() {
 				clearInterval( interval );
@@ -42,6 +44,7 @@
 				stop();
 				ibxmModule = new IBXMModule( moduleData );
 				ibxmReplay = new IBXMReplay( ibxmModule, audioPlayer.getSamplingRate() );
+				ibxmReplay.setInterpolation( false );
 				var duration = Math.round( ibxmReplay.calculateSongDuration() / audioPlayer.getSamplingRate() );
 				audioPlayer.setAudioSource( ibxmReplay );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + ibxmModule.songName;

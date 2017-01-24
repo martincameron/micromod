@@ -1,6 +1,6 @@
 
 function PatternDisplay( charsetImg ) {
-	var fxclr = [
+	const fxclr = [
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? */
 		   1,1,1,1,1,7,7,5,5,4,0,0,0,0,0,0,
 		/* @ A B C D E F G H I J K L M N O */
@@ -12,15 +12,15 @@ function PatternDisplay( charsetImg ) {
 		/* p q r s t u v w x y z { | } ~ */
 		   0,4,5,0,6,1,5,0,0,0,0,0,0,0,0
 	];
-	var exclr = [
+	const exclr = [
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
 		   0,1,1,1,1,1,6,5,0,4,0,0,0,0,0,0,0,5,5,4,4,4,4
 	];
-	var sxclr = [
+	const sxclr = [
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
 		   5,4,1,1,5,0,0,0,5,0,0,0,0,0,0,0,0,5,4,4,4,4,4
 	];
-	var vcclr = [
+	const vcclr = [
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
 		   5,5,5,5,5,0,5,5,5,5,0,0,0,0,0,0,0,1,1,5,5,5,1
 	];
@@ -128,7 +128,7 @@ function PatternDisplay( charsetImg ) {
 }
 
 function initCharset( maskImg, callback ) {
-	var pal = [
+	const pal = [
 	/*   Blue       Green      Cyan       Red        Magenta    Yellow     White      Lime */
 		"#0000C0", "#008000", "#008080", "#800000", "#800080", "#806600", "#808080", "#668000",
 		"#0066FF", "#00FF00", "#00FFFF", "#FF0000", "#FF00FF", "#FFCC00", "#FFFFFF", "#CCFF00"

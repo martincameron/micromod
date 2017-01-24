@@ -11,6 +11,9 @@ function AudioPlayer() {
 	this.getSamplingRate = function() {
 		return audioContext.sampleRate;
 	}
+	this.getBufferSize = function() {
+		return scriptProcessor.bufferSize;
+	}
 	this.setAudioSource = function( audioSrc ) {
 		audioSource = audioSrc;
 	}
