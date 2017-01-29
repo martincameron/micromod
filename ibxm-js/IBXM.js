@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20170121 (c)2017 mumart@gmail.com";
+		return "20170129 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -1413,7 +1413,7 @@ function IBXMModule( moduleData ) {
 			moduleDataIdx += sampleLength;
 		}
 	}
-	if( moduleData != undefined ) {
+	if( moduleData ) {
 		var ibxmData = new IBXMData( moduleData );
 		if( ibxmData.strLatin1( 0, 17 ) == "Extended Module: " ) {
 			this.loadXM( ibxmData );

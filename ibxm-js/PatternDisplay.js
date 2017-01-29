@@ -42,14 +42,15 @@ function PatternDisplay( charsetImg ) {
 	var muted = function( chn ) {
 		return false;
 	};
-	this.display = function( module, pat, row, canvas ) {
+	this.display = function( module, pat, row, chn, canvas ) {
 		var ctx = canvas.getContext( "2d" );
 		if( pat < 0 || pat >= module.numPatterns ) {
 			pat = 0;
 		}
 		var pattern = module.patterns[ pat ];
 		var numRows = pattern.numRows;
-		var numChannels = module.numChannels;
+
+		var numChannels = module.numChannels - chn;
 		if( numChannels * 88 > canvas.width ) {
 			numChannels = ( canvas.width / 88 ) | 0;
 		}
@@ -63,7 +64,7 @@ function PatternDisplay( charsetImg ) {
 				drawInt( c, 0, c * 11 + 12, 3, 2, ctx );
 			} else {
 				drawString( "Channel ", 0, c * 11 + 4, 0, ctx );
-				drawInt( c, 0, c * 11 + 12, 0, 2, ctx );
+				drawInt( c + chn, 0, c * 11 + 12, 0, 2, ctx );
 			}
 			drawChar( 32, 0, c * 11 + 14, 0, ctx );
 		}
@@ -75,8 +76,8 @@ function PatternDisplay( charsetImg ) {
 				drawChar( 32, y, 3, bcol, ctx );
 				for( var c = 0; c < numChannels; c++ ) {
 					var x = 4 + c * 11;
-					pattern.getNote( r * numChannels + c, note ).toChars( chars );
-					if( muted( c ) ) {
+					pattern.getNote( r * numChannels + c + chn, note ).toChars( chars );
+					if( muted( c + chn ) ) {
 						for( var idx = 0; idx < 10; idx++ ) {
 							drawChar( chars[ idx ], y, x + idx, bcol, ctx );
 						}
