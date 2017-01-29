@@ -1,5 +1,5 @@
 
-function AudioPlayer() {
+function AudioPlayer( callback ) {
 	var audioContext = new AudioContext();
 	var scriptProcessor = audioContext.createScriptProcessor( 0, 0, 2 );
 	var audioSource = new SineSource( audioContext.sampleRate );
@@ -7,12 +7,12 @@ function AudioPlayer() {
 		var leftBuf = event.outputBuffer.getChannelData( 0 );
 		var rightBuf = event.outputBuffer.getChannelData( 1 );
 		audioSource.getAudio( leftBuf, rightBuf, event.outputBuffer.length );
+		if( callback ) {
+			callback();
+		}
 	}
 	this.getSamplingRate = function() {
 		return audioContext.sampleRate;
-	}
-	this.getBufferSize = function() {
-		return scriptProcessor.bufferSize;
 	}
 	this.setAudioSource = function( audioSrc ) {
 		audioSource = audioSrc;

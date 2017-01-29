@@ -11,9 +11,8 @@
 		<script type="text/javascript">
 			var ibxmModule, ibxmReplay;
 			var patternDisplay, patternCanvas;
-			var audioPlayer = new AudioPlayer();
-			var latency = audioPlayer.getBufferSize() * 1000 / audioPlayer.getSamplingRate();
-			var interval;
+			var audioPlayer = new AudioPlayer( updateDisplay );
+			var pat = 0, row = 0;
 			function init() {
 				patternCanvas = document.getElementById( "patternCanvas" )
 				initCharset( document.getElementById( "patternCharset" ),
@@ -28,16 +27,14 @@
 				ctx.fillRect( 0, 0, patternCanvas.width, patternCanvas.height );
 			}
 			function updateDisplay() {
-				var pat = ibxmModule.sequence[ ibxmReplay.getSequencePos() ];
-				var row = ibxmReplay.getRow();
-				setTimeout( patternDisplay.display, latency, ibxmModule, pat, row, patternCanvas );
+				patternDisplay.display( ibxmModule, pat, row, patternCanvas );
+				pat = ibxmModule.sequence[ ibxmReplay.getSequencePos() ];
+				row = ibxmReplay.getRow();
 			}
 			function play() {
 				audioPlayer.play();
-				interval = setInterval( updateDisplay, 100 );
 			}
 			function stop() {
-				clearInterval( interval );
 				audioPlayer.stop();
 			}
 			function setModule( moduleData ) {
