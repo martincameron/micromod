@@ -39,10 +39,16 @@ function PatternDisplay( charsetImg ) {
 			val = ( val / 10 ) | 0;
 		}
 	};
-	var muted = function( chn ) {
-		return false;
+	this.getChannel = function( x ) {
+		if( x < 32 ) {
+			return -1;
+		} else {
+			return ( ( x - 32 ) / ( 11 * 8 ) ) | 0;
+		}
 	};
-	this.display = function( module, pat, row, chn, canvas ) {
+	this.display = function( module, replay, channel, canvas ) {
+		var pat = module.sequence[ replay.getSequencePos() ];
+		var row = replay.getRow();
 		var ctx = canvas.getContext( "2d" );
 		if( pat < 0 || pat >= module.numPatterns ) {
 			pat = 0;
@@ -50,7 +56,7 @@ function PatternDisplay( charsetImg ) {
 		var pattern = module.patterns[ pat ];
 		var numRows = pattern.numRows;
 
-		var numChannels = module.numChannels - chn;
+		var numChannels = module.numChannels - channel;
 		if( numChannels * 88 > canvas.width ) {
 			numChannels = ( canvas.width / 88 ) | 0;
 		}
@@ -59,12 +65,12 @@ function PatternDisplay( charsetImg ) {
 		drawInt( pat, 0, 0, 3, 3, ctx );
 		drawChar( 32, 0, 3, 0, ctx );
 		for( var c = 0; c < numChannels; c++ ) {
-			if( muted( c ) ) {
+			if( replay.getMuted( c + channel ) ) {
 				drawString( " Muted  ", 0, c * 11 + 4, 3, ctx );
-				drawInt( c, 0, c * 11 + 12, 3, 2, ctx );
+				drawInt( c + channel, 0, c * 11 + 12, 3, 2, ctx );
 			} else {
 				drawString( "Channel ", 0, c * 11 + 4, 0, ctx );
-				drawInt( c + chn, 0, c * 11 + 12, 0, 2, ctx );
+				drawInt( c + channel, 0, c * 11 + 12, 0, 2, ctx );
 			}
 			drawChar( 32, 0, c * 11 + 14, 0, ctx );
 		}
@@ -76,8 +82,8 @@ function PatternDisplay( charsetImg ) {
 				drawChar( 32, y, 3, bcol, ctx );
 				for( var c = 0; c < numChannels; c++ ) {
 					var x = 4 + c * 11;
-					pattern.getNote( r * numChannels + c + chn, note ).toChars( chars );
-					if( muted( c + chn ) ) {
+					pattern.getNote( r * numChannels + c + channel, note ).toChars( chars );
+					if( replay.getMuted( c + channel ) ) {
 						for( var idx = 0; idx < 10; idx++ ) {
 							drawChar( chars[ idx ], y, x + idx, bcol, ctx );
 						}

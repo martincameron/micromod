@@ -9,12 +9,24 @@
 		<script type="text/javascript" src="IBXM.js"></script>
 		<script type="text/javascript" src="PatternDisplay.js"></script>
 		<script type="text/javascript">
-			var ibxmModule, ibxmReplay;
+			var ibxmModule, ibxmReplay, muted;
 			var patternDisplay, patternCanvas;
 			var audioPlayer = new AudioPlayer( updateDisplay );
 			function init() {
 				document.getElementById( "input" ).value = "";
 				patternCanvas = document.getElementById( "patternCanvas" )
+				patternCanvas.onclick = function( mouseEvent ) {
+					var channel = patternDisplay.getChannel( mouseEvent.clientX );
+					if( channel < 0 || channel >= ibxmModule.numChannels ) {
+						ibxmReplay.setMuted( -1, false );
+					} else if( ibxmReplay.getMuted( channel ) ) {
+						ibxmReplay.setMuted( channel, false );
+					} else {
+						ibxmReplay.setMuted( -1, true );
+						ibxmReplay.setMuted( channel, false );
+					}
+					updateDisplay();
+				};
 				initCharset( document.getElementById( "patternCharset" ),
 					function( chs ) {
 						patternDisplay = new PatternDisplay( chs );
@@ -28,9 +40,7 @@
 				ctx.fillRect( 0, 0, patternCanvas.width, patternCanvas.height );
 			}
 			function updateDisplay() {
-				var pat = ibxmModule.sequence[ ibxmReplay.getSequencePos() ];
-				var row = ibxmReplay.getRow();
-				patternDisplay.display( ibxmModule, pat, row, 0, patternCanvas );
+				patternDisplay.display( ibxmModule, ibxmReplay, 0, patternCanvas );
 			}
 			function play() {
 				audioPlayer.play();

@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20170129 (c)2017 mumart@gmail.com";
+		return "20170130 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -19,6 +19,25 @@ function IBXMReplay( module, samplingRate ) {
 	/* Enable or disable the linear interpolation filter. */
 	this.setInterpolation = function( interp ) {
 		interpolation = interp;
+	}
+	/* Returns true if the specified channel is muted. */
+	this.getMuted = function( channel ) {
+		if( channel >= 0 && channel < module.numChannels ) {
+			return muted[ channel ];
+		} else {
+			return false;
+		}
+	}
+	/* Mute or unmute the specified channel.
+	   If channel is negative, mute or unmute all channels. */
+	this.setMuted = function( channel, mute ) {
+		if( channel < 0 ) {
+			for( var idx = 0; idx < module.numChannels; idx++ ) {
+				muted[ idx ] = mute;
+			}
+		} else if( channel < module.numChannels ) {
+			muted[ channel ] = mute;
+		}
 	}
 	/* Get the current row position. */
 	this.getRow = function() {
@@ -131,7 +150,9 @@ function IBXMReplay( module, samplingRate ) {
 		for( var idx = 0; idx < module.numChannels; idx++ ) {
 			/* Resample and mix each channel.*/
 			var chan = channels[ idx ];
-			chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
+			if( !muted[ idx ] ) {
+				chan.resample( mixBuf, 0, ( tickLen + 65 ) * 2, samplingRate * 2, interpolation );
+			}
 			chan.updateSampleIdx( tickLen * 2, samplingRate * 2 );
 		}
 		downsample( mixBuf, tickLen + 64 );
@@ -281,6 +302,7 @@ function IBXMReplay( module, samplingRate ) {
 	var speed = 0, tempo = 0, plCount = 0, plChannel = 0;
 	var playCount = new Array( module.sequenceLength );
 	var channels = new Array( module.numChannels );
+	var muted = new Array( module.numChannels );
 	var note = new IBXMNote();
 	this.module = module;
 	this.globalVol = 0;
