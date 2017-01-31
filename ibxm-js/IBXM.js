@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20170130 (c)2017 mumart@gmail.com";
+		return "20170131 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -21,7 +21,7 @@ function IBXMReplay( module, samplingRate ) {
 		interpolation = interp;
 	}
 	/* Returns true if the specified channel is muted. */
-	this.getMuted = function( channel ) {
+	this.isMuted = function( channel ) {
 		if( channel >= 0 && channel < module.numChannels ) {
 			return muted[ channel ];
 		} else {
@@ -31,6 +31,7 @@ function IBXMReplay( module, samplingRate ) {
 	/* Mute or unmute the specified channel.
 	   If channel is negative, mute or unmute all channels. */
 	this.setMuted = function( channel, mute ) {
+		mute = mute ? true : false;
 		if( channel < 0 ) {
 			for( var idx = 0; idx < module.numChannels; idx++ ) {
 				muted[ idx ] = mute;

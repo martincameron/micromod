@@ -19,7 +19,7 @@
 					var channel = patternDisplay.getChannel( mouseEvent.clientX );
 					if( channel < 0 || channel >= ibxmModule.numChannels ) {
 						ibxmReplay.setMuted( -1, false );
-					} else if( ibxmReplay.getMuted( channel ) ) {
+					} else if( ibxmReplay.isMuted( channel ) ) {
 						ibxmReplay.setMuted( channel, false );
 					} else {
 						ibxmReplay.setMuted( -1, true );

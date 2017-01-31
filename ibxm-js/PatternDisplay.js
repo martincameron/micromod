@@ -53,19 +53,19 @@ function PatternDisplay( charsetImg ) {
 		if( pat < 0 || pat >= module.numPatterns ) {
 			pat = 0;
 		}
+		var numChan = module.numChannels;
 		var pattern = module.patterns[ pat ];
 		var numRows = pattern.numRows;
-
-		var numChannels = module.numChannels - channel;
-		if( numChannels * 88 > canvas.width ) {
-			numChannels = ( canvas.width / 88 ) | 0;
+		var numCols = numChan - channel;
+		if( numCols * 88 > canvas.width ) {
+			numCols = ( canvas.width / 88 ) | 0;
 		}
 		var note = new IBXMNote();
 		var chars = [ 10 ];
 		drawInt( pat, 0, 0, 3, 3, ctx );
 		drawChar( 32, 0, 3, 0, ctx );
-		for( var c = 0; c < numChannels; c++ ) {
-			if( replay.getMuted( c + channel ) ) {
+		for( var c = 0; c < numCols; c++ ) {
+			if( replay.isMuted( c + channel ) ) {
 				drawString( " Muted  ", 0, c * 11 + 4, 3, ctx );
 				drawInt( c + channel, 0, c * 11 + 12, 3, 2, ctx );
 			} else {
@@ -77,43 +77,43 @@ function PatternDisplay( charsetImg ) {
 		for( var y = 1; y < 16; y++ ) {
 			var r = row - 8 + y;
 			if( r >= 0 && r < numRows ) {
-				var bcol = ( y == 8 ) ? 8 : 0;
-				drawInt( r, y, 0, bcol, 3, ctx );
-				drawChar( 32, y, 3, bcol, ctx );
-				for( var c = 0; c < numChannels; c++ ) {
+				var bclr = ( y == 8 ) ? 8 : 0;
+				drawInt( r, y, 0, bclr, 3, ctx );
+				drawChar( 32, y, 3, bclr, ctx );
+				for( var c = 0; c < numCols; c++ ) {
 					var x = 4 + c * 11;
-					pattern.getNote( r * numChannels + c + channel, note ).toChars( chars );
-					if( replay.getMuted( c + channel ) ) {
+					pattern.getNote( r * numChan + c + channel, note ).toChars( chars );
+					if( replay.isMuted( c + channel ) ) {
 						for( var idx = 0; idx < 10; idx++ ) {
-							drawChar( chars[ idx ], y, x + idx, bcol, ctx );
+							drawChar( chars[ idx ], y, x + idx, bclr, ctx );
 						}
 					} else {
-						var clr = chars[ 0 ] == 45 ? bcol : bcol + 2;
+						var clr = chars[ 0 ] == 45 ? bclr : bclr + 2;
 						for( var idx = 0; idx < 3; idx++ ) {
 							drawChar( chars[ idx ], y, x + idx, clr, ctx );
 						}
 						for( var idx = 3; idx < 5; idx++ ) {
-							clr = chars[ idx ] == 45 ? bcol : bcol + 3;
+							clr = chars[ idx ] == 45 ? bclr : bclr + 3;
 							drawChar( chars[ idx ], y, x + idx, clr, ctx );
 						}
-						clr = bcol;
+						clr = bclr;
 						if( chars[ 5 ] >= 48 && chars[ 5 ] <= 70 ) {
-							clr = bcol + vcclr[ chars[ 5 ] - 48 ];
+							clr = bclr + vcclr[ chars[ 5 ] - 48 ];
 						}
 						drawChar( chars[ 5 ], y, x + 5, clr, ctx );
 						drawChar( chars[ 6 ], y, x + 6, clr, ctx );
 						if( chars[ 7 ] == 69 ) {
-							clr = bcol;
+							clr = bclr;
 							if( chars[ 8 ] >= 48 && chars[ 8 ] <= 70 ) {
 								clr = clr + exclr[ chars[ 8 ] - 48 ];
 							}
 						} else if( chars[ 7 ] == 115 ) {
-							clr = bcol;
+							clr = bclr;
 							if( chars[ 8 ] >= 48 && chars[ 8 ] <= 70 ) {
 								clr = clr + sxclr[ chars[ 8 ] - 48 ];
 							}
 						} else {
-							clr = bcol;
+							clr = bclr;
 							if( chars[ 7 ] >= 48 && chars[ 7 ] <= 126 ) {
 								clr = clr + fxclr[ chars[ 7 ] - 48 ];
 							}
@@ -126,7 +126,7 @@ function PatternDisplay( charsetImg ) {
 				}
 			} else {
 				drawString( "    ", y, 0, 0, ctx );
-				for( var c = 0; c < numChannels; c++ ) {
+				for( var c = 0; c < numCols; c++ ) {
 					drawString( "           ", y, 4 + c * 11, 0, ctx );
 				}
 			}
