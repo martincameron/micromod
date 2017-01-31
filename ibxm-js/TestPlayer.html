@@ -62,7 +62,7 @@
 					var name = ibxmModule.instruments[ idx ].name;
 					if( name.trim().length > 0 ) {
 						var ins = ( idx < 16 ? "&nbsp;" : "" ) + idx.toString( 16 );
-						instruments = instruments + ins + " " + name + "<br>";
+						instruments = instruments + ins + " " + name.replace( /\s/g, "&nbsp;" ) + "<br>";
 					}
 				}
 				document.getElementById( "instruments" ).innerHTML = instruments;
