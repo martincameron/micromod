@@ -57,6 +57,15 @@
 				audioPlayer.setAudioSource( ibxmReplay );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + ibxmModule.songName;
 				document.getElementById( "duration" ).innerHTML = "Duration: " + duration + " seconds.";
+				var instruments = "";
+				for( var idx = 1; idx < ibxmModule.instruments.length; idx++ ) {
+					var name = ibxmModule.instruments[ idx ].name;
+					if( name.trim().length > 0 ) {
+						var ins = ( idx < 16 ? "&nbsp;" : "" ) + idx.toString( 16 );
+						instruments = instruments + ins + " " + name + "<br>";
+					}
+				}
+				document.getElementById( "instruments" ).innerHTML = instruments;
 				clearDisplay();
 				updateDisplay();
 			}
@@ -96,5 +105,11 @@
 		</p>
 		<img id="patternCharset" src="topaz8.png" hidden="true"></img>
 		<canvas id="patternCanvas" width="736" height="256"></canvas>
+		<p>
+			Instruments:
+		</p>
+		<p>
+			<div id="instruments" style="font-family: monospace;"></div>
+		</p>
 	</body>
 </html>
