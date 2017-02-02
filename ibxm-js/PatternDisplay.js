@@ -24,6 +24,7 @@ function PatternDisplay( charsetImg ) {
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
 		   5,5,5,5,5,0,5,5,5,5,0,0,0,0,0,0,0,1,1,5,5,5,1
 	];
+	var scrollX = 0, scrollWidth = 0;
 	var drawChar = function( chr, row, col, clr, ctx ) {
 		ctx.drawImage( charsetImg, ( chr - 32 ) * 8, clr * 16, 8, 16, col * 8, row * 16, 8, 16 );
 	};
@@ -39,12 +40,30 @@ function PatternDisplay( charsetImg ) {
 			val = ( val / 10 ) | 0;
 		}
 	};
-	this.getChannel = function( x ) {
+	this.getColumn = function( x ) {
 		if( x < 32 ) {
 			return -1;
 		} else {
 			return ( ( x - 32 ) / ( 11 * 8 ) ) | 0;
 		}
+	};
+	this.getNumCols = function( canvas ) {
+		return ( ( canvas.width - 32 ) / ( 11 * 8 ) ) | 0;
+	};
+	this.getMaxWidth = function( numChannels ) {
+		return 32 + numChannels * 11 * 8;
+	};
+	this.getMaxHeight = function() {
+		return 17 * 16;
+	};
+	this.getScrollX = function() {
+		return scrollX * 8;
+	};
+	this.getScrollY = function() {
+		return 16 * 16;
+	};
+	this.getScrollWidth = function() {
+		return scrollWidth * 8;
 	};
 	this.display = function( module, replay, channel, canvas ) {
 		var pat = module.sequence[ replay.getSequencePos() ];
@@ -56,9 +75,9 @@ function PatternDisplay( charsetImg ) {
 		var numChan = module.numChannels;
 		var pattern = module.patterns[ pat ];
 		var numRows = pattern.numRows;
-		var numCols = numChan - channel;
-		if( numCols * 88 > canvas.width ) {
-			numCols = ( canvas.width / 88 ) | 0;
+		var numCols = this.getNumCols( canvas );
+		if( numCols > numChan - channel ) {
+			numCols = numChan - channel;
 		}
 		var note = new IBXMNote();
 		var chars = [ 10 ];
@@ -130,6 +149,19 @@ function PatternDisplay( charsetImg ) {
 					drawString( "           ", y, 4 + c * 11, 0, ctx );
 				}
 			}
+		}
+		scrollX = 4 + numCols * 11 * channel / numChan;
+		scrollWidth = numCols * 11 * numCols / numChan ;
+		for( var c = 0; c < scrollX; c++ ) {
+			drawChar( 32, 16, c, 0, ctx );
+		}
+		drawChar( 91, 16, scrollX - 1, 0, ctx );
+		for( var c = scrollX, c1 = scrollX + scrollWidth - 1; c < c1; c++ ) {
+			drawChar( 61, 16, c, 0, ctx );
+		}
+		drawChar( 93, 16, scrollX + scrollWidth - 1, 0, ctx );
+		for( var c = scrollX + scrollWidth, c1 = 4 + numCols * 11; c < c1; c++ ) {
+			drawChar( 32, 16, c, 0, ctx );
 		}
 	};
 }

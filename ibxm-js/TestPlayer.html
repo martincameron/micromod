@@ -9,27 +9,44 @@
 		<script type="text/javascript" src="IBXM.js"></script>
 		<script type="text/javascript" src="PatternDisplay.js"></script>
 		<script type="text/javascript">
-			var ibxmModule, ibxmReplay, muted;
+			var ibxmModule, ibxmReplay, channel;
 			var patternDisplay, patternCanvas;
 			var audioPlayer = new AudioPlayer( updateDisplay );
 			function init() {
 				document.getElementById( "input" ).value = "";
 				patternCanvas = document.getElementById( "patternCanvas" )
 				patternCanvas.onclick = function( mouseEvent ) {
-					var channel = patternDisplay.getChannel( mouseEvent.clientX );
-					if( channel < 0 || channel >= ibxmModule.numChannels ) {
-						ibxmReplay.setMuted( -1, false );
-					} else if( ibxmReplay.isMuted( channel ) ) {
-						ibxmReplay.setMuted( channel, false );
+					if( mouseEvent.offsetY >= patternDisplay.getScrollY() ) {
+						if( mouseEvent.offsetX >= patternDisplay.getScrollX() ) {
+							channel += 4;
+							var numCols = patternDisplay.getNumCols( patternCanvas );
+							if( channel + numCols > ibxmModule.numChannels ) {
+								channel = ibxmModule.numChannels - numCols;
+							}
+						} else {
+							channel -= 4;
+						}
+						if( channel < 0 ) {
+							channel = 0;
+						}
 					} else {
-						ibxmReplay.setMuted( -1, true );
-						ibxmReplay.setMuted( channel, false );
+						var column = patternDisplay.getColumn( mouseEvent.offsetX );
+						if( column < 0 || column >= ibxmModule.numChannels ) {
+							ibxmReplay.setMuted( -1, false );
+						} else if( ibxmReplay.isMuted( column + channel ) ) {
+							ibxmReplay.setMuted( column + channel, false );
+						} else {
+							ibxmReplay.setMuted( -1, true );
+							ibxmReplay.setMuted( column + channel, false );
+						}
 					}
 					updateDisplay();
 				};
 				initCharset( document.getElementById( "patternCharset" ),
 					function( chs ) {
 						patternDisplay = new PatternDisplay( chs );
+						patternCanvas.width = patternDisplay.getMaxWidth( 8 );
+						patternCanvas.height = patternDisplay.getMaxHeight();
 						setModule( null );
 					}
 				);
@@ -40,7 +57,7 @@
 				ctx.fillRect( 0, 0, patternCanvas.width, patternCanvas.height );
 			}
 			function updateDisplay() {
-				patternDisplay.display( ibxmModule, ibxmReplay, 0, patternCanvas );
+				patternDisplay.display( ibxmModule, ibxmReplay, channel, patternCanvas );
 			}
 			function play() {
 				audioPlayer.play();
@@ -66,6 +83,7 @@
 					}
 				}
 				document.getElementById( "instruments" ).innerHTML = instruments;
+				channel = 0;
 				clearDisplay();
 				updateDisplay();
 			}
@@ -104,7 +122,7 @@
 			<button onclick="stop()">Stop</button>
 		</p>
 		<img id="patternCharset" src="topaz8.png" hidden="true"></img>
-		<canvas id="patternCanvas" width="736" height="256"></canvas>
+		<canvas id="patternCanvas"></canvas>
 		<p>
 			Instruments:
 		</p>
