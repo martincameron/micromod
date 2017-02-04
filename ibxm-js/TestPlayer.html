@@ -9,12 +9,13 @@
 		<script type="text/javascript" src="IBXM.js"></script>
 		<script type="text/javascript" src="PatternDisplay.js"></script>
 		<script type="text/javascript">
-			var ibxmModule, ibxmReplay, channel;
-			var patternDisplay, patternCanvas;
+			var ibxmModule, ibxmReplay, samplePos, channel;
+			var seekBar, patternDisplay, patternCanvas;
 			var audioPlayer = new AudioPlayer( updateDisplay );
 			function init() {
-				document.getElementById( "input" ).value = "";
-				patternCanvas = document.getElementById( "patternCanvas" )
+				document.getElementById( "inputFile" ).value = "";
+				seekBar = document.getElementById( "inputSeek" );
+				patternCanvas = document.getElementById( "patternCanvas" );
 				patternCanvas.onclick = function( mouseEvent ) {
 					if( mouseEvent.offsetY >= patternDisplay.getScrollY() ) {
 						if( mouseEvent.offsetX >= patternDisplay.getScrollX() ) {
@@ -56,10 +57,15 @@
 				ctx.fillStyle = "black";
 				ctx.fillRect( 0, 0, patternCanvas.width, patternCanvas.height );
 			}
-			function updateDisplay() {
+			function updateDisplay( count ) {
+				if( count ) {
+					samplePos += count;
+				}
+				seekBar.value = samplePos / audioPlayer.getSamplingRate();
 				patternDisplay.display( ibxmModule, ibxmReplay, channel, patternCanvas );
 			}
 			function play() {
+				samplePos = ibxmReplay.seek( seekBar.value * audioPlayer.getSamplingRate() );
 				audioPlayer.play();
 			}
 			function stop() {
@@ -71,6 +77,9 @@
 				ibxmReplay = new IBXMReplay( ibxmModule, audioPlayer.getSamplingRate() );
 				ibxmReplay.setInterpolation( false );
 				var duration = Math.round( ibxmReplay.calculateSongDuration() / audioPlayer.getSamplingRate() );
+				samplePos = 0;
+				seekBar.value = 0;
+				seekBar.max = duration;
 				audioPlayer.setAudioSource( ibxmReplay );
 				document.getElementById( "songName" ).innerHTML = "Song Name: " + ibxmModule.songName;
 				document.getElementById( "duration" ).innerHTML = "Duration: " + duration + " seconds.";
@@ -117,7 +126,8 @@
 			<div id="duration"></div>
 		</p>
 		<p>
-			<input type="file" id="input" onchange="loadFile( this.files[ 0 ] )"></input>
+			<input type="file" id="inputFile" onchange="loadFile( this.files[ 0 ] )"></input>
+			<input type="range" id="inputSeek" onmousedown="stop()" onmouseup="play()"></input>
 			<button onclick="play()">Play</button>
 			<button onclick="stop()">Stop</button>
 		</p>
