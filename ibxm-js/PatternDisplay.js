@@ -1,5 +1,5 @@
 
-function PatternDisplay( charsetImg ) {
+function PatternDisplay( charsetImg, cw, ch ) {
 	const fxclr = [
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? */
 		   1,1,1,1,1,7,7,5,5,4,0,0,0,0,0,0,
@@ -26,7 +26,7 @@ function PatternDisplay( charsetImg ) {
 	];
 	var scrollX = 0, scrollWidth = 0;
 	var drawChar = function( chr, row, col, clr, ctx ) {
-		ctx.drawImage( charsetImg, ( chr - 32 ) * 8, clr * 16, 8, 16, col * 8, row * 16, 8, 16 );
+		ctx.drawImage( charsetImg, ( chr - 32 ) * cw, clr * ch, cw, ch, col * cw, row * ch, cw, ch );
 	};
 	var drawString = function( str, row, col, clr, ctx ) {
 		for( var idx = 0, len = str.length; idx < len; idx++ ) {
@@ -41,29 +41,29 @@ function PatternDisplay( charsetImg ) {
 		}
 	};
 	this.getColumn = function( x ) {
-		if( x < 32 ) {
+		if( x < 4 * cw ) {
 			return -1;
 		} else {
-			return ( ( x - 32 ) / ( 11 * 8 ) ) | 0;
+			return ( ( x - 4 * cw ) / ( 11 * cw ) ) | 0;
 		}
 	};
 	this.getNumCols = function( canvas ) {
-		return ( ( canvas.width - 32 ) / ( 11 * 8 ) ) | 0;
+		return ( ( canvas.width - 4 * cw ) / ( 11 * cw ) ) | 0;
 	};
 	this.getMaxWidth = function( numChannels ) {
-		return 32 + numChannels * 11 * 8;
+		return 4 * cw + numChannels * 11 * cw;
 	};
 	this.getMaxHeight = function() {
-		return 17 * 16;
+		return 17 * ch;
 	};
 	this.getScrollX = function() {
-		return scrollX * 8;
+		return scrollX * cw;
 	};
 	this.getScrollY = function() {
-		return 16 * 16;
+		return 16 * ch;
 	};
 	this.getScrollWidth = function() {
-		return scrollWidth * 8;
+		return scrollWidth * cw;
 	};
 	this.display = function( module, replay, channel, canvas ) {
 		var pat = module.sequence[ replay.getSequencePos() ];
@@ -150,8 +150,8 @@ function PatternDisplay( charsetImg ) {
 				}
 			}
 		}
-		scrollX = 4 + numCols * 11 * channel / numChan;
-		scrollWidth = numCols * 11 * numCols / numChan ;
+		scrollX = 4 + Math.round( numCols * 11 * channel / numChan );
+		scrollWidth = Math.round( numCols * 11 * numCols / numChan );
 		for( var c = 0; c < scrollX; c++ ) {
 			drawChar( 32, 16, c, 0, ctx );
 		}
@@ -166,25 +166,25 @@ function PatternDisplay( charsetImg ) {
 	};
 }
 
-function initCharset( maskImg, callback ) {
+function initCharset( maskImg, cw, ch, callback ) {
 	const pal = [
 	/*   Blue       Green      Cyan       Red        Magenta    Yellow     White      Lime */
 		"#0000C0", "#008000", "#008080", "#800000", "#800080", "#806600", "#808080", "#668000",
 		"#0066FF", "#00FF00", "#00FFFF", "#FF0000", "#FF00FF", "#FFCC00", "#FFFFFF", "#CCFF00"
 	];
 	var can = maskImg.ownerDocument.createElement( "canvas" );
-	can.width = 8 * 96;
-	can.height = 16 * pal.length;
+	can.width = cw * 96;
+	can.height = ch * pal.length;
 	var ctx = can.getContext( "2d" );
 	for( var r = 0; r < pal.length; r++ ) {
 		ctx.fillStyle = "black";
-		ctx.fillRect( 0, r * 16, 8, 16 );
+		ctx.fillRect( 0, r * ch, cw, ch );
 		ctx.fillStyle = pal[ r ];
-		ctx.fillRect( 8, r * 16, 8 * 95, 16 );
+		ctx.fillRect( cw, r * ch, cw * 95, ch );
 		for( var c = 1; c < 96; c++ ) {
 			var x = ( c - 1 ) & 0x1F;
 			var y = ( c - 1 ) >> 5;
-			ctx.drawImage( maskImg, x * 8, y * 16, 8, 16, c * 8, r * 16, 8, 16  );
+			ctx.drawImage( maskImg, x * cw, y * ch, cw, ch, c * cw, r * ch, cw, ch  );
 		}
 	}
 	createImageBitmap( can, 0, 0, can.width, can.height ).then( callback );

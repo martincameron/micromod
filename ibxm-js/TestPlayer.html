@@ -43,9 +43,9 @@
 					}
 					updateDisplay();
 				};
-				initCharset( document.getElementById( "patternCharset" ),
+				initCharset( document.getElementById( "patternCharset" ), 8, 16,
 					function( chs ) {
-						patternDisplay = new PatternDisplay( chs );
+						patternDisplay = new PatternDisplay( chs, 8, 16 );
 						patternCanvas.width = patternDisplay.getMaxWidth( 8 );
 						patternCanvas.height = patternDisplay.getMaxHeight();
 						setModule( null );
