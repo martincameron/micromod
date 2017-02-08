@@ -75,7 +75,7 @@
 				stop();
 				ibxmModule = new IBXMModule( moduleData );
 				ibxmReplay = new IBXMReplay( ibxmModule, audioPlayer.getSamplingRate() );
-				ibxmReplay.setInterpolation( false );
+				ibxmReplay.setInterpolation( document.getElementById( "interpolation" ).checked );
 				var duration = Math.round( ibxmReplay.calculateSongDuration() / audioPlayer.getSamplingRate() );
 				samplePos = 0;
 				seekBar.value = 0;
@@ -130,6 +130,8 @@
 			<input type="range" id="inputSeek" onmousedown="stop()" onmouseup="play()"></input>
 			<button onclick="play()">Play</button>
 			<button onclick="stop()">Stop</button>
+			<input type="checkbox" id="interpolation"
+				onchange="ibxmReplay.setInterpolation( this.checked )">Interpolation</input>
 		</p>
 		<img id="patternCharset" src="topaz8.png" hidden="true"></img>
 		<canvas id="patternCanvas"></canvas>
