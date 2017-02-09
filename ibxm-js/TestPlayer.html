@@ -9,9 +9,11 @@
 		<script type="text/javascript" src="IBXM.js"></script>
 		<script type="text/javascript" src="PatternDisplay.js"></script>
 		<script type="text/javascript">
-			var ibxmModule, ibxmReplay, samplePos, channel;
+			const REVERB_MILLIS = 50;
 			var seekBar, patternDisplay, patternCanvas;
-			var audioPlayer = new AudioPlayer( updateDisplay );
+			var ibxmModule, ibxmReplay, samplePos, channel;
+			var reverbIdx, reverbLen, reverbBufL, reverbBufR;
+			var audioPlayer = new AudioPlayer( updateDisplay, reverb );
 			function init() {
 				document.getElementById( "inputFile" ).value = "";
 				seekBar = document.getElementById( "inputSeek" );
@@ -64,6 +66,27 @@
 				seekBar.value = samplePos / audioPlayer.getSamplingRate();
 				patternDisplay.display( ibxmModule, ibxmReplay, channel, patternCanvas );
 			}
+			function setReverb( millis ) {
+				reverbIdx = 0;
+				reverbLen = Math.round( audioPlayer.getSamplingRate() * millis / 1000 );
+				reverbBufL = new Float32Array( reverbLen );
+				reverbBufR = new Float32Array( reverbLen );
+			}
+			function reverb( mixBufL, mixBufR, count ) {
+				if( reverbLen ) {
+					/* Simple cross-delay with feedback. */
+					for( var mixIdx = 0; mixIdx < count; mixIdx++ ) {
+						mixBufL[ mixIdx ] = ( mixBufL[ mixIdx ] * 3 + reverbBufR[ reverbIdx ] ) * 0.25;
+						mixBufR[ mixIdx ] = ( mixBufR[ mixIdx ] * 3 + reverbBufL[ reverbIdx ] ) * 0.25;
+						reverbBufL[ reverbIdx ] = mixBufL[ mixIdx ];
+						reverbBufR[ reverbIdx ] = mixBufR[ mixIdx ];
+						reverbIdx++;
+						if( reverbIdx >= reverbLen ) {
+							reverbIdx = 0;
+						}
+					}
+				}
+			}
 			function play() {
 				samplePos = ibxmReplay.seek( seekBar.value * audioPlayer.getSamplingRate() );
 				audioPlayer.play();
@@ -76,6 +99,7 @@
 				ibxmModule = new IBXMModule( moduleData );
 				ibxmReplay = new IBXMReplay( ibxmModule, audioPlayer.getSamplingRate() );
 				ibxmReplay.setInterpolation( document.getElementById( "interpolation" ).checked );
+				setReverb( document.getElementById( "reverb" ).checked ? REVERB_MILLIS : 0 );
 				var duration = Math.round( ibxmReplay.calculateSongDuration() / audioPlayer.getSamplingRate() );
 				samplePos = 0;
 				seekBar.value = 0;
@@ -127,11 +151,15 @@
 		</p>
 		<p>
 			<input type="file" id="inputFile" onchange="loadFile( this.files[ 0 ] )"></input>
+		</p>
+		<p>
 			<input type="range" id="inputSeek" onmousedown="stop()" onmouseup="play()"></input>
 			<button onclick="play()">Play</button>
 			<button onclick="stop()">Stop</button>
 			<input type="checkbox" id="interpolation"
 				onchange="ibxmReplay.setInterpolation( this.checked )">Interpolation</input>
+			<input type="checkbox" id="reverb"
+				onchange="setReverb( this.checked ? REVERB_MILLIS : 0 )">Reverb</input>
 		</p>
 		<img id="patternCharset" src="topaz8.png" hidden="true"></img>
 		<canvas id="patternCanvas"></canvas>
