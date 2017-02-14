@@ -48,6 +48,19 @@ function IBXMReplay( module, samplingRate ) {
 	this.getSequencePos = function() {
 		return seqPos;
 	}
+	/* Get the total length of the module in patterns */
+	this.getSequenceLength = function() {
+		return module.sequenceLength;
+	}
+	/* Get the current playing position as 
+	   a normalized 0.0-1.0 float, based on the pattern/row progress*/
+	this.getSongProgress = function() {
+	  	var seqPos = this.getSequencePos();
+		var patternProgress = seqPos / this.getSequenceLength();
+		var singlePattern = 1 / this.getSequenceLength();
+		var rowProgress = this.getRow() / module.patterns[ module.sequence[ seqPos ] ].numRows;
+		return patternProgress + singlePattern * rowProgress;
+	}	
 	/* Set the pattern in the sequence to play.
 	   The tempo is reset to the default. */
 	this.setSequencePos = function( pos ) {
