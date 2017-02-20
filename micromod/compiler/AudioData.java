@@ -17,12 +17,16 @@ public class AudioData {
 		setSamplingRate( samplingRate );
 	}
 
-	public AudioData( byte[] samples, int samplingRate ) {
-		this.sampleData = new short[ samples.length ];
-		for( int idx = 0; idx < samples.length; idx++ ) {
+	public AudioData( byte[] samples, int length, int samplingRate ) {
+		this.sampleData = new short[ length ];
+		for( int idx = 0; idx < length; idx++ ) {
 			this.sampleData[ idx ] = ( short ) ( samples[ idx ] << 8 );
 		}
 		setSamplingRate( samplingRate );
+	}
+
+	public AudioData( byte[] samples, int samplingRate ) {
+		this( samples, samples.length, samplingRate );
 	}
 
 	public int getSamplingRate() {
@@ -41,8 +45,80 @@ public class AudioData {
 		return sampleData;
 	}
 
+	/* Read a mono sample file.
+	   If the sample format and sampling rate cannot be determined,
+	   and maxLength is greater than zero, raw 8-bit signed audio up
+	   to maxLength bytes are read and a sampling rate of 8000hz assumed. */
+	public static AudioData readSam( InputStream inputStream, int maxLength ) throws IOException {
+		InputStream input = new java.io.BufferedInputStream( inputStream, 65536 );
+		input.mark( 4 );
+		char[] chars = new char[ 4 ];
+		readChars( input, chars, 4 );
+		input.reset();
+		String chunkId = new String( chars );
+		if( "RIFF".equals( chunkId ) ) {
+			return readWav( input, 0 );
+		} else if( "FORM".equals( chunkId ) ) {
+			return readIff( input );
+		} else if( maxLength > 0 ) {
+			return readRaw( input, maxLength, 8000 );
+		} else {
+			throw new IllegalArgumentException( "Unsupported file format." );
+		}
+	}
+
+	/* Read raw 8-bit signed audio data up to maxLength bytes. */
+	public static AudioData readRaw( InputStream inputStream, int maxLength, int samplingRate ) throws IOException {
+		byte[] inputBuf = new byte[ maxLength ];
+		int length = readFully( inputStream, inputBuf, maxLength );
+		return new AudioData( inputBuf, length, samplingRate );
+	}
+
+	/* Read an uncompressed IFF-8SVX file. */
+	public static AudioData readIff( InputStream inputStream ) throws IOException {
+		char[] chunkId = new char[ 4 ];
+		readChars( inputStream, chunkId, 4 );
+		if( !"FORM".equals( new String( chunkId ) ) ) {
+			throw new IllegalArgumentException( "FORM chunk not found." );
+		}
+		int chunkSize = readIntBe( inputStream );
+		readChars( inputStream, chunkId, 4 );
+		if( !"8SVX".equals( new String( chunkId ) ) ) {
+			throw new IllegalArgumentException( "8SVX chunk not found." );
+		}
+		readChars( inputStream, chunkId, 4 );
+		if( !"VHDR".equals( new String( chunkId ) ) ) {
+			throw new IllegalArgumentException( "VHDR chunk not found." );
+		}
+		chunkSize = readIntBe( inputStream );
+		int attackLen = readIntBe( inputStream );
+		int sustainLen = readIntBe( inputStream );
+		int samplesHigh = readIntBe( inputStream );
+		int sampleRate = readShortBe( inputStream ) & 0xFFFF;
+		int numOctaves = inputStream.read();
+		int compression = inputStream.read();
+		if( compression != 0 ) {
+			throw new IllegalArgumentException( "Compressed IFF not supported." );
+		}
+		int volume = readIntBe( inputStream );
+		readChars( inputStream, chunkId, 4 );
+		while( !"BODY".equals( new String( chunkId ) ) ) {
+			chunkSize = readIntBe( inputStream );
+			inputStream.skip( chunkSize );
+			readChars( inputStream, chunkId, 4 );
+		}
+		int numSamples = readIntBe( inputStream );
+		short[] sampleData = new short[ numSamples ];
+		byte[] inputBuf = new byte[ numSamples ];
+		int len = readFully( inputStream, inputBuf, numSamples );
+		for( int idx = 0; idx < len; idx++ ) {
+			sampleData[ idx ] = ( short ) ( inputBuf[ idx ] << 8 );
+		}
+		return new AudioData( sampleData, sampleRate );
+	}
+
 	/* Read a Wav file. Channel is 0 for left/mono.*/
-	public AudioData( InputStream inputStream, int channel ) throws IOException {
+	public static AudioData readWav( InputStream inputStream, int channel ) throws IOException {
 		char[] chunkId = new char[ 4 ];
 		readChars( inputStream, chunkId, 4 );
 		if( !"RIFF".equals( new String( chunkId ) ) ) {
@@ -63,7 +139,7 @@ public class AudioData {
 		if( channel < 0 || channel >= numChannels ) {
 			throw new IllegalArgumentException( "No such channel: " + channel );
 		}
-		sampleRate = readInt( inputStream );
+		int sampleRate = readInt( inputStream );
 		int bytesPerSec = readInt( inputStream );
 		int bytesPerSample = readShort( inputStream );
 		int bytesPerChannel = bytesPerSample / numChannels;
@@ -94,7 +170,7 @@ public class AudioData {
 			readChars( inputStream, chunkId, 4 );
 		}
 		int numSamples = readInt( inputStream ) / bytesPerSample;
-		sampleData = new short[ numSamples ];
+		short[] sampleData = new short[ numSamples ];
 		byte[] inputBuf = new byte[ numSamples * bytesPerSample ];
 		int outputEnd = readFully( inputStream, inputBuf, numSamples * bytesPerSample ) / bytesPerSample;
 		int inputIdx = channel * bytesPerChannel, outputIdx = 0;
@@ -118,6 +194,7 @@ public class AudioData {
 				}
 				break;
 		}
+		return new AudioData( sampleData, sampleRate );
 	}
 	
 	public void writeWav( OutputStream outputStream, boolean quantize ) throws IOException {
@@ -256,14 +333,22 @@ public class AudioData {
 	private static int readInt( InputStream input ) throws IOException {
 		return readShort( input ) | ( readShort( input ) << 16 );
 	}
-	
+
+	private static int readIntBe( InputStream input ) throws IOException {
+		return ( readShortBe( input ) << 16 ) | readShortBe( input );
+	}
+
 	private static void writeInt( OutputStream output, int value ) throws IOException {
 		writeShort( output, value );
 		writeShort( output, value >> 16 );
 	}
-	
+
 	private static int readShort( InputStream input ) throws IOException {
 		return ( input.read() & 0xFF ) | ( ( input.read() & 0xFF ) << 8 );
+	}
+
+	private static int readShortBe( InputStream input ) throws IOException {
+		return ( ( input.read() & 0xFF ) << 8 ) | ( input.read() & 0xFF );
 	}
 	
 	private static void writeShort( OutputStream output, int value ) throws IOException {
@@ -325,7 +410,7 @@ public class AudioData {
 			}
 		}
 		if( inputPath != null ) {
-			AudioData audioData = new AudioData( new java.io.FileInputStream( inputPath ), channel );
+			AudioData audioData = readWav( new java.io.FileInputStream( inputPath ), channel );
 			System.out.println( "Input Length: " + audioData.getLength() + " samples.");
 			if( outputPath != null ) {
 				if( length > 0 ) {
