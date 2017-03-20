@@ -19,8 +19,10 @@ function AudioPlayer() {
 		scriptProcessor.connect( audioContext.destination );
 	}
 	this.stop = function() {
-		scriptProcessor.disconnect( audioContext.destination );
-		scriptProcessor.onaudioprocess = null;
+		if( scriptProcessor.onaudioprocess ) {
+			scriptProcessor.disconnect( audioContext.destination );
+			scriptProcessor.onaudioprocess = null;
+		}
 	}
 }
 
