@@ -326,8 +326,8 @@ public class Module {
 				for( int keyIdx = 0; keyIdx < 96; keyIdx++ )
 					instrument.keyToSample[ keyIdx + 1 ] = moduleData.uByte( dataOffset + 33 + keyIdx );
 				Envelope volEnv = instrument.volumeEnvelope = new Envelope();
-				volEnv.pointsTick = new int[ 12 ];
-				volEnv.pointsAmpl = new int[ 12 ];
+				volEnv.pointsTick = new int[ 16 ];
+				volEnv.pointsAmpl = new int[ 16 ];
 				int pointTick = 0;
 				for( int point = 0; point < 12; point++ ) {
 					int pointOffset = dataOffset + 129 + ( point * 4 );
