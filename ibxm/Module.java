@@ -143,6 +143,7 @@ public class Module {
 		gain = moduleData.uByte( 51 ) & 0x7F;
 		boolean stereoMode = ( moduleData.uByte( 51 ) & 0x80 ) == 0x80;
 		boolean defaultPan = moduleData.uByte( 53 ) == 0xFC;
+		numChannels = 0;
 		int[] channelMap = new int[ 32 ];
 		for( int chanIdx = 0; chanIdx < 32; chanIdx++ ) {
 			channelMap[ chanIdx ] = -1;
