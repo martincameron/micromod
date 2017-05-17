@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "string.h"
 
-static const char *VERSION = "ibxm/ac mod/xm/s3m replay 20170516 (c)mumart@gmail.com";
+static const char *VERSION = "ibxm/ac mod/xm/s3m replay 20170517 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -40,7 +40,7 @@ struct data {
 
 struct sample {
 	char name[ 32 ];
-	int idx, loop_start, loop_length;
+	int loop_start, loop_length;
 	short volume, panning, rel_note, fine_tune, *data;
 };
 
@@ -95,7 +95,6 @@ struct channel {
 	int vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
 	int tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
 	int tremolo_add, vibrato_add, arpeggio_add;
-	int trig_inst, swap_inst, prev_inst, prev_freq, prev_ampl, prev_pann;
 };
 
 struct replay {
@@ -1063,7 +1062,6 @@ static void channel_tremor( struct channel *channel ) {
 
 static void channel_retrig_vol_slide( struct channel *channel ) {
 	if( channel->retrig_count >= channel->retrig_ticks ) {
-		channel->trig_inst = channel->sample->idx;
 		channel->retrig_count = channel->sample_idx = channel->sample_fra = 0;
 		switch( channel->retrig_volume ) {
 			case 0x1: channel->volume = channel->volume -  1; break;
@@ -1103,10 +1101,8 @@ static void channel_trigger( struct channel *channel ) {
 		if( sample->panning >= 0 ) {
 			channel->panning = sample->panning & 0xFF;
 		}
-		if( channel->period > 0 && sample->loop_length > 1
-		&& channel->sample->idx != sample->idx ) {
+		if( channel->period > 0 && sample->loop_length > 1 ) {
 			/* Amiga trigger.*/
-			channel->swap_inst = sample->idx;
 			channel->sample = sample;
 		}
 		channel->sample_off = 0;
@@ -1197,7 +1193,6 @@ static void channel_trigger( struct channel *channel ) {
 					channel->tremolo_phase = 0;
 				}
 				channel->retrig_count = channel->av_count = 0;
-				channel->trig_inst = channel->sample->idx;
 			}
 		}
 	}
@@ -1280,11 +1275,6 @@ static void channel_calculate_ampl( struct channel *channel ) {
 }
 
 static void channel_tick( struct channel *channel ) {
-	channel->trig_inst = channel->swap_inst = 0;
-	channel->prev_inst = channel->sample->idx;
-	channel->prev_freq = channel->freq;
-	channel->prev_ampl = channel->ampl;
-	channel->prev_pann = channel->pann;
 	channel->vibrato_add = 0;
 	channel->fx_count++;
 	channel->retrig_count++;
@@ -1385,7 +1375,6 @@ static void channel_tick( struct channel *channel ) {
 			if( channel->fx_count >= channel->note.param ) {
 				channel->fx_count = 0;
 				channel->sample_idx = channel->sample_fra = 0;
-				channel->trig_inst = channel->sample->idx;
 			}
 			break;
 		case 0x7C: case 0xFC: /* Note Cut. */
@@ -1420,11 +1409,6 @@ static void channel_tick( struct channel *channel ) {
 
 static void channel_row( struct channel *channel, struct note *note ) {
 	channel->note = *note;
-	channel->trig_inst = channel->swap_inst = 0;
-	channel->prev_inst = channel->sample->idx;
-	channel->prev_freq = channel->freq;
-	channel->prev_ampl = channel->ampl;
-	channel->prev_pann = channel->pann;
 	channel->retrig_count++;
 	channel->vibrato_add = channel->tremolo_add = channel->arpeggio_add = channel->fx_count = 0;
 	if( !( ( note->effect == 0x7D || note->effect == 0xFD ) && note->param > 0 ) ) {
