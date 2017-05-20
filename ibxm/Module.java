@@ -321,8 +321,9 @@ public class Module {
 		for( int insIdx = 1; insIdx <= numInstruments; insIdx++ ) {
 			Instrument instrument = instruments[ insIdx ] = new Instrument();
 			instrument.name = moduleData.strCp850( dataOffset + 4, 22 );
-			int numSamples = instrument.numSamples = moduleData.uleShort( dataOffset + 27 );
+			int numSamples = moduleData.uleShort( dataOffset + 27 );
 			if( numSamples > 0 ) {
+				instrument.numSamples = numSamples;
 				instrument.samples = new Sample[ numSamples ];
 				for( int keyIdx = 0; keyIdx < 96; keyIdx++ )
 					instrument.keyToSample[ keyIdx + 1 ] = moduleData.uByte( dataOffset + 33 + keyIdx );

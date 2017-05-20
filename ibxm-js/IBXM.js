@@ -1131,8 +1131,9 @@ function IBXMModule( moduleData ) {
 		for( var insIdx = 1; insIdx <= this.numInstruments; insIdx++ ) {
 			var instrument = this.instruments[ insIdx ] = new IBXMInstrument();
 			instrument.name = ibxmData.strLatin1( dataOffset + 4, 22 );
-			var numSamples = instrument.numSamples = ibxmData.uleShort( dataOffset + 27 );
+			var numSamples = ibxmData.uleShort( dataOffset + 27 );
 			if( numSamples > 0 ) {
+				instrument.numSamples = numSamples;
 				instrument.samples = new Array( numSamples );
 				for( var keyIdx = 0; keyIdx < 96; keyIdx++ )
 					instrument.keyToSample[ keyIdx + 1 ] = ibxmData.uByte( dataOffset + 33 + keyIdx );
