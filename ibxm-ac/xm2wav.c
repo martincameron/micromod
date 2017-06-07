@@ -135,7 +135,7 @@ static char* data_ascii( struct data *data, int offset, int length, char *dest )
 		length = data->length - offset;
 	}
 	for( idx = 0; idx < length; idx++ ) {
-		chr = data->buffer[ offset + idx ];
+		chr = data->buffer[ offset + idx ] & 0xFF;
 		if( chr < 32 ) {
 			dest[ idx ] = 32;
 		} else {
