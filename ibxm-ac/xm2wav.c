@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "string.h"
 
-static const char *VERSION = "ibxm/ac mod/xm/s3m replay 20170517 (c)mumart@gmail.com";
+static const char *VERSION = "ibxm/ac mod/xm/s3m replay 20170608 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -102,6 +102,7 @@ struct replay {
 	int seq_pos, break_pos, row, next_row, tick;
 	int speed, tempo, pl_count, pl_chan;
 	int *ramp_buf;
+	char **play_count;
 	struct channel *channels;
 	struct module *module;
 };
@@ -1669,8 +1670,8 @@ static void channel_update_sample_idx( struct channel *channel, int count, int s
 	channel->sample_fra &= FP_MASK;
 }
 
-static int replay_row( struct replay *replay ) {
-	int idx, song_end = 0;
+static void replay_row( struct replay *replay ) {
+	int idx, count;
 	struct note note;
 	struct pattern *pattern;
 	struct channel *channel;
@@ -1689,9 +1690,6 @@ static int replay_row( struct replay *replay ) {
 				replay->break_pos = replay->next_row = 0;
 			}
 		}
-		if( replay->break_pos <= replay->seq_pos ) {
-			song_end = 1;
-		}
 		replay->seq_pos = replay->break_pos;
 		for( idx = 0; idx < module->num_channels; idx++ ) {
 			replay->channels[ idx ].pl_row = 0;
@@ -1702,6 +1700,12 @@ static int replay_row( struct replay *replay ) {
 	replay->row = replay->next_row;
 	if( replay->row >= pattern->num_rows ) {
 		replay->row = 0;
+	}
+	if( replay->play_count && replay->play_count[ 0 ] ) {
+		count = replay->play_count[ replay->seq_pos ][ replay->row ];
+		if( replay->pl_count < 0 && count < 127 ) {
+			replay->play_count[ replay->seq_pos ][ replay->row ] = count + 1;
+		}
 	}
 	replay->next_row = replay->row + 1;
 	if( replay->next_row >= pattern->num_rows ) {
@@ -1786,21 +1790,36 @@ static int replay_row( struct replay *replay ) {
 				break;
 		}
 	}
-	return song_end;
 }
 
 static int replay_tick( struct replay *replay ) {
-	int idx, num_channels, song_end = 0;
+	int idx, num_channels, count = 1;
 	if( --replay->tick <= 0 ) {
 		replay->tick = replay->speed;
-		song_end = replay_row( replay );
+		replay_row( replay );
 	} else {
 		num_channels = replay->module->num_channels;
 		for( idx = 0; idx < num_channels; idx++ ) {
 			channel_tick( &replay->channels[ idx ] );
 		}
 	}
-	return song_end;
+	if( replay->play_count && replay->play_count[ 0 ] ) {
+		count = replay->play_count[ replay->seq_pos ][ replay->row ] - 1;
+	}
+	return count;
+}
+
+static int module_init_play_count( struct module *module, char **play_count ) {
+	int idx, pat, rows, len = 0;
+	for( idx = 0; idx < module->sequence_len; idx++ ) {
+		pat = module->sequence[ idx ];
+		rows = ( pat < module->num_patterns ) ? module->patterns[ pat ].num_rows : 0;
+		if( play_count ) {
+			play_count[ idx ] = play_count[ 0 ] ? &play_count[ 0 ][ len ] : NULL;
+		}
+		len += rows;
+	}
+	return len;
 }
 
 static void replay_set_sequence_pos( struct replay *replay, int pos ) {
@@ -1816,6 +1835,15 @@ static void replay_set_sequence_pos( struct replay *replay, int pos ) {
 	replay->speed = module->default_speed > 0 ? module->default_speed : 6;
 	replay->tempo = module->default_tempo > 0 ? module->default_tempo : 125;
 	replay->pl_count = replay->pl_chan = -1;
+	if( replay->play_count ) {
+		free( replay->play_count[ 0 ] );
+		free( replay->play_count );
+	}
+	replay->play_count = calloc( module->sequence_len, sizeof( char * ) );
+	if( replay->play_count ) {
+		replay->play_count[ 0 ] = calloc( module_init_play_count( module, NULL ), sizeof( char ) );
+		module_init_play_count( module, replay->play_count );
+	}
 	for( idx = 0; idx < module->num_channels; idx++ ) {
 		channel_init( &replay->channels[ idx ], replay, idx );
 	}
@@ -1824,6 +1852,10 @@ static void replay_set_sequence_pos( struct replay *replay, int pos ) {
 }
 
 static void dispose_replay( struct replay *replay ) {
+	if( replay->play_count ) {
+		free( replay->play_count[ 0 ] );
+		free( replay->play_count );
+	}
 	free( replay->ramp_buf );
 	free( replay->channels );
 	free( replay );
