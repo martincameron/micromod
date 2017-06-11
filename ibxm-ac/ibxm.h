@@ -77,8 +77,9 @@ struct replay {
 	struct module *module;
 };
 
-/* Allocate and initialize a module from the specified data. */
-struct module* module_load( struct data *data );
+/* Allocate and initialize a module from the specified data, returns NULL on error.
+   Message should point to a 64-character buffer to receive error messages. */
+struct module* module_load( struct data *data, char *message );
 /* Deallocate the specified module. */
 void dispose_module( struct module *module );
 /* Allocate and initialize a replay with the specified module and sampling rate. */

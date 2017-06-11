@@ -98,6 +98,7 @@ static int xm_to_wav( struct module *module, char *wav ) {
 int main( int argc, char **argv ) {
 	int result, length;
 	char *input, *output, *ext;
+	char message[ 64 ] = "";
 	struct data data;
 	struct module *module;
 	result = EXIT_FAILURE;
@@ -119,7 +120,7 @@ int main( int argc, char **argv ) {
 				if( read_file( argv[ 1 ], input ) >= 0 ) {
 					data.buffer = input;
 					data.length = length;
-					module = module_load( &data );
+					module = module_load( &data, message );
 					if( module ) {
 						/* Perform conversion. */
 						length = xm_to_wav( module, NULL );
@@ -134,6 +135,9 @@ int main( int argc, char **argv ) {
 							}
 						}
 						dispose_module( module );
+					} else {
+						fputs( message, stderr );
+						fputs( "\n", stderr );
 					}
 				}
 				free( input );
