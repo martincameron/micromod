@@ -1,10 +1,11 @@
 
-#include "errno.h"
-#include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "stdio.h"
 
-static const char *VERSION = "ibxm/ac mod/xm/s3m replay 20170608 (c)mumart@gmail.com";
+#include "ibxm.h"
+
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170611 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -31,80 +32,6 @@ static const int exp2_table[] = {
 static const short sine_table[] = {
 	  0,  24,  49,  74,  97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253,
 	255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120,  97,  74,  49,  24
-};
-
-struct data {
-	char *buffer;
-	int length;
-};
-
-struct sample {
-	char name[ 32 ];
-	int loop_start, loop_length;
-	short volume, panning, rel_note, fine_tune, *data;
-};
-
-struct envelope {
-	char enabled, sustain, looped, num_points;
-	short sustain_tick, loop_start_tick, loop_end_tick;
-	short points_tick[ 16 ], points_ampl[ 16 ];
-};
-
-struct instrument {
-	int num_samples, vol_fadeout;
-	char name[ 32 ], key_to_sample[ 97 ];
-	char vib_type, vib_sweep, vib_depth, vib_rate;
-	struct envelope vol_env, pan_env;
-	struct sample *samples;
-};
-
-struct pattern {
-	int num_channels, num_rows;
-	char *data;
-};
-
-struct module {
-	char name[ 32 ];
-	int num_channels, num_instruments;
-	int num_patterns, sequence_len, restart_pos;
-	int default_gvol, default_speed, default_tempo, c2_rate, gain;
-	int linear_periods, fast_vol_slides;
-	unsigned char *default_panning, *sequence;
-	struct pattern *patterns;
-	struct instrument *instruments;
-};
-
-struct note {
-	unsigned char key, instrument, volume, effect, param;
-};
-
-struct channel {
-	struct replay *replay;
-	struct instrument *instrument;
-	struct sample *sample;
-	struct note note;
-	int id, key_on, random_seed, pl_row;
-	int sample_off, sample_idx, sample_fra, freq, ampl, pann;
-	int volume, panning, fadeout_vol, vol_env_tick, pan_env_tick;
-	int period, porta_period, retrig_count, fx_count, av_count;
-	int porta_up_param, porta_down_param, tone_porta_param, offset_param;
-	int fine_porta_up_param, fine_porta_down_param, xfine_porta_param;
-	int arpeggio_param, vol_slide_param, gvol_slide_param, pan_slide_param;
-	int fine_vslide_up_param, fine_vslide_down_param;
-	int retrig_volume, retrig_ticks, tremor_on_ticks, tremor_off_ticks;
-	int vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
-	int tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
-	int tremolo_add, vibrato_add, arpeggio_add;
-};
-
-struct replay {
-	int sample_rate, interpolation, global_vol;
-	int seq_pos, break_pos, row, next_row, tick;
-	int speed, tempo, pl_count, pl_chan;
-	int *ramp_buf;
-	char **play_count;
-	struct channel *channels;
-	struct module *module;
 };
 
 static int exp_2( int x ) {
@@ -270,7 +197,8 @@ static void sample_ping_pong( struct sample *sample ) {
 	}
 }
 
-static void dispose_module( struct module *module ) {
+/* Deallocate the specified module. */
+void dispose_module( struct module *module ) {
 	int idx, sam;
 	struct instrument *instrument;
 	free( module->default_panning );
@@ -891,7 +819,8 @@ static struct module* module_load_mod( struct data *data ) {
 	return module;
 }
 
-static struct module* module_load( struct data *data ) {
+/* Allocate and initialize a module from the specified data. */
+struct module* module_load( struct data *data ) {
 	char ascii[ 16 ];
 	struct module* module;
 	if( !memcmp( data_ascii( data, 0, 16, ascii ), "Extended Module:", 16 ) ) {
@@ -1822,7 +1751,8 @@ static int module_init_play_count( struct module *module, char **play_count ) {
 	return len;
 }
 
-static void replay_set_sequence_pos( struct replay *replay, int pos ) {
+/* Set the pattern in the sequence to play. The tempo is reset to the default. */
+void replay_set_sequence_pos( struct replay *replay, int pos ) {
 	int idx;
 	struct module *module = replay->module;
 	if( pos >= module->sequence_len ) {
@@ -1851,7 +1781,8 @@ static void replay_set_sequence_pos( struct replay *replay, int pos ) {
 	replay_tick( replay );
 }
 
-static void dispose_replay( struct replay *replay ) {
+/* Deallocate the specified replay. */
+void dispose_replay( struct replay *replay ) {
 	if( replay->play_count ) {
 		free( replay->play_count[ 0 ] );
 		free( replay->play_count );
@@ -1861,7 +1792,8 @@ static void dispose_replay( struct replay *replay ) {
 	free( replay );
 }
 
-static struct replay* new_replay( struct module *module, int sample_rate, int interpolation ) {
+/* Allocate and initialize a replay with the specified sampling rate and interpolation. */
+struct replay* new_replay( struct module *module, int sample_rate, int interpolation ) {
 	struct replay *replay = calloc( 1, sizeof( struct replay ) );
 	if( replay ) {
 		replay->module = module;
@@ -1883,11 +1815,13 @@ static int calculate_tick_len( int tempo, int sample_rate ) {
 	return ( sample_rate * 5 ) / ( tempo * 2 );
 }
 
-static int calculate_mix_buf_len( int sample_rate ) {
+/* Returns the length of the output buffer required by replay_get_audio(). */
+int calculate_mix_buf_len( int sample_rate ) {
 	return ( calculate_tick_len( 32, sample_rate ) + 65 ) * 4;
 }
 
-static int replay_calculate_duration( struct replay *replay ) {
+/* Returns the song duration in samples at the current sampling rate. */
+int replay_calculate_duration( struct replay *replay ) {
 	int song_end = 0, duration = 0;
 	replay_set_sequence_pos( replay, 0 );
 	while( !song_end ) {
@@ -1898,7 +1832,9 @@ static int replay_calculate_duration( struct replay *replay ) {
 	return duration;
 }
 
-static int replay_seek( struct replay *replay, int sample_pos ) {
+/* Seek to approximately the specified sample position.
+   The actual sample position reached is returned. */
+int replay_seek( struct replay *replay, int sample_pos ) {
 	int idx, tick_len, current_pos = 0;
 	replay_set_sequence_pos( replay, 0 );
 	tick_len = calculate_tick_len( replay->tempo, replay->sample_rate );
@@ -1933,7 +1869,8 @@ static void downsample( int *buf, int count ) {
 	}
 }
 
-static int replay_get_audio( struct replay *replay, int *mix_buf ) {
+/* Generates audio and returns the number of stereo samples written into mix_buf. */
+int replay_get_audio( struct replay *replay, int *mix_buf ) {
 	struct channel *channel;
 	int idx, num_channels, tick_len = calculate_tick_len( replay->tempo, replay->sample_rate );
 	/* Clear output buffer. */
@@ -1950,141 +1887,4 @@ static int replay_get_audio( struct replay *replay, int *mix_buf ) {
 	replay_volume_ramp( replay, mix_buf, tick_len );
 	replay_tick( replay );
 	return tick_len;
-}
-
-static long read_file( char *file_name, void *buffer ) {
-	long file_length = -1, bytes_read;
-	FILE *input_file = fopen( file_name, "rb" );
-	if( input_file != NULL ) {
-		if( fseek( input_file, 0L, SEEK_END ) == 0 ) {
-			file_length = ftell( input_file );
-			if( file_length >= 0 && buffer ) {
-				if( fseek( input_file, 0L, SEEK_SET ) == 0 ) {
-					bytes_read = fread( buffer, 1, file_length, input_file ); 
-					if( bytes_read != file_length ) {
-						file_length = -1;
-					}
-				} else {
-					file_length = -1;
-				}
-			}
-		}
-		fclose( input_file );
-	}
-	if( file_length < 0 ) {
-		fputs( strerror( errno ), stderr );
-		fputs( "\n", stderr );
-	}
-	return file_length;
-}
-
-static long write_file( char *filename, char *buffer, int length ) {
-	long count = -1;
-	FILE *file = fopen( filename, "wb" );
-	if( file != NULL ) {
-		count = fwrite( buffer, 1, length, file );
-		fclose( file );
-	}
-	if( count < length ) {
-		fputs( strerror( errno ), stderr );
-		fputs( "\n", stderr );
-		count = -1;
-	}
-	return count;
-}
-
-static void write_int32le( int value, char *dest ) {
-	dest[ 0 ] = value & 0xFF;
-	dest[ 1 ] = ( value >> 8 ) & 0xFF;
-	dest[ 2 ] = ( value >> 16 ) & 0xFF;
-	dest[ 3 ] = ( value >> 24 ) & 0xFF;
-}
-
-static int xm_to_wav( struct module *module, char *wav ) {
-	int mix_buf[ 16384 ];
-	int idx, duration, samples, ampl, offset, length = 0;
-	struct replay *replay = new_replay( module, 48000, 0 );
-	if( replay ) {
-		duration = replay_calculate_duration( replay );
-		length = duration * 4 + 40;
-		if( wav ) {
-			printf( "Wave file length: %d bytes.\n", length );
-			strcpy( wav, "RIFF" );
-			write_int32le( duration * 4 + 36, &wav[ 4 ] );
-			strcpy( &wav[ 8 ], "WAVEfmt " );
-			write_int32le( 16, &wav[ 16 ] );
-			write_int32le( 0x00020001, &wav[ 20 ] );
-			write_int32le( 48000, &wav[ 24 ] );
-			write_int32le( 48000 * 4, &wav[ 28 ] );
-			write_int32le( 0x00100004, &wav[ 32 ] );
-			strcpy( &wav[ 36 ], "data" );
-			write_int32le( duration, &wav[ 40 ] );
-			replay_seek( replay, 0 );
-			offset = 40;
-			while( offset < length ) {
-				samples = replay_get_audio( replay, mix_buf ) * 2;
-				for( idx = 0; idx < samples; idx++ ) {
-					ampl = mix_buf[ idx ];
-					if( ampl > 32767 ) {
-						ampl = 32767;
-					}
-					if( ampl < -32768 ) {
-						ampl = -32768;
-					}
-					wav[ offset++ ] = ampl & 0xFF;
-					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
-				}
-			}
-		}
-		dispose_replay( replay );
-	}
-	return length;
-}
-
-int main( int argc, char **argv ) {
-	int result, length;
-	char *input, *output, *ext;
-	struct data data;
-	struct module *module;
-	result = EXIT_FAILURE;
-	if( argc != 3 ) {
-		fprintf( stderr, "%s\nUsage: %s input.xm output.wav\n", VERSION, argv[ 0 ] );
-	} else {
-		/* Get output file extension. */
-		ext = argv[ 2 ];
-		length = strlen( argv[ 2 ] );
-		if( length > 3 ) {
-			ext = &ext[ length - 3 ];
-		}
-		/* Read module file.*/
-		length = read_file( argv[ 1 ], NULL );
-		if( length >= 0 ) {
-			printf( "Module Data Length: %d bytes.\n", length );
-			input = calloc( length, 1 );
-			if( input != NULL ) {
-				if( read_file( argv[ 1 ], input ) >= 0 ) {
-					data.buffer = input;
-					data.length = length;
-					module = module_load( &data );
-					if( module ) {
-						/* Perform conversion. */
-						length = xm_to_wav( module, NULL );
-						if( length > 0 ) {
-							output = calloc( length, 1 );
-							if( output != NULL ) {
-								xm_to_wav( module, output );
-								if( write_file( argv[ 2 ], output, length ) > 0 ) {
-									result = EXIT_SUCCESS;
-								}
-								free( output );
-							}
-						}
-						dispose_module( module );
-					}
-				}
-				free( input );
-			}
-		}
-	}
-	return result;
 }

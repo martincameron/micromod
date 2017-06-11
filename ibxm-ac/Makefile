@@ -7,5 +7,5 @@ all: xm2wav
 clean:
 	rm -f xm2wav
 
-xm2wav: ibxm.c
-	$(CC) $(CFLAGS) ibxm.c -o xm2wav
+xm2wav: xm2wav.c ibxm.c
+	$(CC) $(CFLAGS) xm2wav.c ibxm.c -o xm2wav
