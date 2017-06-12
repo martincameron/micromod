@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170611 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170612 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -31,6 +31,39 @@ static const int exp2_table[] = {
 static const short sine_table[] = {
 	  0,  24,  49,  74,  97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253,
 	255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120,  97,  74,  49,  24
+};
+
+struct note {
+	unsigned char key, instrument, volume, effect, param;
+};
+
+struct channel {
+	struct replay *replay;
+	struct instrument *instrument;
+	struct sample *sample;
+	struct note note;
+	int id, key_on, random_seed, pl_row;
+	int sample_off, sample_idx, sample_fra, freq, ampl, pann;
+	int volume, panning, fadeout_vol, vol_env_tick, pan_env_tick;
+	int period, porta_period, retrig_count, fx_count, av_count;
+	int porta_up_param, porta_down_param, tone_porta_param, offset_param;
+	int fine_porta_up_param, fine_porta_down_param, xfine_porta_param;
+	int arpeggio_param, vol_slide_param, gvol_slide_param, pan_slide_param;
+	int fine_vslide_up_param, fine_vslide_down_param;
+	int retrig_volume, retrig_ticks, tremor_on_ticks, tremor_off_ticks;
+	int vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
+	int tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
+	int tremolo_add, vibrato_add, arpeggio_add;
+};
+
+struct replay {
+	int sample_rate, interpolation, global_vol;
+	int seq_pos, break_pos, row, next_row, tick;
+	int speed, tempo, pl_count, pl_chan;
+	int *ramp_buf;
+	char **play_count;
+	struct channel *channels;
+	struct module *module;
 };
 
 static int exp_2( int x ) {
