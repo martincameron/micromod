@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20170131 (c)2017 mumart@gmail.com";
+		return "20170612 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -1101,6 +1101,9 @@ function IBXMModule( moduleData ) {
 			if( ibxmData.uByte( dataOffset + 4 ) != 0 )
 				throw "Unknown pattern packing type!";
 			var numRows = ibxmData.uleShort( dataOffset + 5 );
+			if( numRows < 1 ) {
+				numRows = 1;
+			}
 			var numNotes = numRows * this.numChannels;
 			var pattern = this.patterns[ patIdx ] = new IBXMPattern( this.numChannels, numRows );
 			var patternDataLength = ibxmData.uleShort( dataOffset + 7 );

@@ -317,6 +317,9 @@ static struct module* module_load_xm( struct data *data, char *message ) {
 				return NULL;
 			}
 			num_rows = data_u16le( data, offset + 5 );
+			if( num_rows < 1 ) {
+				num_rows = 1;
+			}
 			pat_data_len = data_u16le( data, offset + 7 );
 			offset += data_u32le( data, offset );
 			next_offset = offset + pat_data_len;

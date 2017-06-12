@@ -291,6 +291,9 @@ public class Module {
 			if( moduleData.uByte( dataOffset + 4 ) != 0 )
 				throw new IllegalArgumentException( "Unknown pattern packing type!" );
 			int numRows = moduleData.uleShort( dataOffset + 5 );
+			if( numRows < 1 ) {
+				numRows = 1;
+			}
 			int numNotes = numRows * numChannels;
 			Pattern pattern = patterns[ patIdx ] = new Pattern( numChannels, numRows );
 			int patternDataLength = moduleData.uleShort( dataOffset + 7 );
