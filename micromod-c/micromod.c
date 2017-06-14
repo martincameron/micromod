@@ -380,7 +380,7 @@ static long sequence_row() {
 		note->key  = ( pattern_data[ pat_offset ] & 0xF ) << 8;
 		note->key |=   pattern_data[ pat_offset + 1 ];
 		note->instrument  = pattern_data[ pat_offset + 2 ] >> 4;
-		note->instrument |= pattern_data[ pat_offset ] & 0x10;
+		note->instrument |= pattern_data[ pat_offset ] & 0xF0;
 		effect = pattern_data[ pat_offset + 2 ] & 0xF;
 		param = pattern_data[ pat_offset + 3 ];
 		pat_offset += 4;
