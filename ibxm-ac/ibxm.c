@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170612 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170626 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -1858,11 +1858,11 @@ int calculate_mix_buf_len( int sample_rate ) {
 
 /* Returns the song duration in samples at the current sampling rate. */
 int replay_calculate_duration( struct replay *replay ) {
-	int song_end = 0, duration = 0;
+	int count = 0, duration = 0;
 	replay_set_sequence_pos( replay, 0 );
-	while( !song_end ) {
+	while( count < 1 ) {
 		duration += calculate_tick_len( replay->tempo, replay->sample_rate );
-		song_end = replay_tick( replay );
+		count = replay_tick( replay );
 	}
 	replay_set_sequence_pos( replay, 0 );
 	return duration;
