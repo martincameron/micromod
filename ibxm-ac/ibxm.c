@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170626 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170627 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -379,7 +379,6 @@ static struct module* module_load_xm( struct data *data, char *message ) {
 				dispose_module( module );
 				return NULL;
 			}
-			instrument->samples[ 0 ].panning = -1;
 			if( num_samples > 0 ) {
 				for( key = 0; key < 96; key++ ) {
 					instrument->key_to_sample[ key + 1 ] = data_u8( data, offset + 33 + key );
@@ -437,7 +436,7 @@ static struct module* module_load_xm( struct data *data, char *message ) {
 				looped = ( data_u8( data, sam_head_offset + 14 ) & 0x3 ) > 0;
 				ping_pong = ( data_u8( data, sam_head_offset + 14 ) & 0x2 ) > 0;
 				sixteen_bit = ( data_u8( data, sam_head_offset + 14 ) & 0x10 ) > 0;
-				sample->panning = data_u8( data, sam_head_offset + 15 );
+				sample->panning = data_u8( data, sam_head_offset + 15 ) + 1;
 				sample->rel_note = data_s8( data, sam_head_offset + 16 );
 				data_ascii( data, sam_head_offset + 18, 22, sample->name );
 				sam_head_offset += 40;
@@ -559,7 +558,6 @@ static struct module* module_load_s3m( struct data *data, char *message ) {
 				loop_start = data_u32le( data, inst_offset + 20 );
 				loop_length = data_u32le( data, inst_offset + 24 ) - loop_start;
 				sample->volume = data_u8( data, inst_offset + 28 );
-				sample->panning = -1;
 				if( data_u8( data, inst_offset + 30 ) != 0 ) {
 					strcpy( message, "Packed samples not supported!" );
 					dispose_module( module );
@@ -828,7 +826,6 @@ static struct module* module_load_mod( struct data *data, char *message ) {
 			if( sample->volume > 64 ) {
 				sample->volume = 64;
 			}
-			sample->panning = -1;
 			loop_start = data_u16be( data, ins * 30 + 16 ) * 2;
 			loop_length = data_u16be( data, ins * 30 + 18 ) * 2;
 			if( loop_start + loop_length > sample_length ) {
@@ -1064,8 +1061,8 @@ static void channel_trigger( struct channel *channel ) {
 		sam = channel->instrument->key_to_sample[ key ];
 		sample = &channel->instrument->samples[ sam ];
 		channel->volume = sample->volume >= 64 ? 64 : sample->volume & 0x3F;
-		if( sample->panning >= 0 ) {
-			channel->panning = sample->panning & 0xFF;
+		if( sample->panning > 0 ) {
+			channel->panning = ( sample->panning - 1 ) & 0xFF;
 		}
 		if( channel->period > 0 && sample->loop_length > 1 ) {
 			/* Amiga trigger.*/
