@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170627 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170704 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -88,6 +88,7 @@ static int log_2( int x ) {
 
 static char* data_ascii( struct data *data, int offset, int length, char *dest ) {
 	int idx, chr;
+	memset( dest, 32, length );
 	if( offset > data->length ) {
 		offset = data->length;
 	}
@@ -96,9 +97,7 @@ static char* data_ascii( struct data *data, int offset, int length, char *dest )
 	}
 	for( idx = 0; idx < length; idx++ ) {
 		chr = data->buffer[ offset + idx ] & 0xFF;
-		if( chr < 32 ) {
-			dest[ idx ] = 32;
-		} else {
+		if( chr > 32 ) {
 			dest[ idx ] = chr;
 		}
 	}
