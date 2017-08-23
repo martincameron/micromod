@@ -87,12 +87,13 @@ static int log_2( int x ) {
 }
 
 static char* data_ascii( struct data *data, int offset, int length, char *dest ) {
-	int idx, chr;
+	int idx, end, chr;
 	memset( dest, 32, length );
 	if( offset > data->length ) {
 		offset = data->length;
 	}
-	if( offset + length > data->length ) {
+	end = offset + length;
+	if( end < 0 || end > data->length ) {
 		length = data->length - offset;
 	}
 	for( idx = 0; idx < length; idx++ ) {
