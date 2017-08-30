@@ -51,6 +51,10 @@
 						patternCanvas.width = patternDisplay.getMaxWidth( 8 );
 						patternCanvas.height = patternDisplay.getMaxHeight();
 						setModule( null );
+						var param = location.search.split( "=" )
+						if( param.length == 2 && param[ 0 ] == "?module" ) {
+							loadURL( param[ 1 ] );
+						}
 					}
 				);
 			}
