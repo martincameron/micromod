@@ -92,7 +92,7 @@ static char* data_ascii( struct data *data, int offset, int length, char *dest )
 	if( offset > data->length ) {
 		offset = data->length;
 	}
-	end = offset + length;
+	end = sizeof( offset + length );
 	if( end < 0 || end > data->length ) {
 		length = data->length - offset;
 	}
