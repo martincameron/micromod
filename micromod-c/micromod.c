@@ -1,7 +1,7 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20161204 (c)2016 mumart@gmail.com */
+/* fast protracker replay version 20171013 (c)2017 mumart@gmail.com */
 
 #define MAX_CHANNELS 16
 #define FP_SHIFT 14
@@ -502,8 +502,14 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 		inst->volume = volume > 64 ? 64 : volume;
 		loop_start = unsigned_short_big_endian( module_data, inst_idx * 30 + 16 ) * 2;
 		loop_length = unsigned_short_big_endian( module_data, inst_idx * 30 + 18 ) * 2;
-		if( loop_start + loop_length > sample_length )
-			loop_length = sample_length - loop_start;
+		if( loop_start + loop_length > sample_length ) {
+			if( loop_start / 2 + loop_length <= sample_length ) {
+				/* Some old modules have loop start in bytes. */
+				loop_start = loop_start / 2;
+			} else {
+				loop_length = sample_length - loop_start;
+			}
+		}
 		if( loop_length < 4 ) {
 			loop_start = sample_length;
 			loop_length = 0;

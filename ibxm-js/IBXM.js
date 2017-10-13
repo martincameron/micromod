@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20170612 (c)2017 mumart@gmail.com";
+		return "20171013 (c)2017 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -1430,8 +1430,14 @@ function IBXMModule( moduleData ) {
 			sample.panning = -1;
 			var loopStart = ibxmData.ubeShort( instIdx * 30 + 16 ) * 2;
 			var loopLength = ibxmData.ubeShort( instIdx * 30 + 18 ) * 2;
-			if( loopStart + loopLength > sampleLength )
-				loopLength = sampleLength - loopStart;
+			if( loopStart + loopLength > sampleLength ) {
+				if( loopStart / 2 + loopLength <= sampleLength ) {
+					/* Some old modules have loop start in bytes. */
+					loopStart = loopStart / 2;
+				} else {
+					loopLength = sampleLength - loopStart;
+				}
+			}
 			if( loopLength < 4 ) {
 				loopStart = sampleLength;
 				loopLength = 0;

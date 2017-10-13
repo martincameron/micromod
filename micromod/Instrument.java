@@ -164,6 +164,14 @@ public class Instrument {
 		setVolume( volume > 64 ? 64 : volume );
 		int loopStart = ubeShort( module, instIdx * 30 + 16 ) * 2;
 		int loopLength = ubeShort( module, instIdx * 30 + 18 ) * 2;
+		if( loopStart + loopLength > sampleLength ) {
+			if( loopStart / 2 + loopLength <= sampleLength ) {
+				/* Some old modules have loop start in bytes. */
+				loopStart = loopStart / 2;
+			} else {
+				loopLength = sampleLength - loopStart;
+			}
+		}
 		setSampleData( module, sampleDataOffset, sampleLength, loopStart, loopLength, false );
 		return sampleDataOffset + sampleLength;
 	}

@@ -1,11 +1,11 @@
 
 /*
-	JavaScript ProTracker Replay (c)2015 mumart@gmail.com
+	JavaScript ProTracker Replay (c)2017 mumart@gmail.com
 */
 function Micromod( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20161204 (c)2016 mumart@gmail.com";
+		return "20171013 (c)2017 mumart@gmail.com";
 	}
 
 	/* Return the sampling rate of playback. */
@@ -710,7 +710,12 @@ function Module( module ) {
 			inst.loopStart = ushortbe( module, instIdx * 30 + 16 ) * 2;
 			inst.loopLength = ushortbe( module, instIdx * 30 + 18 ) * 2;
 			if( inst.loopStart + inst.loopLength > sampleLength ) {
-				inst.loopLength = sampleLength - inst.loopStart;
+				if( inst.loopStart / 2 + inst.loopLength <= sampleLength ) {
+					/* Some old modules have loop start in bytes. */
+					inst.loopStart = inst.loopStart / 2;
+				} else {
+					inst.loopLength = sampleLength - inst.loopStart;
+				}
 			}
 			if( inst.loopLength < 4 ) {
 				inst.loopStart = sampleLength;

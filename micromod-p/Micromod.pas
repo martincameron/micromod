@@ -1,11 +1,11 @@
 
 Unit Micromod;
 
-{ Protracker Replay In Pascal (C)2016 mumart@gmail.com }
+{ Protracker Replay In Pascal (C)2017 mumart@gmail.com }
 
 Interface
 
-Const MICROMOD_VERSION : String = '20161204';
+Const MICROMOD_VERSION : String = '20171013';
 
 Const MICROMOD_ERROR_MODULE_FORMAT_NOT_SUPPORTED : LongInt = -1;
 Const MICROMOD_ERROR_SAMPLING_RATE_NOT_SUPPORTED : LongInt = -2;
@@ -196,8 +196,14 @@ Begin
 		SampleOffset := SampleOffset + SampleLength;
 		LoopStart := UBEWord( Module, InstIndex * 30 + 16 ) * 2;
 		LoopLength := UBEWord( Module, InstIndex * 30 + 18 ) * 2;
-		If LoopStart + LoopLength > SampleLength Then
-			LoopLength := SampleLength - LoopStart;
+		If LoopStart + LoopLength > SampleLength Then Begin
+			If LoopStart Div 2 + LoopLength <= SampleLength Then Begin
+				{ Some old modules have loop start in bytes. }
+				LoopStart := LoopStart Div 2;
+			End Else Begin
+				LoopLength := SampleLength - LoopStart;
+			End;
+		End;
 		If LoopLength < 4 Then Begin
 			LoopStart := SampleLength;
 			LoopLength := 0;

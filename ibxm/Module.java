@@ -114,8 +114,14 @@ public class Module {
 			sample.panning = -1;
 			int loopStart = moduleData.ubeShort( instIdx * 30 + 16 ) * 2;
 			int loopLength = moduleData.ubeShort( instIdx * 30 + 18 ) * 2;
-			if( loopStart + loopLength > sampleLength )
-				loopLength = sampleLength - loopStart;
+			if( loopStart + loopLength > sampleLength ) {
+				if( loopStart / 2 + loopLength <= sampleLength ) {
+					/* Some old modules have loop start in bytes. */
+					loopStart = loopStart / 2;
+				} else {
+					loopLength = sampleLength - loopStart;
+				}
+			}
 			if( loopLength < 4 ) {
 				loopStart = sampleLength;
 				loopLength = 0;

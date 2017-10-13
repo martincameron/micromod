@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20170901 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20171013 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -828,7 +828,12 @@ static struct module* module_load_mod( struct data *data, char *message ) {
 			loop_start = data_u16be( data, ins * 30 + 16 ) * 2;
 			loop_length = data_u16be( data, ins * 30 + 18 ) * 2;
 			if( loop_start + loop_length > sample_length ) {
-				loop_length = sample_length - loop_start;
+				if( loop_start / 2 + loop_length <= sample_length ) {
+					/* Some old modules have loop start in bytes. */
+					loop_start = loop_start / 2;
+				} else {
+					loop_length = sample_length - loop_start;
+				}
 			}
 			if( loop_length < 4 ) {
 				loop_start = sample_length;
