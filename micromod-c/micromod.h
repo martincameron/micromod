@@ -1,4 +1,6 @@
 
+const char *MICROMOD_VERSION;
+
 /*
 	Calculate the length in bytes of a module file given the 1084-byte header.
 	Returns -1 if the data is not recognised as a module.
@@ -31,7 +33,7 @@ long micromod_calculate_song_duration();
 void micromod_set_position( long pos );
 
 /*
-	Calculate the specified number of samples of audio.
+	Calculate the specified number of stereo samples of audio.
 	Output buffer must be zeroed.
 */
 void micromod_get_audio( short *output_buffer, long count );

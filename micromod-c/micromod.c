@@ -1,12 +1,12 @@
 
 #include "micromod.h"
 
-/* fast protracker replay version 20171013 (c)2017 mumart@gmail.com */
-
 #define MAX_CHANNELS 16
 #define FP_SHIFT 14
 #define FP_ONE   16384
 #define FP_MASK  16383
+
+const char *MICROMOD_VERSION = "Micromod Protracker replay 20171013 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;

@@ -1,11 +1,14 @@
 
 CC=gcc
-CFLAGS=-ansi -pedantic -Wall
+CFLAGS=-ansi -pedantic -Wall -g
 
 all: micromod-sdl
 
 clean:
-	rm -f micromod-sdl micromod-w32
+	rm -f mod2wav micromod-sdl micromod-w32
+
+mod2wav: mod2wav.c micromod.c micromod.h
+	$(CC) $(CFLAGS) micromod.c mod2wav.c -o mod2wav
 
 micromod-sdl: sdlplayer.c micromod.c micromod.h
 	$(CC) $(CFLAGS) micromod.c sdlplayer.c -o micromod-sdl `sdl-config --cflags --libs`
