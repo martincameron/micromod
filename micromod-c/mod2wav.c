@@ -6,6 +6,8 @@
 
 #include "micromod.h"
 
+static long filt_l, filt_r;
+
 static long read_file( char *file_name, void *buffer ) {
 	long file_length = -1, bytes_read;
 	FILE *input_file = fopen( file_name, "rb" );
@@ -54,32 +56,51 @@ static void write_int32le( int value, char *dest ) {
 	dest[ 3 ] = ( value >> 24 ) & 0xFF;
 }
 
-static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
+/*
+	2:1 downsampling with simple but effective anti-aliasing.
+	Count is the number of stereo samples to process, and must be even.
+	input may point to the same buffer as output.
+*/
+static void downsample( short *input, short *output, long count ) {
+	long in_idx, out_idx, out_l, out_r;
+	in_idx = out_idx = 0;
+	while( out_idx < count ) {	
+		out_l = filt_l + ( input[ in_idx++ ] >> 1 );
+		out_r = filt_r + ( input[ in_idx++ ] >> 1 );
+		filt_l = input[ in_idx++ ] >> 2;
+		filt_r = input[ in_idx++ ] >> 2;
+		output[ out_idx++ ] = out_l + filt_l;
+		output[ out_idx++ ] = out_r + filt_r;
+	}
+}
+
+static long mod_to_wav( signed char *module_data, char *wav, long sample_rate ) {
 	short mix_buf[ 8192 ];
-	int idx, duration, count, ampl, offset, length = 0;
-	if( micromod_initialise( module_data, sample_rate ) == 0 ) {
-		duration = micromod_calculate_song_duration();
+	long idx, duration, count, ampl, offset, length = 0;
+	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
+		duration = micromod_calculate_song_duration() >> 1;
 		length = duration * 4 + 40;
 		if( wav ) {
-			printf( "Wave file length: %d bytes.\n", length );
+			printf( "Wave file length: %ld bytes.\n", length );
 			strcpy( wav, "RIFF" );
 			write_int32le( duration * 4 + 36, &wav[ 4 ] );
 			strcpy( &wav[ 8 ], "WAVEfmt " );
 			write_int32le( 16, &wav[ 16 ] );
 			write_int32le( 0x00020001, &wav[ 20 ] );
-			write_int32le( 48000, &wav[ 24 ] );
-			write_int32le( 48000 * 4, &wav[ 28 ] );
+			write_int32le( sample_rate, &wav[ 24 ] );
+			write_int32le( sample_rate * 4, &wav[ 28 ] );
 			write_int32le( 0x00100004, &wav[ 32 ] );
 			strcpy( &wav[ 36 ], "data" );
 			write_int32le( duration, &wav[ 40 ] );
 			offset = 40;
 			while( offset < length ) {
-				count = 8192;
+				count = 4096;
 				if( count * 2 > length - offset ) {
 					count = ( length - offset ) >> 1;
 				}
-				memset( mix_buf, 0, count * sizeof( short ) );
-				micromod_get_audio( mix_buf, count >> 1 );
+				memset( mix_buf, 0, count * 2 * sizeof( short ) );
+				micromod_get_audio( mix_buf, count );
+				downsample( mix_buf, mix_buf, count );
 				for( idx = 0; idx < count; idx++ ) {
 					ampl = mix_buf[ idx ];
 					wav[ offset++ ] = ampl & 0xFF;
