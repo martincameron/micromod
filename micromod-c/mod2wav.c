@@ -8,7 +8,7 @@
 
 static long filt_l, filt_r;
 
-static long read_file( char *file_name, void *buffer ) {
+static long read_file( char *file_name, void *buffer, int limit ) {
 	long file_length = -1, bytes_read;
 	FILE *input_file = fopen( file_name, "rb" );
 	if( input_file != NULL ) {
@@ -16,6 +16,9 @@ static long read_file( char *file_name, void *buffer ) {
 			file_length = ftell( input_file );
 			if( file_length >= 0 && buffer ) {
 				if( fseek( input_file, 0L, SEEK_SET ) == 0 ) {
+					if( limit > 0 && file_length > limit ) {
+						file_length = limit;
+					}
 					bytes_read = fread( buffer, 1, file_length, input_file ); 
 					if( bytes_read != file_length ) {
 						file_length = -1;
@@ -114,6 +117,81 @@ static long mod_to_wav( signed char *module_data, char *wav, long sample_rate ) 
 	return length;
 }
 
+static signed char* load_module( char *file_name ) {
+	int length;
+	signed char header[ 1084 ], *module = NULL;
+	if( read_file( file_name, header, 1084 ) == 1084 ) {
+		length = micromod_calculate_mod_file_len( header );
+		if( length > 0 ) {
+			printf( "Module Data Length: %d bytes.\n", length );
+			module = calloc( length, sizeof( signed char ) );
+			if( module ) {
+				if( read_file( file_name, module, length ) < length ) {
+					free( module );
+					module = NULL;
+				}
+			}
+		} else {
+			fputs( "Unrecognized module type.\n", stderr );
+		}
+	}
+	return module;
+}
+
+static int set_pattern( signed char *module_data, int pattern ) {
+	int idx, pat, max = 0;
+	for( idx = 0; idx < 128; idx++ ) {
+		pat = module_data[ 952 + idx ] & 0x7F;
+		if( pat > max ) {
+			max = pat;
+		}
+	}
+	if( pattern < 0 || pattern > max ) {
+		pattern = 0;
+	}
+	module_data[ 952 ] = pattern;
+	module_data[ 950 ] = 1;
+	return pattern;
+}
+
+static int key_to_freq( int key, int c2rate ) {
+	int freq = 0;
+	short key_to_period[] = { 1814, /*
+		 C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-1  A#1  B-1 */
+		1712, 1616, 1524, 1440, 1356, 1280, 1208, 1140, 1076, 1016, 960, 907,
+		 856,  808,  762,  720,  678,  640,  604,  570,  538,  508, 480, 453,
+		 428,  404,  381,  360,  339,  320,  302,  285,  269,  254, 240, 226,
+		 214,  202,  190,  180,  170,  160,  151,  143,  135,  127, 120, 113,
+		 107,  101,   95,   90,   85,   80,   75,   71,   67,   63,  60,  56,
+		  53,   50,   47,   45,   42,   40,   37,   35,   33,   31,  30,  28,
+		  26
+	};
+	if( key > 0 && key < 73 ) {
+		freq = c2rate * 428 / key_to_period[ key ];
+	}
+	return freq;
+}
+
+static int str_to_freq( char *str, int c2rate ) {
+	int key, freq = 0;
+	short str_to_key[] = { -2, 0, 1, 3, 5, 6, 8 };
+	if( str[ 0 ] >= 'A' && str[ 0 ] <= 'G' && strlen( str ) == 3 ) {
+		key = str_to_key[ str[ 0 ] - 'A' ];
+		if( str[ 1 ] == '#' ) {
+			key++;
+		}
+		if( "A-A#B-C-C#D-D#E-F-F#G-G#"[ key * 2 + 5 ] == str[ 1 ] ) {
+			if( str[ 2 ] >= '0' && str[ 2 ] <= '9' ) {
+				key += ( str[ 2 ] - '0' ) * 12;
+				freq = key_to_freq( key, c2rate );
+			}
+		}
+	} else {
+		freq = atoi( str );
+	}
+	return freq;
+}
+
 int main( int argc, char **argv ) {
 	int result, length;
 	signed char *input;
@@ -129,27 +207,21 @@ int main( int argc, char **argv ) {
 			ext = &ext[ length - 3 ];
 		}
 		/* Read module file.*/
-		length = read_file( argv[ 1 ], NULL );
-		if( length >= 0 ) {
-			printf( "Module Data Length: %d bytes.\n", length );
-			input = calloc( length, 1 );
-			if( input != NULL ) {
-				if( read_file( argv[ 1 ], input ) >= 0 ) {
-					/* Perform conversion. */
-					length = mod_to_wav( input, NULL, 48000 );
-					if( length > 0 ) {
-						output = calloc( length, 1 );
-						if( output != NULL ) {
-							mod_to_wav( input, output, 48000 );
-							if( write_file( argv[ 2 ], output, length ) > 0 ) {
-								result = EXIT_SUCCESS;
-							}
-							free( output );
-						}
+		input = load_module( argv[ 1 ] );
+		if( input ) {
+			/* Perform conversion. */
+			length = mod_to_wav( input, NULL, 48000 );
+			if( length > 0 ) {
+				output = calloc( length, 1 );
+				if( output != NULL ) {
+					mod_to_wav( input, output, 48000 );
+					if( write_file( argv[ 2 ], output, length ) > 0 ) {
+						result = EXIT_SUCCESS;
 					}
+					free( output );
 				}
-				free( input );
 			}
+			free( input );
 		}
 	}
 	return result;
