@@ -18,7 +18,7 @@ static const short key_to_period[] = { 1814, /*
 	  26
 };
 
-static int filt_l, filt_r;
+static int filt_l, filt_r, random, s1, s2, s3;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
 	int file_length = -1, bytes_read;
@@ -143,15 +143,15 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 
 static void quantize( short *input, char *output, int gain, int count ) {
 	int in_idx, out_idx;
-	int in, out, dither, rand = 0, s1 = 0, s2 = 0, s3 = 0;
+	int in, out, dither;
 	for( in_idx = 0, out_idx = 0; out_idx < count; in_idx += 2, out_idx++ ) {
 		/* Apply gain and convert to unsigned for proper integer rounding. */
 		in = ( ( ( input[ in_idx ] + input[ in_idx + 1 ] ) * gain ) >> 7 ) + 32768;
 		/* TPDF dither. */
-		rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
-		dither = rand >> 25;
-		rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
-		dither -= rand >> 25;
+		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
+		dither = random >> 25;
+		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
+		dither -= random >> 25;
 		/* "F-weighted" 3-tap noise shaping. Works well around 32khz. */
 		in = in - ( s1 * 13 -s2 * 8 + s3 ) / 8 + dither;
 		s3 = s2;
