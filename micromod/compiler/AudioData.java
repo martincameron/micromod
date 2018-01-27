@@ -198,15 +198,15 @@ public class AudioData {
 	}
 	
 	public void writeWav( OutputStream outputStream, boolean quantize ) throws IOException {
+		int frameSize = quantize ? 1 : 2;
 		writeChars( outputStream, "RIFF".toCharArray(), 4 );
-		writeInt( outputStream, sampleData.length * 2 + 36 ); // Wave chunk length.
+		writeInt( outputStream, sampleData.length * frameSize + 36 ); // Wave chunk length.
 		writeChars( outputStream, "WAVE".toCharArray(), 4 );
 		writeChars( outputStream, "fmt ".toCharArray(), 4 );
 		writeInt( outputStream, 16 ); // Format chunk length.
 		writeShort( outputStream, 1 ); // PCM format.
 		writeShort( outputStream, 1 ); // Mono.
 		writeInt( outputStream, sampleRate );
-		int frameSize = quantize ? 1 : 2;
 		writeInt( outputStream, sampleRate * frameSize ); // Bytes per sec.
 		writeShort( outputStream, frameSize ); // Frame size.
 		writeShort( outputStream, frameSize * 8 ); // Bits per sample.
