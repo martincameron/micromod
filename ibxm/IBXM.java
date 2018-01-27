@@ -5,7 +5,7 @@ package ibxm;
 	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2016 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a73dev (c)2017 mumart@gmail.com";
+	public static final String VERSION = "a73 (c)2017 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
