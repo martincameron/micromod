@@ -18,7 +18,7 @@ static const short key_to_period[] = { 1814, /*
 	  26
 };
 
-static int filt_l, filt_r, random, s1, s2, s3;
+static int filt_l, filt_r, random, s1, s2;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
 	int file_length = -1, bytes_read;
@@ -106,7 +106,7 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 	int idx, duration, count, ampl, offset, length = 0;
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
-		length = duration * 4 + 40;
+		length = duration * 4 + 44;
 		if( wav ) {
 			printf( "Wave file length: %d bytes.\n", length );
 			strcpy( wav, "RIFF" );
@@ -118,8 +118,8 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			write_int32le( sample_rate * 4, &wav[ 28 ] );
 			write_int32le( 0x00100004, &wav[ 32 ] );
 			strcpy( &wav[ 36 ], "data" );
-			write_int32le( duration, &wav[ 40 ] );
-			offset = 40;
+			write_int32le( duration * 4, &wav[ 40 ] );
+			offset = 44;
 			while( offset < length ) {
 				count = 4096;
 				if( count * 2 > length - offset ) {
@@ -145,25 +145,24 @@ static void quantize( short *input, char *output, int gain, int count ) {
 	int in_idx, out_idx;
 	int in, out, dither;
 	for( in_idx = 0, out_idx = 0; out_idx < count; in_idx += 2, out_idx++ ) {
-		/* Apply gain and convert to unsigned for proper integer rounding. */
-		in = ( ( ( input[ in_idx ] + input[ in_idx + 1 ] ) * gain ) >> 7 ) + 32768;
+		/* Convert stereo to mono and apply gain. */
+		in = ( ( input[ in_idx ] + input[ in_idx + 1 ] ) * gain ) >> 7;
 		/* TPDF dither. */
 		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
 		dither = random >> 25;
 		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
 		dither -= random >> 25;
-		/* "F-weighted" 3-tap noise shaping. Works well around 32khz. */
-		in = in - ( s1 * 13 -s2 * 8 + s3 ) / 8 + dither;
-		s3 = s2;
+		/* in = in - ( s1 * 12 - s2 * 7 ) / 8 + dither; */
+		in = in - ( s1 + s1 - s2 ) / 2 + dither;
 		s2 = s1;
 		/* Rounding and quantization. */
-		out = ( in + ( in & 0x80 ) ) >> 8;
+		out = ( in + ( in & 0x80 ) ) / 256;
 		/* Clipping. */
-		if( out < 0 ) out = 0;
-		if( out > 255 ) out = 255;
+		if( out < -128 ) out = -128;
+		if( out > 127 ) out = 127;
 		/* Feedback. */
 		s1 = ( out << 8 ) - in;
-		output[ out_idx ] = out - 128;
+		output[ out_idx ] = out;
 	}
 }
 

@@ -237,27 +237,26 @@ public class AudioData {
 		}
 		byte[] outputBuf = new byte[ sampleData.length ];
 		if( noiseShaping ) {
-			int rand = 0, s1 = 0, s2 = 0, s3 = 0;
+			int rand = 0, s1 = 0, s2 = 0;
 			for( int idx = 0, end = sampleData.length; idx < end; idx++ ) {
-				// Convert to unsigned for proper integer rounding.
-				int in = sampleData[ idx ] + 32768;
+				int in = sampleData[ idx ];
 				// TPDF dither.
 				rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
 				int dither = rand >> 25;
 				rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
 				dither -= rand >> 25;
-				// "F-weighted" 3-tap noise shaping. Works well around 32khz.
-				in = in - ( s1 * 13 -s2 * 8 + s3 ) / 8 + dither;
-				s3 = s2;
+				// Noise-shaping.
+				//in = in - ( s1 * 12 - s2 * 7 ) / 8 + dither;
+				in = in - ( s1 + s1 - s2 ) / 2 + dither;
 				s2 = s1;
-				// Rounding and quantization.
-				int out = ( in + ( in & 0x80 ) ) >> 8;
-				// Clipping.
-				if( out < 0 ) out = 0;
-				if( out > 255 ) out = 255;
-				// Feedback.
+				/* Rounding and quantization. */
+				int out = ( in + ( in & 0x80 ) ) / 256;
+				/* Clipping. */
+				if( out < -128 ) out = -128;
+				if( out > 127 ) out = 127;
+				/* Feedback. */
 				s1 = ( out << 8 ) - in;
-				outputBuf[ idx ] = ( byte ) ( out - 128 );
+				outputBuf[ idx ] = ( byte ) out;
 			}
 		} else {
 			// No noise shaping or rounding, used when source is already 8 bit.

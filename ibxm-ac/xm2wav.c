@@ -60,7 +60,7 @@ static int xm_to_wav( struct module *module, char *wav ) {
 	struct replay *replay = new_replay( module, 48000, 0 );
 	if( replay ) {
 		duration = replay_calculate_duration( replay );
-		length = duration * 4 + 40;
+		length = duration * 4 + 44;
 		if( wav ) {
 			printf( "Wave file length: %d bytes.\n", length );
 			strcpy( wav, "RIFF" );
@@ -72,9 +72,9 @@ static int xm_to_wav( struct module *module, char *wav ) {
 			write_int32le( 48000 * 4, &wav[ 28 ] );
 			write_int32le( 0x00100004, &wav[ 32 ] );
 			strcpy( &wav[ 36 ], "data" );
-			write_int32le( duration, &wav[ 40 ] );
+			write_int32le( duration * 4, &wav[ 40 ] );
 			replay_seek( replay, 0 );
-			offset = 40;
+			offset = 44;
 			while( offset < length ) {
 				samples = replay_get_audio( replay, mix_buf ) * 2;
 				for( idx = 0; idx < samples; idx++ ) {
@@ -97,7 +97,7 @@ static int xm_to_wav( struct module *module, char *wav ) {
 
 int main( int argc, char **argv ) {
 	int result, length;
-	char *input, *output, *ext;
+	char *input, *output;
 	char message[ 64 ] = "";
 	struct data data;
 	struct module *module;
@@ -105,12 +105,6 @@ int main( int argc, char **argv ) {
 	if( argc != 3 ) {
 		fprintf( stderr, "%s\nUsage: %s input.xm output.wav\n", IBXM_VERSION, argv[ 0 ] );
 	} else {
-		/* Get output file extension. */
-		ext = argv[ 2 ];
-		length = strlen( argv[ 2 ] );
-		if( length > 3 ) {
-			ext = &ext[ length - 3 ];
-		}
 		/* Read module file.*/
 		length = read_file( argv[ 1 ], NULL );
 		if( length >= 0 ) {
