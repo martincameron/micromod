@@ -6,6 +6,10 @@
 
 #include "micromod.h"
 
+enum {
+	RAW, WAV, IFF
+};
+
 static const short str_to_key[] = { -2, 0, 1, 3, 5, 6, 8 };
 static const short key_to_period[] = { 1814, /*
 	 C-0   C#0   D-0   D#0   E-0   F-0   F#0   G-0   G#0   A-1  A#1  B-1 */
@@ -288,12 +292,12 @@ void uppercase( char *str ) {
 
 int filetype( char *name ) {
 	char ext[ 5 ];
-	int type = 0, len = strlen( name );
+	int type = WAV, len = strlen( name );
 	if( len > 3 ) {
 		strcpy( ext, &name[ len - 4 ] );
 		uppercase( ext );
-		if( strcmp( ext, ".WAV" ) == 0 ) type = 1;
-		if( strcmp( ext, ".IFF" ) == 0 ) type = 2;
+		if( strcmp( ext, ".IFF" ) == 0 ) type = IFF;
+		if( strcmp( ext, ".RAW" ) == 0 ) type = RAW;
 	}
 	return type;
 }
@@ -327,7 +331,7 @@ int main( int argc, char **argv ) {
 		if( module ) {
 			/* Configure parameters.*/
 			if( rate < 1 ) {
-				rate = ( type == 1 ) ? 48000 : str_to_freq( "A-4", 8287 );
+				rate = ( type == WAV ) ? 48000 : str_to_freq( "A-4", 8287 );
 			}
 			if( gain < 1 ) {
 				gain = 64;
@@ -339,22 +343,22 @@ int main( int argc, char **argv ) {
 				printf( "Converting whole song, sample rate %d, gain %d.\n", rate, gain );
 			}
 			/* Calculate length. */
-			if( type == 1 ) {
+			if( type == WAV ) {
 				puts( "Generating 16-bit stereo RIFF-WAV file." );
 				length = mod_to_wav( module, NULL, rate );
 			} else {
-				printf( "Generating 8-bit mono %s sample.\n", type == 2 ? "IFF-8SVX" : "RAW" );
-				length = mod_to_sam( module, NULL, gain, rate, type == 2 );
+				printf( "Generating 8-bit mono %s sample.\n", type == IFF ? "IFF-8SVX" : "RAW" );
+				length = mod_to_sam( module, NULL, gain, rate, type == IFF );
 			}
 			if( length > 0 ) {
 				printf( "Output file length: %d bytes.\n", length );
 				/* Perform conversion. */
 				output = calloc( length, 1 );
 				if( output ) {
-					if( type == 1 ) {
+					if( type == WAV ) {
 						mod_to_wav( module, output, rate );
 					} else {
-						mod_to_sam( module, output, gain, rate, type == 2 );
+						mod_to_sam( module, output, gain, rate, type == IFF );
 					}
 					if( write_file( argv[ 2 ], output, length ) > 0 ) {
 						result = EXIT_SUCCESS;
