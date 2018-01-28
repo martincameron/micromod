@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-const char *MICROMOD_VERSION = "Micromod Protracker replay 20171013 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20171013 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -453,6 +453,13 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 		}
 	}
 	chan->sample_idx = sidx;
+}
+
+/*
+	Returns a string containing version information.
+*/
+const char* micromod_get_version() {
+	return MICROMOD_VERSION;
 }
 
 /*

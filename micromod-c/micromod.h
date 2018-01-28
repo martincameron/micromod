@@ -1,5 +1,8 @@
 
-const char *MICROMOD_VERSION;
+/*
+	Returns a string containing version information.
+*/
+const char *micromod_get_version();
 
 /*
 	Calculate the length in bytes of a module file given the 1084-byte header.

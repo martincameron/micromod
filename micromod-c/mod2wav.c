@@ -22,6 +22,7 @@ static const short key_to_period[] = { 1814, /*
 	  26
 };
 
+static short mix_buf[ 8192 ];
 static int filt_l, filt_r, random, s1, s2;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
@@ -106,7 +107,6 @@ static void downsample( short *input, short *output, int count ) {
 }
 
 static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
-	short mix_buf[ 8192 ];
 	int idx, duration, count, ampl, offset, length = 0;
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
@@ -124,6 +124,8 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			write_int32le( duration * 4, &wav[ 40 ] );
 			offset = 44;
 			while( offset < length ) {
+				printf( "\rProgress: %d%%", offset * 100 / length );
+				fflush( stdout );
 				count = 4096;
 				if( count * 2 > length - offset ) {
 					count = ( length - offset ) >> 1;
@@ -137,6 +139,7 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
 				}
 			}
+			puts( "\n" );
 		}
 	} else {
 		fputs( "Unsupported module or sampling rate.\n", stderr );
@@ -160,7 +163,8 @@ static void quantize( short *input, char *output, int gain, int count ) {
 		in = in - ( s1 + s1 - s2 ) / 2 + dither;
 		s2 = s1;
 		/* Rounding and quantization. */
-		out = ( in + ( in & 0x80 ) ) / 256;
+		out = in & 0x80;
+		out = ( out + in ) / 256;
 		/* Clipping. */
 		if( out < -128 ) out = -128;
 		if( out > 127 ) out = 127;
@@ -171,7 +175,6 @@ static void quantize( short *input, char *output, int gain, int count ) {
 }
 
 static long mod_to_sam( signed char *module_data, char *sam, int gain, int sample_rate, int iff ) {
-	short mix_buf[ 8192 ];
 	int duration, count, offset = 0, length = 0;
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		length = duration = micromod_calculate_song_duration() >> 1;
@@ -196,6 +199,8 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				offset = 48;
 			}
 			while( offset < length ) {
+				printf( "\rProgress: %d%%", offset * 100 / length );
+				fflush( stdout );
 				count = 2048;
 				if( count > length - offset ) {
 					count = length - offset;
@@ -206,6 +211,7 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				quantize( mix_buf, &sam[ offset ], gain, count );
 				offset += count;
 			}
+			puts( "\n" );
 		}
 	} else {
 		fputs( "Unsupported module or sampling rate.\n", stderr );
@@ -307,7 +313,7 @@ int main( int argc, char **argv ) {
 	int length, type, patt = -1, rate = 0, gain = 64;
 	char *arg, *in_file = NULL, *out_file = NULL, *output;
 	signed char *module;
-	puts( MICROMOD_VERSION );
+	puts( micromod_get_version() );
 	while( idx < argc ) {
 		arg = argv[ idx++ ];
 		if( idx < argc && strcmp( "-pat", arg ) == 0 ) {
@@ -323,7 +329,7 @@ int main( int argc, char **argv ) {
 		}
 	}
 	if( out_file ) {
-		printf( "Converting '%s' to '%s'.\n", in_file, out_file );
+		printf( "Converting \"%s\" to \"%s\".\n", in_file, out_file );
 		/* Get output file type. */
 		type = filetype( out_file );
 		/* Read module file.*/
