@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20171013 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180128 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;

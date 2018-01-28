@@ -6,6 +6,10 @@
 
 #include "micromod.h"
 
+/*
+	Protracker MOD to WAV/IFF-8SVX converter. (c)2018 mumart@gmail.com
+*/
+
 enum {
 	RAW, WAV, IFF
 };
@@ -94,9 +98,8 @@ static void write_int32le( int value, char *dest ) {
 	input may point to the same buffer as output.
 */
 static void downsample( short *input, short *output, int count ) {
-	int in_idx, out_idx, out_l, out_r;
-	in_idx = out_idx = 0;
-	while( out_idx < count ) {	
+	int in_idx = 0, out_idx = 0, out_l, out_r;
+	while( out_idx < count ) {
 		out_l = filt_l + ( input[ in_idx++ ] >> 1 );
 		out_r = filt_r + ( input[ in_idx++ ] >> 1 );
 		filt_l = input[ in_idx++ ] >> 2;
@@ -124,8 +127,6 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			write_int32le( duration * 4, &wav[ 40 ] );
 			offset = 44;
 			while( offset < length ) {
-				printf( "\rProgress: %d%%", offset * 100 / length );
-				fflush( stdout );
 				count = 4096;
 				if( count * 2 > length - offset ) {
 					count = ( length - offset ) >> 1;
@@ -138,6 +139,8 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 					wav[ offset++ ] = ampl & 0xFF;
 					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
 				}
+				printf( "\rProgress: %d%%", offset * 100 / length );
+				fflush( stdout );
 			}
 			puts( "\n" );
 		}
@@ -199,8 +202,6 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				offset = 48;
 			}
 			while( offset < length ) {
-				printf( "\rProgress: %d%%", offset * 100 / length );
-				fflush( stdout );
 				count = 2048;
 				if( count > length - offset ) {
 					count = length - offset;
@@ -210,6 +211,8 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				downsample( mix_buf, mix_buf, count << 1 );
 				quantize( mix_buf, &sam[ offset ], gain, count );
 				offset += count;
+				printf( "\rProgress: %d%%", offset * 100 / length );
+				fflush( stdout );
 			}
 			puts( "\n" );
 		}
@@ -366,7 +369,7 @@ int main( int argc, char **argv ) {
 					} else {
 						mod_to_sam( module, output, gain, rate, type == IFF );
 					}
-					if( write_file( argv[ 2 ], output, length ) > 0 ) {
+					if( write_file( out_file, output, length ) > 0 ) {
 						result = EXIT_SUCCESS;
 					}
 					free( output );
@@ -378,11 +381,11 @@ int main( int argc, char **argv ) {
 		}
 	} else {
 		fprintf( stderr, "Usage: %s input.mod output [-pat p] [-rate r] [-gain g]\n\n", argv[ 0 ] );
-		fprintf( stderr, "   If output ends with '.wav', generate 16-bit stereo RIFF-WAV file.\n" );
-		fprintf( stderr, "   If output ends with '.iff', generate 8-bit mono IFF-8SVX file.\n" );
-		fprintf( stderr, "   If output ends with '.raw', generate 8-bit mono signed raw samples.\n" );
+		fprintf( stderr, "   If output ends with \".wav\", generate 16-bit stereo RIFF-WAV file.\n" );
+		fprintf( stderr, "   If output ends with \".iff\", generate 8-bit mono IFF-8SVX file.\n" );
+		fprintf( stderr, "   If output ends with \".raw\", generate 8-bit mono signed raw samples.\n" );
 		fprintf( stderr, "   If pattern is unspecified, convert the whole song.\n" );
-		fprintf( stderr, "   Rate can be specified in HZ or as a key such as 'C-2'.\n" );
+		fprintf( stderr, "   Rate can be specified in HZ or as a key such as \"C-2\".\n" );
 		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 64.\n\n" );
 		fprintf( stderr, "Whole song to wav: %s input.mod output.wav -rate 48000\n", argv[ 0 ] );
 		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 80\n", argv[ 0 ] );
