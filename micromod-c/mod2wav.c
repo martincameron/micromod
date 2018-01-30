@@ -27,7 +27,7 @@ static const short key_to_period[] = { 1814, /*
 };
 
 static short mix_buf[ 8192 ];
-static int filt_l, filt_r, random, s1, s2;
+static int filt_l, filt_r, dither;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
 	int file_length = -1, bytes_read;
@@ -109,8 +109,29 @@ static void downsample( short *input, short *output, int count ) {
 	}
 }
 
+/* Convert count stereo samples in input to 8-bit mono. */
+static void quantize( short *input, char *output, int gain, int count ) {
+	int in_idx = 0, out_idx = 0, ampl;
+	while( out_idx < count ) {
+		/* Convert stereo to mono and apply gain. */
+		ampl = input[ in_idx++ ];
+		ampl = ( ampl + input[ in_idx++ ] ) * gain >> 7;
+		/* Dither. */
+		dither = ( dither * 65 + 17 ) & 0x7FFFFFFF;
+		ampl += dither >> 24;
+		dither = ( dither * 65 + 17 ) & 0x7FFFFFFF;
+		ampl -= dither >> 24;
+		/* Rounding and clipping. */
+		ampl += ampl & 0x80;
+		ampl = ampl / 256;
+		if( ampl < -128 ) ampl = -128;
+		if( ampl > 127 ) ampl = 127;
+		output[ out_idx++ ] = ampl;
+	}
+}
+
 static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
-	int idx, duration, count, ampl, offset, length = 0;
+	int idx, duration, count, ampl, offset, end, length = 0;
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
 		length = duration * 4 + 44;
@@ -127,15 +148,17 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			write_int32le( duration * 4, &wav[ 40 ] );
 			offset = 44;
 			while( offset < length ) {
-				count = 4096;
-				if( count * 2 > length - offset ) {
-					count = ( length - offset ) >> 1;
+				count = 8192;
+				if( count > length - offset ) {
+					count = length - offset;
 				}
-				memset( mix_buf, 0, count * 2 * sizeof( short ) );
-				micromod_get_audio( mix_buf, count );
-				downsample( mix_buf, mix_buf, count );
-				for( idx = 0; idx < count; idx++ ) {
-					ampl = mix_buf[ idx ];
+				memset( mix_buf, 0, count * sizeof( short ) );
+				micromod_get_audio( mix_buf, count >> 1 );
+				downsample( mix_buf, mix_buf, count >> 1 );
+				idx = 0;
+				end = offset + count;
+				while( offset < end ) {
+					ampl = mix_buf[ idx++ ];
 					wav[ offset++ ] = ampl & 0xFF;
 					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
 				}
@@ -145,36 +168,9 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			puts( "\n" );
 		}
 	} else {
-		fputs( "Unsupported module or sampling rate.\n", stderr );
+		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
 	}
 	return length;
-}
-
-static void quantize( short *input, char *output, int gain, int count ) {
-	int in_idx, out_idx;
-	int in, out, dither;
-	for( in_idx = 0, out_idx = 0; out_idx < count; in_idx += 2, out_idx++ ) {
-		/* Convert stereo to mono and apply gain. */
-		in = ( ( input[ in_idx ] + input[ in_idx + 1 ] ) * gain ) >> 7;
-		/* TPDF dither. */
-		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
-		dither = random >> 25;
-		random = ( random * 65 + 17 ) & 0x7FFFFFFF;
-		dither -= random >> 25;
-		/* Noise-shaping. */
-		/* in = in - ( s1 * 12 - s2 * 7 ) / 8 + dither; */
-		in = in - ( s1 + s1 - s2 ) / 2 + dither;
-		s2 = s1;
-		/* Rounding and quantization. */
-		out = in & 0x80;
-		out = ( out + in ) / 256;
-		/* Clipping. */
-		if( out < -128 ) out = -128;
-		if( out > 127 ) out = 127;
-		/* Feedback. */
-		s1 = ( out << 8 ) - in;
-		output[ out_idx ] = out;
-	}
 }
 
 static long mod_to_sam( signed char *module_data, char *sam, int gain, int sample_rate, int iff ) {
@@ -217,7 +213,7 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 			puts( "\n" );
 		}
 	} else {
-		fputs( "Unsupported module or sampling rate.\n", stderr );
+		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
 	}
 	return length;
 }
@@ -313,7 +309,7 @@ int filetype( char *name ) {
 
 int main( int argc, char **argv ) {
 	int result = EXIT_FAILURE, idx = 1;
-	int length, type, patt = -1, rate = 0, gain = 64;
+	int length, type, patt = -1, rate = -1, gain = 64;
 	char *arg, *in_file = NULL, *out_file = NULL, *output;
 	signed char *module;
 	puts( micromod_get_version() );
@@ -339,7 +335,7 @@ int main( int argc, char **argv ) {
 		module = load_module( in_file );
 		if( module ) {
 			/* Configure parameters.*/
-			if( rate < 1 ) {
+			if( rate < 0 ) {
 				rate = ( type == WAV ) ? 48000 : str_to_freq( "A-4", 8287 );
 			}
 			if( gain < 1 ) {
