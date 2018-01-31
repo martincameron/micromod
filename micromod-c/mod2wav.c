@@ -27,7 +27,7 @@ static const short key_to_period[] = { 1814, /*
 };
 
 static short mix_buf[ 8192 ];
-static int filt_l, filt_r, dither;
+static int filt_l, filt_r, qerror;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
 	int file_length = -1, bytes_read;
@@ -116,16 +116,21 @@ static void quantize( short *input, char *output, int gain, int count ) {
 		/* Convert stereo to mono and apply gain. */
 		ampl = input[ in_idx++ ];
 		ampl = ( ampl + input[ in_idx++ ] ) * gain >> 7;
-		/* Dither. */
-		dither = ( dither * 65 + 17 ) & 0x7FFFFFFF;
-		ampl += dither >> 24;
-		dither = ( dither * 65 + 17 ) & 0x7FFFFFFF;
-		ampl -= dither >> 24;
+		/* Dithering. */
+		ampl -= qerror;
+		qerror = ampl;
 		/* Rounding and clipping. */
 		ampl += ampl & 0x80;
 		ampl = ampl / 256;
-		if( ampl < -128 ) ampl = -128;
-		if( ampl > 127 ) ampl = 127;
+		if( ampl < -128 ) {
+			ampl = -128;
+			qerror = 0;
+		} else if( ampl > 127 ) {
+			ampl = 127;
+			qerror = 0;
+		} else {
+			qerror = ( ampl << 8 ) - qerror;
+		}
 		output[ out_idx++ ] = ampl;
 	}
 }
