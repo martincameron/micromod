@@ -120,18 +120,13 @@ static void quantize( short *input, char *output, int gain, int count ) {
 		/* Dithering. */
 		ampl -= qerror;
 		qerror = ampl;
-		/* Rounding and clipping. */
+		/* Rounding. */
 		ampl += ampl & 0x80;
 		ampl = ampl / 256;
-		if( ampl < -128 ) {
-			ampl = -128;
-			qerror = 0;
-		} else if( ampl > 127 ) {
-			ampl = 127;
-			qerror = 0;
-		} else {
-			qerror = ( ampl << 8 ) - qerror;
-		}
+		qerror = ( ampl << 8 ) - qerror;
+		/* Clipping. */
+		if( ampl < -128 ) ampl = -128;
+		if( ampl > 127 ) ampl = 127;
 		output[ out_idx++ ] = ampl;
 	}
 }
