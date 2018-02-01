@@ -3,6 +3,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "time.h"
 
 #include "micromod.h"
 
@@ -170,7 +171,6 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 				printf( "\rProgress: %d%%", offset * 100 / length );
 				fflush( stdout );
 			}
-			puts( "\n" );
 		}
 	} else {
 		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
@@ -215,7 +215,6 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				printf( "\rProgress: %d%%", offset * 100 / length );
 				fflush( stdout );
 			}
-			puts( "\n" );
 		}
 	} else {
 		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
@@ -317,6 +316,7 @@ int main( int argc, char **argv ) {
 	int length, type, patt = -1, rate = -1, gain = 64;
 	char *arg, *in_file = NULL, *out_file = NULL, *output;
 	signed char *module;
+	time_t seconds = time( NULL );
 	puts( micromod_get_version() );
 	while( idx < argc ) {
 		arg = argv[ idx++ ];
@@ -370,6 +370,7 @@ int main( int argc, char **argv ) {
 					} else {
 						mod_to_sam( module, output, gain, rate, type == IFF );
 					}
+					printf( "\rCompleted in %d seconds!\n", ( int ) ( time( NULL ) - seconds ) );
 					if( write_file( out_file, output, length ) > 0 ) {
 						result = EXIT_SUCCESS;
 					}
