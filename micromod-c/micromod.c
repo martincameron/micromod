@@ -53,6 +53,7 @@ static struct instrument instruments[ 32 ];
 static long sample_rate, c2_rate, tick_len, tick_offset;
 static long pattern, break_pattern, row, next_row, tick;
 static long speed, pl_count, pl_channel, random_seed;
+static long default_pan_left, default_pan_right = 255;
 
 static struct channel channels[ MAX_CHANNELS ];
 
@@ -484,6 +485,12 @@ long micromod_calculate_mod_file_len( signed char *module_header ) {
 	return length;
 }
 
+/* Set the initial panning values from 0 (hard left) to 255 (hard right). */
+void micromod_set_default_panning( int left, int right ) {
+	default_pan_left = left & 0xFF;
+	default_pan_right = right & 0xFF;
+}
+
 /*
 	Set the player to play the specified module data.
 	Returns -1 if the data is not recognised as a module.
@@ -604,8 +611,8 @@ void micromod_set_position( long pos ) {
 		chan->instrument = chan->assigned = 0;
 		chan->volume = 0;
 		switch( chan_idx & 0x3 ) {
-			case 0: case 3: chan->panning = 0; break;
-			case 1: case 2: chan->panning = 255; break;
+			case 0: case 3: chan->panning = default_pan_left; break;
+			case 1: case 2: chan->panning = default_pan_right; break;
 		}
 	}
 	sequence_tick();

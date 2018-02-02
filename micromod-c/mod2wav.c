@@ -132,7 +132,8 @@ static void quantize( short *input, char *output, int gain, int count ) {
 }
 
 static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
-	int idx, duration, count, ampl, offset, end, length = 0;
+	int idx, duration, percent, count, ampl, offset, end, length = 0;
+	micromod_set_default_panning( 51, 204 );
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
 		length = duration * 4 + 44;
@@ -148,6 +149,7 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 			strcpy( &wav[ 36 ], "data" );
 			write_int32le( duration * 4, &wav[ 40 ] );
 			offset = 44;
+			percent = length > 100 ? length / 100 : 1;
 			while( offset < length ) {
 				count = 8192;
 				if( count > length - offset ) {
@@ -163,7 +165,7 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 					wav[ offset++ ] = ampl & 0xFF;
 					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
 				}
-				printf( "\rProgress: %d%%", offset * 100 / length );
+				printf( "\rProgress: %d%%", offset / percent );
 				fflush( stdout );
 			}
 		}
@@ -174,7 +176,8 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 }
 
 static long mod_to_sam( signed char *module_data, char *sam, int gain, int sample_rate, int iff ) {
-	int duration, count, offset = 0, length = 0;
+	int duration, percent, count, offset = 0, length = 0;
+	micromod_set_default_panning( 0, 255 );
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		length = duration = micromod_calculate_song_duration() >> 1;
 		if( iff ) {
@@ -197,6 +200,7 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				write_int32be( duration, &sam[ 44 ] );
 				offset = 48;
 			}
+			percent = length > 100 ? length / 100 : 1;
 			while( offset < length ) {
 				count = 2048;
 				if( count > length - offset ) {
@@ -207,7 +211,7 @@ static long mod_to_sam( signed char *module_data, char *sam, int gain, int sampl
 				downsample( mix_buf, mix_buf, count << 1 );
 				quantize( mix_buf, &sam[ offset ], gain, count );
 				offset += count;
-				printf( "\rProgress: %d%%", offset * 100 / length );
+				printf( "\rProgress: %d%%", offset / percent );
 				fflush( stdout );
 			}
 		}
@@ -308,7 +312,7 @@ int filetype( char *name ) {
 
 int main( int argc, char **argv ) {
 	int result = EXIT_FAILURE, idx = 1;
-	int length, type, patt = -1, rate = -1, gain = 64;
+	int length, type, patt = -1, rate = -1, gain = 128;
 	char *arg, *in_file = NULL, *out_file = NULL, *output;
 	signed char *module;
 	time_t seconds = time( NULL );
@@ -385,7 +389,7 @@ int main( int argc, char **argv ) {
 		fprintf( stderr, "   Rate can be specified in HZ or as a key such as \"C-2\".\n" );
 		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 128.\n\n" );
 		fprintf( stderr, "Whole song to wav: %s input.mod output.wav -rate 48000\n", argv[ 0 ] );
-		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 80\n", argv[ 0 ] );
+		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 128\n", argv[ 0 ] );
 	}
 	return result;
 }

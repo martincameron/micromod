@@ -138,6 +138,7 @@ static long play_module( signed char *module ) {
 	long result;
 	SDL_AudioSpec audiospec;
 	/* Initialise replay.*/
+	micromod_set_default_panning( 51, 204 );
 	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
 	if( result == 0 ) {
 		print_module_info();
