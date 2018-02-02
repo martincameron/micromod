@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180131 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180202 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -50,7 +50,7 @@ static unsigned char *pattern_data, *sequence;
 static long song_length, restart, num_patterns, num_channels;
 static struct instrument instruments[ 32 ];
 
-static long sample_rate, c2_rate, gain, tick_len, tick_offset;
+static long sample_rate, c2_rate, tick_len, tick_offset;
 static long pattern, break_pattern, row, next_row, tick;
 static long speed, pl_count, pl_channel, random_seed;
 
@@ -109,7 +109,7 @@ static void update_frequency( struct channel *chan ) {
 	volume = chan->volume + chan->tremolo_add;
 	if( volume > 64 ) volume = 64;
 	if( volume < 0 ) volume = 0;
-	chan->ampl = volume * gain;
+	chan->ampl = volume;
 }
 
 static void tone_portamento( struct channel *chan ) {
@@ -218,7 +218,7 @@ static void channel_row( struct channel *chan ) {
 			if( ( param & 0x0F ) > 0 ) chan->tremolo_depth = param & 0xF;
 			tremolo( chan );
 			break;
-		case 0x8: /* Set Panning. Not for 4-channel ProTracker. */
+		case 0x8: /* Set Panning (0-127). Not for 4-channel Protracker. */
 			if( num_channels != 4 ) {
 				chan->panning = ( param < 128 ) ? ( param << 1 ) : 255;
 			}
@@ -410,20 +410,17 @@ static long sequence_tick() {
 }
 
 static void resample( struct channel *chan, short *buf, long offset, long count ) {
-	long sample, ampl, lamp, ramp;
-	unsigned long buf_idx, buf_end, sidx, step, inst, llen, lep1, epos;
-	signed char *sdat;
-	ampl = buf ? chan->ampl : 0;
-	ramp = ampl * chan->panning;
-	lamp = ampl * ( 255 - chan->panning );
-	sidx = chan->sample_idx;
-	step = chan->step;
-	inst = chan->instrument;
-	llen = instruments[ inst ].loop_length;
-	lep1 = instruments[ inst ].loop_start + llen;
-	sdat = instruments[ inst ].sample_data;
-	buf_idx = offset << 1;
-	buf_end = ( offset + count ) << 1;
+	unsigned long epos;
+	unsigned long buf_idx = offset << 1;
+	unsigned long buf_end = ( offset + count ) << 1;
+	unsigned long sidx = chan->sample_idx;
+	unsigned long step = chan->step;
+	unsigned long llen = instruments[ chan->instrument ].loop_length;
+	unsigned long lep1 = instruments[ chan->instrument ].loop_start + llen;
+	signed char *sdat = instruments[ chan->instrument ].sample_data;
+	short ampl = buf ? chan->ampl : 0;
+	short lamp = ampl * chan->panning >> 8;
+	short ramp = ampl * ( 255 - chan->panning ) >> 8;
 	while( buf_idx < buf_end ) {
 		if( sidx >= lep1 ) {
 			/* Handle loop. */
@@ -444,12 +441,23 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 		}
 		/* Only mix to end of current loop. */
 		if( epos > lep1 ) epos = lep1;
-		while( sidx < epos ) {
-			/* Most of the cpu time is spent in here. */
-			sample = sdat[ sidx >> FP_SHIFT ];
-			buf[ buf_idx++ ] += sample * lamp >> 8;
-			buf[ buf_idx++ ] += sample * ramp >> 8;
-			sidx += step;
+		/* Most of the cpu time is spent here. */
+		if( lamp && ramp ) {
+			while( sidx < epos ) {
+				/* Mixer for modules with panning commands. */
+				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * lamp;
+				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * ramp;
+				sidx += step;
+			}
+		} else {
+			if( ramp ) buf_idx++;
+			while( sidx < epos ) {
+				/* Optimized mixer for hard-panned Protracker. */
+				buf[ buf_idx ] += sdat[ sidx >> FP_SHIFT ] * ampl;
+				buf_idx += 2;
+				sidx += step;
+			}
+			buf_idx &= -2;
 		}
 	}
 	chan->sample_idx = sidx;
@@ -527,7 +535,6 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 		sample_data_offset += sample_length;
 	}
 	c2_rate = ( num_channels > 4 ) ? 8363 : 8287;
-	gain = ( num_channels > 4 ) ? 1 : 2;
 	micromod_set_position( 0 );
 	return 0;
 }
@@ -597,8 +604,8 @@ void micromod_set_position( long pos ) {
 		chan->instrument = chan->assigned = 0;
 		chan->volume = 0;
 		switch( chan_idx & 0x3 ) {
-			case 0: case 3: chan->panning =  51; break;
-			case 1: case 2: chan->panning = 204; break;
+			case 0: case 3: chan->panning = 0; break;
+			case 1: case 2: chan->panning = 255; break;
 		}
 	}
 	sequence_tick();

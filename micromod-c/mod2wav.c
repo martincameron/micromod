@@ -99,7 +99,7 @@ static void write_int32le( int value, char *dest ) {
 	input may point to the same buffer as output.
 */
 static void downsample( short *input, short *output, int count ) {
-	int in_idx = 0, out_idx = 0, out_l, out_r;
+	short in_idx = 0, out_idx = 0, out_l, out_r;
 	while( out_idx < count ) {
 		out_l = filt_l + ( input[ in_idx++ ] >> 1 );
 		out_r = filt_r + ( input[ in_idx++ ] >> 1 );
@@ -339,7 +339,7 @@ int main( int argc, char **argv ) {
 				rate = ( type == WAV ) ? 48000 : str_to_freq( "A-4", 8287 );
 			}
 			if( gain < 1 ) {
-				gain = 64;
+				gain = 128;
 			}
 			if( patt >= 0 ) {
 				printf( "Converting pattern %d, sample rate %d, gain %d.\n", patt, rate, gain );
@@ -383,7 +383,7 @@ int main( int argc, char **argv ) {
 		fprintf( stderr, "   If output ends with \".raw\", generate 8-bit mono signed raw samples.\n" );
 		fprintf( stderr, "   If pattern is unspecified, convert the whole song.\n" );
 		fprintf( stderr, "   Rate can be specified in HZ or as a key such as \"C-2\".\n" );
-		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 64.\n\n" );
+		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 128.\n\n" );
 		fprintf( stderr, "Whole song to wav: %s input.mod output.wav -rate 48000\n", argv[ 0 ] );
 		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 80\n", argv[ 0 ] );
 	}
