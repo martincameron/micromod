@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180202 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180203 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -53,7 +53,7 @@ static struct instrument instruments[ 32 ];
 static long sample_rate, c2_rate, tick_len, tick_offset;
 static long pattern, break_pattern, row, next_row, tick;
 static long speed, pl_count, pl_channel, random_seed;
-static long default_pan_left, default_pan_right = 255;
+static long default_pan_left, default_pan_right = 127;
 
 static struct channel channels[ MAX_CHANNELS ];
 
@@ -221,7 +221,7 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0x8: /* Set Panning (0-127). Not for 4-channel Protracker. */
 			if( num_channels != 4 ) {
-				chan->panning = ( param < 128 ) ? ( param << 1 ) : 255;
+				chan->panning = ( param < 128 ) ? param : 127;
 			}
 			break;
 		case 0xB: /* Pattern Jump.*/
@@ -420,8 +420,8 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 	unsigned long lep1 = instruments[ chan->instrument ].loop_start + llen;
 	signed char *sdat = instruments[ chan->instrument ].sample_data;
 	short ampl = buf ? chan->ampl : 0;
-	short lamp = ampl * chan->panning >> 8;
-	short ramp = ampl * ( 255 - chan->panning ) >> 8;
+	short lamp = ampl * chan->panning >> 5;
+	short ramp = ampl * ( 127 - chan->panning ) >> 5;
 	while( buf_idx < buf_end ) {
 		if( sidx >= lep1 ) {
 			/* Handle loop. */
@@ -446,8 +446,8 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 		if( lamp && ramp ) {
 			while( sidx < epos ) {
 				/* Mixer for modules with panning commands. */
-				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * lamp;
-				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * ramp;
+				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * lamp >> 2;
+				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * ramp >> 2;
 				sidx += step;
 			}
 		} else {
@@ -485,10 +485,10 @@ long micromod_calculate_mod_file_len( signed char *module_header ) {
 	return length;
 }
 
-/* Set the initial panning values from 0 (hard left) to 255 (hard right). */
+/* Set the initial panning values from 0 (hard left) to 127 (hard right). */
 void micromod_set_default_panning( int left, int right ) {
-	default_pan_left = left & 0xFF;
-	default_pan_right = right & 0xFF;
+	default_pan_left = left & 0x7F;
+	default_pan_right = right & 0x7F;
 }
 
 /*

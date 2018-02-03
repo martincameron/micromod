@@ -98,7 +98,7 @@ static void write_int32le( int value, char *dest ) {
 	Count is the number of stereo samples to process, and must be even.
 	input may point to the same buffer as output.
 */
-static void downsample( short *input, short *output, int count ) {
+static void downsample( short *input, short *output, short count ) {
 	short in_idx = 0, out_idx = 0, out_l, out_r;
 	while( out_idx < count ) {
 		out_l = filt_l + ( input[ in_idx++ ] >> 1 );
@@ -111,8 +111,9 @@ static void downsample( short *input, short *output, int count ) {
 }
 
 /* Convert count stereo samples in input to 8-bit mono. */
-static void quantize( short *input, char *output, int gain, int count ) {
-	int in_idx = 0, out_idx = 0, ampl;
+static void quantize( short *input, char *output, int gain, short count ) {
+	int ampl;
+	short in_idx = 0, out_idx = 0;
 	while( out_idx < count ) {
 		/* Convert stereo to mono and apply gain. */
 		ampl = input[ in_idx++ ];
@@ -133,7 +134,7 @@ static void quantize( short *input, char *output, int gain, int count ) {
 
 static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 	int idx, duration, percent, count, ampl, offset, end, length = 0;
-	micromod_set_default_panning( 51, 204 );
+	micromod_set_default_panning( 27, 100 );
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
 		length = duration * 4 + 44;
@@ -177,7 +178,7 @@ static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 
 static long mod_to_sam( signed char *module_data, char *sam, int gain, int sample_rate, int iff ) {
 	int duration, percent, count, offset = 0, length = 0;
-	micromod_set_default_panning( 0, 255 );
+	micromod_set_default_panning( 0, 127 );
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		length = duration = micromod_calculate_song_duration() >> 1;
 		if( iff ) {
@@ -346,10 +347,10 @@ int main( int argc, char **argv ) {
 				gain = 128;
 			}
 			if( patt >= 0 ) {
-				printf( "Converting pattern %d, sample rate %d, gain %d.\n", patt, rate, gain );
+				printf( "Converting pattern %d, sample rate %dhz, gain %d.\n", patt, rate, gain );
 				set_pattern( module, patt );
 			} else {
-				printf( "Converting whole song, sample rate %d, gain %d.\n", rate, gain );
+				printf( "Converting whole song, sample rate %dhz, gain %d.\n", rate, gain );
 			}
 			/* Calculate length. */
 			if( type == WAV ) {

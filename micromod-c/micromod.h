@@ -10,7 +10,7 @@ const char *micromod_get_version();
 */
 long micromod_calculate_mod_file_len( signed char *module_header );
 
-/* Set the initial panning values from 0 (hard left) to 255 (hard right). */
+/* Set the initial panning values from 0 (hard left) to 127 (hard right). */
 void micromod_set_default_panning( int left, int right );
 
 /*

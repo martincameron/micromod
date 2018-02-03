@@ -141,7 +141,7 @@ static long play_module( signed char *module ) {
 	MMRESULT mmresult;
 	short *buffer;
 	/* Initialise replay.*/
-	micromod_set_default_panning( 51, 204 );
+	micromod_set_default_panning( 27, 100 );
 	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
 	if( result == 0 ) {
 		print_module_info();
