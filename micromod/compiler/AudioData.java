@@ -230,39 +230,21 @@ public class AudioData {
 	}
 
 	public byte[] quantize() {
-		boolean noiseShaping = false;
-		for( int idx = 0; idx < sampleData.length; idx++ ) {
-			/* Determine whether source is already quantized. */
-			noiseShaping |= ( sampleData[ idx ] & 0xFF ) > 0;
-		}
 		byte[] outputBuf = new byte[ sampleData.length ];
-		if( noiseShaping ) {
-			int rand = 0, s1 = 0, s2 = 0;
-			for( int idx = 0, end = sampleData.length; idx < end; idx++ ) {
-				int in = sampleData[ idx ];
-				// TPDF dither.
-				rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
-				int dither = rand >> 25;
-				rand = ( rand * 65 + 17 ) & 0x7FFFFFFF;
-				dither -= rand >> 25;
-				// Noise-shaping.
-				//in = in - ( s1 * 12 - s2 * 7 ) / 8 + dither;
-				in = in - ( s1 + s1 - s2 ) / 2 + dither;
-				s2 = s1;
-				/* Rounding and quantization. */
-				int out = ( in + ( in & 0x80 ) ) / 256;
-				/* Clipping. */
-				if( out < -128 ) out = -128;
-				if( out > 127 ) out = 127;
-				/* Feedback. */
-				s1 = ( out << 8 ) - in;
-				outputBuf[ idx ] = ( byte ) out;
-			}
-		} else {
-			// No noise shaping or rounding, used when source is already 8 bit.
-			for( int idx = 0, end = sampleData.length; idx < end; idx++ ) {
-				outputBuf[ idx ] = ( byte ) ( sampleData[ idx ] >> 8 );
-			}
+		int qerror = 0;
+		for( int idx = 0, end = sampleData.length; idx < end; idx++ ) {
+			int ampl = sampleData[ idx ];
+			/* Dithering. */
+			ampl -= qerror;
+			qerror = ampl;
+			/* Rounding. */
+			ampl += ampl & 0x80;
+			ampl = ampl / 256;
+			qerror = ( ampl << 8 ) - qerror;
+			/* Clipping. */
+			if( ampl < -128 ) ampl = -128;
+			if( ampl > 127 ) ampl = 127;
+			outputBuf[ idx ] = ( byte ) ampl;
 		}
 		return outputBuf;
 	}
