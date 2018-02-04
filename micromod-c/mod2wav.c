@@ -123,7 +123,12 @@ static void quantize( short *input, char *output, int gain, short count ) {
 		qerror = ampl;
 		/* Rounding. */
 		ampl += ampl & 0x80;
-		ampl = ampl / 256;
+		/* Divide by 256. */
+		if( ampl < 0 ) {
+			ampl = ( ampl + 255 ) >> 8;
+		} else{
+			ampl = ampl >> 8;
+		}
 		qerror = ( ampl << 8 ) - qerror;
 		/* Clipping. */
 		if( ampl < -128 ) ampl = -128;
