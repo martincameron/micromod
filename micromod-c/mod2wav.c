@@ -137,6 +137,140 @@ static void quantize( short *input, char *output, int gain, short count ) {
 	}
 }
 
+/* Allocate and return a copy of source. */
+static char* new_string( char *source ) {
+	char *dest = malloc( sizeof( char ) * ( strlen( source ) + 1 ) );
+	if( dest ) {
+		strcpy( dest, source );
+	}
+	return dest;
+}
+
+/* Allocate and return a file-name with a 3-digit serial number added before the extension. */
+static char* series_name( char *file_name, int idx ) {
+	int len = strlen( file_name );
+	char *base, *ext, *name = NULL;
+	base = malloc( len + 1 );
+	if( base ) {
+		strcpy( base, file_name );
+		ext = strrchr( base, '.' );
+		if( ext ) {
+			ext[ 0 ] = 0;
+			ext = &ext[ 1 ];
+		}
+		name = malloc( len + 4 );
+		if( name ) {
+			if( ext ) {
+				sprintf( name, "%s%.3d.%s", base, idx, ext );
+			} else {
+				sprintf( name, "%s%.3d", base, idx );
+			}
+		}
+		free( base );
+	}
+	return name;
+}
+
+static int wav_header( char *out_buf, int sample_rate, int num_samples ) {
+	strcpy( out_buf, "RIFF" );
+	write_int32le( num_samples * 4 + 36, &out_buf[ 4 ] );
+	strcpy( &out_buf[ 8 ], "WAVEfmt " );
+	write_int32le( 16, &out_buf[ 16 ] );
+	write_int32le( 0x00020001, &out_buf[ 20 ] );
+	write_int32le( sample_rate, &out_buf[ 24 ] );
+	write_int32le( sample_rate * 4, &out_buf[ 28 ] );
+	write_int32le( 0x00100004, &out_buf[ 32 ] );
+	strcpy( &out_buf[ 36 ], "data" );
+	write_int32le( num_samples * 4, &out_buf[ 40 ] );
+	return 44;
+}
+
+static void get_audio( char *out_buf, int num_samples ) {
+	int offset = 0, length = num_samples << 2;
+	short idx, end, count, ampl;
+	while( offset < length ) {
+		count = 8192;
+		if( count > length - offset ) {
+			count = length - offset;
+		}
+		memset( mix_buf, 0, count * sizeof( short ) );
+		micromod_get_audio( mix_buf, count >> 1 );
+		downsample( mix_buf, mix_buf, count >> 1 );
+		idx = 0;
+		end = count >> 1;
+		while( idx < end ) {
+			ampl = mix_buf[ idx++ ];
+			out_buf[ offset++ ] = ampl;
+			out_buf[ offset++ ] = ampl >> 8;
+		}
+	}
+}
+
+static void write_wav( char *file_name, int sample_rate, int num_samples ) {
+	int count, offset = 0;
+	FILE *out_file = fopen( file_name, "wb" );
+	if( out_file ) {
+		char *out_buf = malloc( 65536 );
+		if( out_buf ) {
+			count = wav_header( out_buf, sample_rate, num_samples );
+			if( fwrite( out_buf, 1, count, out_file ) == count ) {
+				while( offset < num_samples ) {
+					count = num_samples - offset;
+					if( count > 16384 ) {
+						count = 16384;
+					}
+					get_audio( out_buf, count );
+					if( fwrite( out_buf, 1, count << 2, out_file ) == count << 2 ) {
+						offset += count;
+					} else {
+						fputs( strerror( errno ), stderr );
+						fputs( "\n", stderr );
+						offset = num_samples;
+					}
+				}
+			} else {
+				fputs( strerror( errno ), stderr );
+				fputs( "\n", stderr );
+			}
+			free( out_buf );
+		} else {
+			fputs( "Not enough memory for output buffer.\n", stderr );
+		}
+		fclose( out_file );
+	} else {
+		fputs( strerror( errno ), stderr );
+		fputs( "\n", stderr );
+	}
+}
+
+static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate, int num_files ) {
+	char *out_name;
+	int duration, count, offset = 0, file = 0, result = 0;
+	micromod_set_default_panning( 27, 100 );
+	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
+		duration = micromod_calculate_song_duration() >> 1;
+		count = num_files > 0 ? duration / num_files : duration;
+		while( offset < duration ) {
+			if( file >= num_files - 1 ) {
+				count = duration - offset;
+			}
+			if( num_files > 1 ) {
+				out_name = series_name( file_name, file++ );
+			} else {
+				out_name = new_string( file_name );
+			}
+			if( out_name ) {
+				write_wav( out_name, sample_rate, count );
+				free( out_name );
+			}
+			offset += count;
+		}
+	} else {
+		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
+	}
+	return result;
+}
+
 static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
 	int idx, duration, percent, count, ampl, offset, end, length = 0;
 	micromod_set_default_panning( 27, 100 );

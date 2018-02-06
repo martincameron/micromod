@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180203 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180206 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -435,30 +435,32 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 		}
 		/* Calculate sample position at end. */
 		epos = sidx + ( ( buf_end - buf_idx ) >> 1 ) * step;
-		if( ampl <= 0 ) {
-			/* No need to mix. */
-			sidx = epos;
-			break;
-		}
-		/* Only mix to end of current loop. */
-		if( epos > lep1 ) epos = lep1;
 		/* Most of the cpu time is spent here. */
-		if( lamp && ramp ) {
-			while( sidx < epos ) {
-				/* Mixer for modules with panning commands. */
-				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * lamp >> 2;
-				buf[ buf_idx++ ] += sdat[ sidx >> FP_SHIFT ] * ramp >> 2;
-				sidx += step;
+		if( lamp || ramp ) {
+			/* Only mix to end of current loop. */
+			if( epos > lep1 ) epos = lep1;
+			if( lamp && ramp ) {
+				/* Mix both channels. */
+				while( sidx < epos ) {
+					ampl = sdat[ sidx >> FP_SHIFT ];
+					buf[ buf_idx++ ] += ampl * lamp >> 2;
+					buf[ buf_idx++ ] += ampl * ramp >> 2;
+					sidx += step;
+				}
+			} else {
+				/* Only mix one channel. */
+				if( ramp ) buf_idx++;
+				while( sidx < epos ) {
+					buf[ buf_idx ] += sdat[ sidx >> FP_SHIFT ] * ampl;
+					buf_idx += 2;
+					sidx += step;
+				}
+				buf_idx &= -2;
 			}
 		} else {
-			if( ramp ) buf_idx++;
-			while( sidx < epos ) {
-				/* Optimized mixer for hard-panned Protracker. */
-				buf[ buf_idx ] += sdat[ sidx >> FP_SHIFT ] * ampl;
-				buf_idx += 2;
-				sidx += step;
-			}
-			buf_idx &= -2;
+			/* No need to mix.*/
+			buf_idx = buf_end;
+			sidx = epos;
 		}
 	}
 	chan->sample_idx = sidx;
