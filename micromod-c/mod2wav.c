@@ -185,7 +185,24 @@ static int wav_header( char *out_buf, int sample_rate, int num_samples ) {
 	return 44;
 }
 
-static void get_audio( char *out_buf, int num_samples ) {
+static int iff_header( char *out_buf, int sample_rate, int num_samples ) {
+	strcpy( out_buf, "FORM" );
+	write_int32be( num_samples + 40, &out_buf[ 4 ] );
+	strcpy( &out_buf[ 8 ], "8SVXVHDR" );
+	write_int32be( 20, &out_buf[ 16 ] );
+	write_int32be( num_samples, &out_buf[ 20 ] );
+	write_int32be( 0, &out_buf[ 24 ] );
+	write_int32be( 32, &out_buf[ 28 ] );
+	write_shortbe( sample_rate, &out_buf[ 32 ] );
+	out_buf[ 34 ] = 1;
+	out_buf[ 35 ] = 0;
+	write_int32be( 65536, &out_buf[ 36 ] );
+	strcpy( &out_buf[ 40 ], "BODY" );
+	write_int32be( num_samples, &out_buf[ 44 ] );
+	return 48;
+}
+
+static int get_audio_s16le( char *out_buf, int num_samples ) {
 	int offset = 0, length = num_samples << 2;
 	short idx, end, count, ampl;
 	while( offset < length ) {
@@ -204,23 +221,48 @@ static void get_audio( char *out_buf, int num_samples ) {
 			out_buf[ offset++ ] = ampl >> 8;
 		}
 	}
+	return length;
 }
 
-static void write_wav( char *file_name, int sample_rate, int num_samples ) {
+static int get_audio_s8( char *out_buf, int length, int gain ) {
 	int count, offset = 0;
+	while( offset < length ) {
+		count = 2048;
+		if( count > length - offset ) {
+			count = length - offset;
+		}
+		memset( mix_buf, 0, ( count << 2 ) * sizeof( short ) );
+		micromod_get_audio( mix_buf, count << 1 );
+		downsample( mix_buf, mix_buf, count << 1 );
+		quantize( mix_buf, &out_buf[ offset ], gain, count );
+		offset += count;
+	}
+	return length;
+}
+
+static void write_sam( char *file_name, int sample_rate, int num_samples, int gain, int type ) {
+	int bytes, offset = 0, count = 0;
 	FILE *out_file = fopen( file_name, "wb" );
 	if( out_file ) {
 		char *out_buf = malloc( 65536 );
 		if( out_buf ) {
-			count = wav_header( out_buf, sample_rate, num_samples );
-			if( fwrite( out_buf, 1, count, out_file ) == count ) {
+			if( type == WAV ) {
+				count = wav_header( out_buf, sample_rate, num_samples );
+			} else if( type == IFF ) {
+				count = iff_header( out_buf, sample_rate, num_samples );
+			}
+			if( count == 0 || fwrite( out_buf, 1, count, out_file ) == count ) {
 				while( offset < num_samples ) {
 					count = num_samples - offset;
 					if( count > 16384 ) {
 						count = 16384;
 					}
-					get_audio( out_buf, count );
-					if( fwrite( out_buf, 1, count << 2, out_file ) == count << 2 ) {
+					if( type == WAV ) {
+						bytes = get_audio_s16le( out_buf, count );
+					} else {
+						bytes = get_audio_s8( out_buf, count, gain );
+					}
+					if( fwrite( out_buf, 1, bytes, out_file ) == bytes ) {
 						offset += count;
 					} else {
 						fputs( strerror( errno ), stderr );
@@ -243,10 +285,12 @@ static void write_wav( char *file_name, int sample_rate, int num_samples ) {
 	}
 }
 
-static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate, int num_files ) {
+static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate, int gain, int type, int num_files ) {
 	char *out_name;
 	int duration, count, offset = 0, file = 0, result = 0;
-	micromod_set_default_panning( 27, 100 );
+	if( type == WAV ) {
+		micromod_set_default_panning( 27, 100 );
+	}
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
 		count = num_files > 0 ? duration / num_files : duration;
@@ -260,7 +304,7 @@ static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate
 				out_name = new_string( file_name );
 			}
 			if( out_name ) {
-				write_wav( out_name, sample_rate, count );
+				write_sam( out_name, sample_rate, count, gain, type );
 				free( out_name );
 			}
 			offset += count;
@@ -491,6 +535,7 @@ int main( int argc, char **argv ) {
 			} else {
 				printf( "Converting whole song, sample rate %dhz, gain %d.\n", rate, gain );
 			}
+			/*mod_2_wav( module, out_file, rate, gain, type, 1 );*/
 			/* Calculate length. */
 			if( type == WAV ) {
 				puts( "Generating 16-bit stereo RIFF-WAV file." );
