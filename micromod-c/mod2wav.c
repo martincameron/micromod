@@ -252,9 +252,9 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 						bytes = get_audio_s8( out_buf, count, gain );
 					}
 					if( fwrite( out_buf, 1, bytes, out_file ) == bytes ) {
-						printf( "\rProgress %d%%", offset / percent );
-						fflush( stdout );
 						offset += count;
+						printf( "\rProgress: %d%%", offset / percent );
+						fflush( stdout );
 					} else {
 						fputs( strerror( errno ), stderr );
 						fputs( "\n", stderr );
