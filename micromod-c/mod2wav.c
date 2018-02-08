@@ -59,21 +59,6 @@ static int read_file( char *file_name, void *buffer, int limit ) {
 	return file_length;
 }
 
-static int write_file( char *filename, char *buffer, int length ) {
-	int count = -1;
-	FILE *file = fopen( filename, "wb" );
-	if( file != NULL ) {
-		count = fwrite( buffer, 1, length, file );
-		fclose( file );
-	}
-	if( count < length ) {
-		fputs( strerror( errno ), stderr );
-		fputs( "\n", stderr );
-		count = -1;
-	}
-	return count;
-}
-
 static void write_shortbe( int value, char *dest ) {
 	dest[ 0 ] = ( value >> 8 ) & 0xFF;
 	dest[ 1 ] = value & 0xFF;
@@ -241,8 +226,9 @@ static int get_audio_s8( char *out_buf, int length, int gain ) {
 }
 
 static void write_sam( char *file_name, int sample_rate, int num_samples, int gain, int type ) {
-	int bytes, offset = 0, count = 0;
+	int bytes, percent, offset = 0, count = 0;
 	FILE *out_file = fopen( file_name, "wb" );
+	time_t seconds = time( NULL );
 	if( out_file ) {
 		char *out_buf = malloc( 65536 );
 		if( out_buf ) {
@@ -252,6 +238,9 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 				count = iff_header( out_buf, sample_rate, num_samples );
 			}
 			if( count == 0 || fwrite( out_buf, 1, count, out_file ) == count ) {
+				bytes = count + ( type == WAV ? num_samples * 4 : num_samples );
+				printf( "Generating \"%s\", file size %d bytes.\n", file_name, bytes );
+				percent = num_samples > 100 ? num_samples / 100 : 1;
 				while( offset < num_samples ) {
 					count = num_samples - offset;
 					if( count > 16384 ) {
@@ -263,6 +252,8 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 						bytes = get_audio_s8( out_buf, count, gain );
 					}
 					if( fwrite( out_buf, 1, bytes, out_file ) == bytes ) {
+						printf( "\rProgress %d%%", offset / percent );
+						fflush( stdout );
 						offset += count;
 					} else {
 						fputs( strerror( errno ), stderr );
@@ -270,6 +261,7 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 						offset = num_samples;
 					}
 				}
+				printf( "\rCompleted in %d seconds!\n", ( int ) ( time( NULL ) - seconds ) );
 			} else {
 				fputs( strerror( errno ), stderr );
 				fputs( "\n", stderr );
@@ -289,7 +281,11 @@ static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate
 	char *out_name;
 	int duration, count, offset = 0, file = 0, result = 0;
 	if( type == WAV ) {
+		printf( "Generating %d 16-bit stereo RIFF-WAV files.\n", num_files );
 		micromod_set_default_panning( 27, 100 );
+	} else {
+		printf( "Generating %d 8-bit mono %s files.\n", num_files, type == IFF ? "IFF-8SVX" : "RAW" );
+		micromod_set_default_panning( 0, 127 );
 	}
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
 		duration = micromod_calculate_song_duration() >> 1;
@@ -313,96 +309,6 @@ static int mod_2_wav( signed char *module_data, char *file_name, int sample_rate
 		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
 	}
 	return result;
-}
-
-static int mod_to_wav( signed char *module_data, char *wav, int sample_rate ) {
-	int idx, duration, percent, count, ampl, offset, end, length = 0;
-	micromod_set_default_panning( 27, 100 );
-	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
-		duration = micromod_calculate_song_duration() >> 1;
-		length = duration * 4 + 44;
-		if( wav ) {
-			strcpy( wav, "RIFF" );
-			write_int32le( duration * 4 + 36, &wav[ 4 ] );
-			strcpy( &wav[ 8 ], "WAVEfmt " );
-			write_int32le( 16, &wav[ 16 ] );
-			write_int32le( 0x00020001, &wav[ 20 ] );
-			write_int32le( sample_rate, &wav[ 24 ] );
-			write_int32le( sample_rate * 4, &wav[ 28 ] );
-			write_int32le( 0x00100004, &wav[ 32 ] );
-			strcpy( &wav[ 36 ], "data" );
-			write_int32le( duration * 4, &wav[ 40 ] );
-			offset = 44;
-			percent = length > 100 ? length / 100 : 1;
-			while( offset < length ) {
-				count = 8192;
-				if( count > length - offset ) {
-					count = length - offset;
-				}
-				memset( mix_buf, 0, count * sizeof( short ) );
-				micromod_get_audio( mix_buf, count >> 1 );
-				downsample( mix_buf, mix_buf, count >> 1 );
-				idx = 0;
-				end = offset + count;
-				while( offset < end ) {
-					ampl = mix_buf[ idx++ ];
-					wav[ offset++ ] = ampl & 0xFF;
-					wav[ offset++ ] = ( ampl >> 8 ) & 0xFF;
-				}
-				printf( "\rProgress: %d%%", offset / percent );
-				fflush( stdout );
-			}
-		}
-	} else {
-		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
-	}
-	return length;
-}
-
-static long mod_to_sam( signed char *module_data, char *sam, int gain, int sample_rate, int iff ) {
-	int duration, percent, count, offset = 0, length = 0;
-	micromod_set_default_panning( 0, 127 );
-	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
-		length = duration = micromod_calculate_song_duration() >> 1;
-		if( iff ) {
-			length = duration + 48;
-		}
-		if( sam ) {
-			if( iff ) {
-				strcpy( sam, "FORM" );
-				write_int32be( duration + 40, &sam[ 4 ] );
-				strcpy( &sam[ 8 ], "8SVXVHDR" );
-				write_int32be( 20, &sam[ 16 ] );
-				write_int32be( duration, &sam[ 20 ] );
-				write_int32be( 0, &sam[ 24 ] );
-				write_int32be( 32, &sam[ 28 ] );
-				write_shortbe( sample_rate, &sam[ 32 ] );
-				sam[ 34 ] = 1;
-				sam[ 35 ] = 0;
-				write_int32be( 65536, &sam[ 36 ] );
-				strcpy( &sam[ 40 ], "BODY" );
-				write_int32be( duration, &sam[ 44 ] );
-				offset = 48;
-			}
-			percent = length > 100 ? length / 100 : 1;
-			while( offset < length ) {
-				count = 2048;
-				if( count > length - offset ) {
-					count = length - offset;
-				}
-				memset( mix_buf, 0, count * 4 * sizeof( short ) );
-				micromod_get_audio( mix_buf, count << 1 );
-				downsample( mix_buf, mix_buf, count << 1 );
-				quantize( mix_buf, &sam[ offset ], gain, count );
-				offset += count;
-				printf( "\rProgress: %d%%", offset / percent );
-				fflush( stdout );
-			}
-		}
-	} else {
-		fputs( "Unsupported module or invalid sampling rate.\n", stderr );
-	}
-	return length;
 }
 
 static signed char* load_module( char *file_name ) {
@@ -497,10 +403,9 @@ int filetype( char *name ) {
 
 int main( int argc, char **argv ) {
 	int result = EXIT_FAILURE, idx = 1;
-	int length, type, patt = -1, rate = -1, gain = 128;
-	char *arg, *in_file = NULL, *out_file = NULL, *output;
+	int type, patt = -1, rate = -1, gain = 128, files = 1;
+	char *arg, *in_file = NULL, *out_file = NULL;
 	signed char *module;
-	time_t seconds = time( NULL );
 	puts( micromod_get_version() );
 	while( idx < argc ) {
 		arg = argv[ idx++ ];
@@ -510,6 +415,8 @@ int main( int argc, char **argv ) {
 			rate = str_to_freq( argv[ idx++ ], 8287 );
 		} else if( idx < argc && strcmp( "-gain", arg ) == 0 ) {
 			gain = atoi( argv[ idx++ ] );
+		} else if( idx < argc && strcmp( "-split", arg ) == 0 ) {
+			files = atoi( argv[ idx++ ] );
 		} else if( !in_file ) {
 			in_file = arg;
 		} else if( !out_file ) {
@@ -530,50 +437,28 @@ int main( int argc, char **argv ) {
 			if( gain < 1 ) {
 				gain = 128;
 			}
+			if( files < 1 ) {
+				files = 1;
+			}
 			if( patt >= 0 ) {
 				printf( "Converting pattern %d, sample rate %dhz, gain %d.\n", patt, rate, gain );
 				set_pattern( module, patt );
 			} else {
 				printf( "Converting whole song, sample rate %dhz, gain %d.\n", rate, gain );
 			}
-			/*mod_2_wav( module, out_file, rate, gain, type, 1 );*/
-			/* Calculate length. */
-			if( type == WAV ) {
-				puts( "Generating 16-bit stereo RIFF-WAV file." );
-				length = mod_to_wav( module, NULL, rate );
-			} else {
-				printf( "Generating 8-bit mono %s sample.\n", type == IFF ? "IFF-8SVX" : "RAW" );
-				length = mod_to_sam( module, NULL, gain, rate, type == IFF );
-			}
-			if( length > 0 ) {
-				printf( "Output file length: %d bytes.\n", length );
-				/* Perform conversion. */
-				output = calloc( length, 1 );
-				if( output ) {
-					if( type == WAV ) {
-						mod_to_wav( module, output, rate );
-					} else {
-						mod_to_sam( module, output, gain, rate, type == IFF );
-					}
-					printf( "\rCompleted in %d seconds!\n", ( int ) ( time( NULL ) - seconds ) );
-					if( write_file( out_file, output, length ) > 0 ) {
-						result = EXIT_SUCCESS;
-					}
-					free( output );
-				} else {
-					fputs( "Not enough memory for output file.\n", stderr );
-				}
-			}
+			/* Perform conversion.*/
+			mod_2_wav( module, out_file, rate, gain, type, files );
 			free( module );
 		}
 	} else {
-		fprintf( stderr, "Usage: %s input.mod output [-pat p] [-rate r] [-gain g]\n\n", argv[ 0 ] );
+		fprintf( stderr, "Usage: %s input.mod output [-pat p] [-rate r] [-gain g] [-split n]\n\n", argv[ 0 ] );
 		fprintf( stderr, "   If output ends with \".wav\", generate 16-bit stereo RIFF-WAV file.\n" );
 		fprintf( stderr, "   If output ends with \".iff\", generate 8-bit mono IFF-8SVX file.\n" );
 		fprintf( stderr, "   If output ends with \".raw\", generate 8-bit mono signed raw samples.\n" );
 		fprintf( stderr, "   If pattern is unspecified, convert the whole song.\n" );
 		fprintf( stderr, "   Rate can be specified in HZ or as a key such as \"C-2\".\n" );
-		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 128.\n\n" );
+		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 128.\n" );
+		fprintf( stderr, "   Split divides the output into the specified number of files.\n\n" );
 		fprintf( stderr, "Whole song to wav: %s input.mod output.wav -rate 48000\n", argv[ 0 ] );
 		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 128\n", argv[ 0 ] );
 	}
