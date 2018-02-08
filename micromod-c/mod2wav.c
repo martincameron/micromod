@@ -439,8 +439,9 @@ static int set_pattern( signed char *module_data, int pattern ) {
 	if( pattern < 0 || pattern > max ) {
 		pattern = 0;
 	}
-	module_data[ 952 ] = pattern;
 	module_data[ 950 ] = 1;
+	module_data[ 952 ] = pattern;
+	module_data[ 953 ] = max;
 	return pattern;
 }
 
