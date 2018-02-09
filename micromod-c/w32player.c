@@ -64,6 +64,17 @@ static void reverb( short *buffer, long count ) {
 	}
 }
 
+/* Reduce stereo-separation of count samples. */
+static void crossfeed( short *audio, int count ) {
+	int l, r, offset = 0, end = count << 1;
+	while( offset < end ) {
+		l = audio[ offset ];
+		r = audio[ offset + 1 ];
+		audio[ offset++ ] = ( l + l + l + r ) >> 2;
+		audio[ offset++ ] = ( r + r + r + l ) >> 2;
+	}
+}
+
 static void __stdcall wave_out_proc( HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR dw1, DWORD_PTR dw2 ) {
 	/*if( uMsg == WOM_OPEN ) printf( "Device open.\n" );*/
 	if( uMsg == WOM_DONE ) ReleaseSemaphore( semaphore, 1, NULL );
@@ -141,7 +152,6 @@ static long play_module( signed char *module ) {
 	MMRESULT mmresult;
 	short *buffer;
 	/* Initialise replay.*/
-	micromod_set_default_panning( 27, 100 );
 	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
 	if( result == 0 ) {
 		print_module_info();
@@ -184,6 +194,7 @@ static long play_module( signed char *module ) {
 				memset( mix_buffer, 0, BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE * sizeof( short ) );
 				micromod_get_audio( mix_buffer, count );
 				downsample( mix_buffer, buffer, BUFFER_SAMPLES * OVERSAMPLE );
+				crossfeed( buffer, BUFFER_SAMPLES );
 				reverb( buffer, BUFFER_SAMPLES );
 				samples_remaining -= count;
 				/* Submit buffer to audio system. */

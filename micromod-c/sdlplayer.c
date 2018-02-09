@@ -62,6 +62,17 @@ static void reverb( short *buffer, long count ) {
 	}
 }
 
+/* Reduce stereo-separation of count samples. */
+static void crossfeed( short *audio, int count ) {
+	int l, r, offset = 0, end = count << 1;
+	while( offset < end ) {
+		l = audio[ offset ];
+		r = audio[ offset + 1 ];
+		audio[ offset++ ] = ( l + l + l + r ) >> 2;
+		audio[ offset++ ] = ( r + r + r + l ) >> 2;
+	}
+}
+
 static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	long count;
 	count = len * OVERSAMPLE / 4;
@@ -75,6 +86,7 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 		memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
 		micromod_get_audio( mix_buffer, count );
 		downsample( mix_buffer, ( short * ) stream, count );
+		crossfeed( ( short * ) stream, count / OVERSAMPLE );
 		reverb( ( short * ) stream, count / OVERSAMPLE );
 		samples_remaining -= count;
 	} else {
@@ -138,7 +150,6 @@ static long play_module( signed char *module ) {
 	long result;
 	SDL_AudioSpec audiospec;
 	/* Initialise replay.*/
-	micromod_set_default_panning( 27, 100 );
 	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
 	if( result == 0 ) {
 		print_module_info();

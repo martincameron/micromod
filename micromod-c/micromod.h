@@ -10,9 +10,6 @@ const char *micromod_get_version();
 */
 long micromod_calculate_mod_file_len( signed char *module_header );
 
-/* Set the initial panning values from 0 (hard left) to 127 (hard right). */
-void micromod_set_default_panning( int left, int right );
-
 /*
 	Set the player to play the specified module data.
 	Returns -1 if the data is not recognised as a module.
