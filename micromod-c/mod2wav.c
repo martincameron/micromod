@@ -275,7 +275,7 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 						} else {
 							fputs( strerror( errno ), stderr );
 							fputs( "\n", stderr );
-							offset = num_samples;
+							interrupted = 1;
 						}
 					}
 				}
