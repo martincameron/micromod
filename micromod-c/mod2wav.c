@@ -491,7 +491,7 @@ int main( int argc, char **argv ) {
 			free( module );
 		}
 	} else {
-		fprintf( stderr, "Usage: %s in.mod output [-pat p] [-rate r] [-gain g] [-split n] [-chan n]\n\n", argv[ 0 ] );
+		fprintf( stderr, "Usage: %s in.mod out [-pat p] [-rate r] [-gain g] [-split n] [-chan n]\n\n", argv[ 0 ] );
 		fprintf( stderr, "   If output ends with \".wav\", generate 16-bit stereo RIFF-WAV file.\n" );
 		fprintf( stderr, "   If output ends with \".iff\", generate 8-bit mono IFF-8SVX file.\n" );
 		fprintf( stderr, "   If output ends with \".raw\", generate 8-bit mono signed raw samples.\n" );
