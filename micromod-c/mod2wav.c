@@ -297,15 +297,24 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 	}
 }
 
-static int mod_to_wav( signed char *module_data, char *file_name, int sample_rate, int gain, int type, int num_files ) {
+static int mod_to_wav( signed char *module_data, char *file_name, int sample_rate, int gain, int chan, int type, int num_files ) {
 	char *out_name;
-	int duration, count, offset = 0, file = 0, result = 0;
+	int num_channels, idx, duration, count, offset = 0, file = 0, result = 0;
 	if( type == WAV ) {
 		printf( "Generating %d 16-bit stereo RIFF-WAV files.\n", num_files );
 	} else {
 		printf( "Generating %d 8-bit mono %s files.\n", num_files, type == IFF ? "IFF-8SVX" : "RAW" );
 	}
 	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
+		num_channels = micromod_mute_channel( -1 );
+		if( chan >= 0 && chan < num_channels ) {
+			printf( "Muting all but channel %d.\n", chan );
+			for( idx = 0; idx < num_channels; idx++ ) {
+				if( idx != chan ) {
+					micromod_mute_channel( idx );
+				}
+			}
+		}
 		duration = micromod_calculate_song_duration() >> 1;
 		count = num_files > 0 ? duration / num_files : duration;
 		while( offset < duration && !interrupted ) {
@@ -427,7 +436,7 @@ static void termination_handler( int signum ) {
 
 int main( int argc, char **argv ) {
 	int result = EXIT_FAILURE, idx = 1;
-	int type, patt = -1, rate = -1, gain = 128, files = 1;
+	int type, patt = -1, rate = -1, gain = 128, chan = -1, files = 1;
 	char *arg, *in_file = NULL, *out_file = NULL;
 	signed char *module;
 	puts( micromod_get_version() );
@@ -441,6 +450,8 @@ int main( int argc, char **argv ) {
 			gain = atoi( argv[ idx++ ] );
 		} else if( idx < argc && strcmp( "-split", arg ) == 0 ) {
 			files = atoi( argv[ idx++ ] );
+		} else if( idx < argc && strcmp( "-chan", arg ) == 0 ) {
+			chan = atoi( argv[ idx++ ] );
 		} else if( !in_file ) {
 			in_file = arg;
 		} else if( !out_file ) {
@@ -475,18 +486,19 @@ int main( int argc, char **argv ) {
 			}
 			/* Perform conversion.*/
 			if( !interrupted ) {
-				mod_to_wav( module, out_file, rate, gain, type, files );
+				mod_to_wav( module, out_file, rate, gain, chan, type, files );
 			}
 			free( module );
 		}
 	} else {
-		fprintf( stderr, "Usage: %s input.mod output [-pat p] [-rate r] [-gain g] [-split n]\n\n", argv[ 0 ] );
+		fprintf( stderr, "Usage: %s in.mod output [-pat p] [-rate r] [-gain g] [-split n] [-chan n]\n\n", argv[ 0 ] );
 		fprintf( stderr, "   If output ends with \".wav\", generate 16-bit stereo RIFF-WAV file.\n" );
 		fprintf( stderr, "   If output ends with \".iff\", generate 8-bit mono IFF-8SVX file.\n" );
 		fprintf( stderr, "   If output ends with \".raw\", generate 8-bit mono signed raw samples.\n" );
 		fprintf( stderr, "   If pattern is unspecified, convert the whole song.\n" );
 		fprintf( stderr, "   Rate can be specified in HZ or as a key such as \"C-2\".\n" );
 		fprintf( stderr, "   Gain works only for IFF/RAW output and defaults to 128.\n" );
+		fprintf( stderr, "   Chan mutes all but the specified channel, starting from 0.\n" );
 		fprintf( stderr, "   Split divides the output into the specified number of files.\n\n" );
 		fprintf( stderr, "Whole song to wav: %s input.mod output.wav -rate 48000\n", argv[ 0 ] );
 		fprintf( stderr, "Pattern to sample: %s input.mod output.iff -pat 0 -rate A-4 -gain 128\n", argv[ 0 ] );

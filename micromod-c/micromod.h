@@ -36,6 +36,13 @@ long micromod_calculate_song_duration();
 void micromod_set_position( long pos );
 
 /*
+	Mute the specified channel.
+	If channel is negative, un-mute all channels.
+	Returns the number of channels.
+*/
+long micromod_mute_channel( long channel );
+
+/*
 	Calculate the specified number of stereo samples of audio.
 	Output buffer must be zeroed.
 */

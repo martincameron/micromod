@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180209 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180304 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -23,7 +23,7 @@ struct channel {
 	struct note note;
 	unsigned short period, porta_period;
 	unsigned long sample_offset, sample_idx, step;
-	unsigned char volume, panning, fine_tune, ampl;
+	unsigned char volume, panning, fine_tune, ampl, mute;
 	unsigned char id, instrument, assigned, porta_speed, pl_row, fx_count;
 	unsigned char vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
 	unsigned char tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
@@ -418,7 +418,7 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 	unsigned long llen = instruments[ chan->instrument ].loop_length;
 	unsigned long lep1 = instruments[ chan->instrument ].loop_start + llen;
 	signed char *sdat = instruments[ chan->instrument ].sample_data;
-	short ampl = buf ? chan->ampl : 0;
+	short ampl = buf && !chan->mute ? chan->ampl : 0;
 	short lamp = ampl * chan->panning >> 5;
 	short ramp = ampl * ( 127 - chan->panning ) >> 5;
 	while( buf_idx < buf_end ) {
@@ -537,6 +537,7 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 		sample_data_offset += sample_length;
 	}
 	c2_rate = ( num_channels > 4 ) ? 8363 : 8287;
+	micromod_mute_channel( -1 );
 	micromod_set_position( 0 );
 	return 0;
 }
@@ -612,6 +613,23 @@ void micromod_set_position( long pos ) {
 	}
 	sequence_tick();
 	tick_offset = 0;
+}
+
+/*
+	Mute the specified channel.
+	If channel is negative, un-mute all channels.
+	Returns the number of channels.
+*/
+long micromod_mute_channel( long channel ) {
+	long chan_idx;
+	if( channel < 0 ) {
+		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
+			channels[ chan_idx ].mute = 0;
+		}
+	} else if( channel < num_channels ) {
+		channels[ channel ].mute = 1;
+	}
+	return num_channels;
 }
 
 /*
