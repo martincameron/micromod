@@ -419,8 +419,8 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 	unsigned long lep1 = instruments[ chan->instrument ].loop_start + llen;
 	signed char *sdat = instruments[ chan->instrument ].sample_data;
 	short ampl = buf && !chan->mute ? chan->ampl : 0;
-	short lamp = ampl * chan->panning >> 5;
-	short ramp = ampl * ( 127 - chan->panning ) >> 5;
+	short lamp = ampl * ( 127 - chan->panning ) >> 5;
+	short ramp = ampl * chan->panning >> 5;
 	while( buf_idx < buf_end ) {
 		if( sidx >= lep1 ) {
 			/* Handle loop. */
