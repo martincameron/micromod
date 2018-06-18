@@ -2,7 +2,7 @@
 /*
 	Returns a string containing version information.
 */
-const char *micromod_get_version();
+const char *micromod_get_version( void );
 
 /*
 	Calculate the length in bytes of a module file given the 1084-byte header.
@@ -28,7 +28,7 @@ void micromod_get_string( long instrument, char *string );
 /*
 	Returns the total song duration in samples at the current sampling rate.
 */
-long micromod_calculate_song_duration();
+long micromod_calculate_song_duration( void );
 
 /*
 	Jump directly to a specific pattern in the sequence.
