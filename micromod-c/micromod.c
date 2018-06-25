@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180304 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180625 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -50,7 +50,7 @@ static unsigned char *pattern_data, *sequence;
 static long song_length, restart, num_patterns, num_channels;
 static struct instrument instruments[ 32 ];
 
-static long sample_rate, c2_rate, tick_len, tick_offset;
+static long sample_rate, gain, c2_rate, tick_len, tick_offset;
 static long pattern, break_pattern, row, next_row, tick;
 static long speed, pl_count, pl_channel, random_seed;
 
@@ -109,7 +109,7 @@ static void update_frequency( struct channel *chan ) {
 	volume = chan->volume + chan->tremolo_add;
 	if( volume > 64 ) volume = 64;
 	if( volume < 0 ) volume = 0;
-	chan->ampl = volume;
+	chan->ampl = ( volume * gain ) >> 5;
 }
 
 static void tone_portamento( struct channel *chan ) {
@@ -355,7 +355,7 @@ static void channel_tick( struct channel *chan ) {
 	if( effect > 0 ) update_frequency( chan );
 }
 
-static long sequence_row() {
+static long sequence_row( void ) {
 	long song_end, chan_idx, pat_offset;
 	long effect, param;
 	struct note *note;
@@ -396,7 +396,7 @@ static long sequence_row() {
 	return song_end;
 }
 
-static long sequence_tick() {
+static long sequence_tick( void ) {
 	long song_end, chan_idx;
 	song_end = 0;
 	if( --tick <= 0 ) {
@@ -468,7 +468,7 @@ static void resample( struct channel *chan, short *buf, long offset, long count 
 /*
 	Returns a string containing version information.
 */
-const char* micromod_get_version() {
+const char* micromod_get_version( void ) {
 	return MICROMOD_VERSION;
 }
 
@@ -537,6 +537,7 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 		sample_data_offset += sample_length;
 	}
 	c2_rate = ( num_channels > 4 ) ? 8363 : 8287;
+	gain = ( num_channels > 4 ) ? 32 : 64;
 	micromod_mute_channel( -1 );
 	micromod_set_position( 0 );
 	return 0;
@@ -571,7 +572,7 @@ void micromod_get_string( long instrument, char *string ) {
 /*
 	Returns the total song duration in samples at the current sampling rate.
 */
-long micromod_calculate_song_duration() {
+long micromod_calculate_song_duration( void ) {
 	long duration, song_end;
 	duration = 0;
 	if( num_channels > 0 ) {
@@ -630,6 +631,15 @@ long micromod_mute_channel( long channel ) {
 		channels[ channel ].mute = 1;
 	}
 	return num_channels;
+}
+
+/*
+	Set the playback gain.
+	For 4-channel modules, a value of 64 can be used without distortion.
+	For 8-channel modules, a value of 32 or less is recommended.
+*/
+void micromod_set_gain( long value ) {
+	gain = value;
 }
 
 /*
