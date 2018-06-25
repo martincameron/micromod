@@ -103,7 +103,7 @@ static void quantize( short *input, char *output, int gain, short count ) {
 	while( out_idx < count ) {
 		/* Convert stereo to mono and apply gain. */
 		ampl = input[ in_idx++ ];
-		ampl = ( ampl + input[ in_idx++ ] ) * gain >> 7;
+		ampl = ( ampl + input[ in_idx++ ] ) * gain >> 8;
 		/* Dithering. */
 		ampl -= qerror;
 		qerror = ampl;
@@ -436,7 +436,7 @@ static void termination_handler( int signum ) {
 
 int main( int argc, char **argv ) {
 	int result = EXIT_FAILURE, idx = 1;
-	int type, patt = -1, rate = -1, gain = 128, chan = -1, files = 1;
+	int type, patt = -1, rate = -1, gain = -1, chan = -1, files = 1;
 	char *arg, *in_file = NULL, *out_file = NULL;
 	signed char *module;
 	puts( micromod_get_version() );
