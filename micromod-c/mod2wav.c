@@ -239,8 +239,8 @@ static int get_audio_s8( char *out_buf, int length, int gain ) {
 	return length;
 }
 
-static void write_sam( char *file_name, int sample_rate, int num_samples, int gain, int type ) {
-	int bytes, percent, offset = 0, count = 0;
+static int write_sam( char *file_name, int sample_rate, int num_samples, int gain, int type ) {
+	int bytes, percent, offset = 0, count = 0, result = 0;
 	FILE *out_file = fopen( file_name, "wb" );
 	time_t seconds = time( NULL );
 	if( out_file ) {
@@ -276,6 +276,7 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 							fputs( strerror( errno ), stderr );
 							fputs( "\n", stderr );
 							interrupted = 1;
+							result = errno;
 						}
 					}
 				}
@@ -285,27 +286,32 @@ static void write_sam( char *file_name, int sample_rate, int num_samples, int ga
 			} else {
 				fputs( strerror( errno ), stderr );
 				fputs( "\n", stderr );
+				result = errno;
 			}
 			free( out_buf );
 		} else {
 			fputs( "Not enough memory for output buffer.\n", stderr );
+			result = 1;
 		}
 		fclose( out_file );
 	} else {
 		fputs( strerror( errno ), stderr );
 		fputs( "\n", stderr );
+		result = errno;
 	}
+	return result;
 }
 
 static int mod_to_wav( signed char *module_data, char *file_name, int sample_rate, int gain, int chan, int type, int num_files ) {
 	char *out_name;
-	int num_channels, idx, duration, count, offset = 0, file = 0, result = 0;
+	int result, num_channels, idx, duration, count, offset = 0, file = 0;
 	if( type == WAV ) {
 		printf( "Generating %d 16-bit stereo RIFF-WAV files.\n", num_files );
 	} else {
 		printf( "Generating %d 8-bit mono %s files.\n", num_files, type == IFF ? "IFF-8SVX" : "RAW" );
 	}
-	if( micromod_initialise( module_data, sample_rate * 2 ) == 0 ) {
+	result = micromod_initialise( module_data, sample_rate * 2 );
+	if( result == 0 ) {
 		num_channels = micromod_mute_channel( -1 );
 		if( chan >= 0 && chan < num_channels ) {
 			printf( "Muting all but channel %d.\n", chan );
@@ -317,7 +323,7 @@ static int mod_to_wav( signed char *module_data, char *file_name, int sample_rat
 		}
 		duration = micromod_calculate_song_duration() >> 1;
 		count = num_files > 0 ? duration / num_files : duration;
-		while( offset < duration && !interrupted ) {
+		while( offset < duration && result == 0 && !interrupted ) {
 			if( file >= num_files - 1 ) {
 				count = duration - offset;
 			}
@@ -327,8 +333,11 @@ static int mod_to_wav( signed char *module_data, char *file_name, int sample_rat
 				out_name = new_string( file_name );
 			}
 			if( out_name ) {
-				write_sam( out_name, sample_rate, count, gain, type );
+				result = write_sam( out_name, sample_rate, count, gain, type );
 				free( out_name );
+			} else {
+				fputs( "Out of memory.", stderr );
+				result = 1;
 			}
 			offset += count;
 		}
@@ -347,7 +356,7 @@ static signed char* load_module( char *file_name ) {
 			printf( "Module Data Length: %d bytes.\n", length );
 			module = calloc( length, sizeof( signed char ) );
 			if( module ) {
-				if( read_file( file_name, module, length ) < length ) {
+				if( read_file( file_name, module, length ) < 0 ) {
 					free( module );
 					module = NULL;
 				}
@@ -486,7 +495,7 @@ int main( int argc, char **argv ) {
 			}
 			/* Perform conversion.*/
 			if( !interrupted ) {
-				mod_to_wav( module, out_file, rate, gain, chan, type, files );
+				result = mod_to_wav( module, out_file, rate, gain, chan, type, files );
 			}
 			free( module );
 		}
