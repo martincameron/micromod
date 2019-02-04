@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.Vector;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -611,10 +612,13 @@ public class IBXMPlayer extends JFrame {
 			return false;
 		}
 		public Node[] getChildren() {
-			Vector<File> files = new Vector<File>();
+			TreeMap<String,File> files = new TreeMap<String,File>();
 			if( file == null ) {
-				for( File root : File.listRoots() ) files.add( root );
-				files.add( new File( System.getProperty( "user.home" ) ) );
+				for( File root : File.listRoots() ) {
+					files.put( root.getName().toLowerCase(), root );
+				}
+				File home = new File( System.getProperty( "user.home" ) ); 
+				files.put( home.getName().toLowerCase(), home );
 			} else {
 				for( File child : file.listFiles() ) {
 					String filename = child.getName().toLowerCase();
@@ -623,14 +627,14 @@ public class IBXMPlayer extends JFrame {
 						supported = supported || filename.startsWith( extension ) || filename.endsWith( extension );
 					}
 					if( !child.isHidden() && ( child.isDirectory() || supported ) ) {
-						files.add( child );
+						files.put( filename, child );
 					}
 				}
 			}
-			files.sort( null );
 			Node[] nodes = new Node[ files.size() ];
-			for( int idx = 0; idx < nodes.length; idx++ ) {
-				nodes[ idx ] = new Node( files.elementAt( idx ) );
+			int idx = 0;
+			for( File value : files.values() ) {
+				nodes[ idx++ ] = new Node( value );
 			}
 			return nodes;
 		}
