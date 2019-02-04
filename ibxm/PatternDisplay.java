@@ -205,6 +205,9 @@ public class PatternDisplay extends Canvas {
 								clr = clr + fxclr[ chars[ 7 ] - '0' ];
 							}
 						}
+						if( chars[ 7 ] >= 'a' ) {
+							chars[ 7 ] -= 32;
+						}
 						for( int idx = 7; idx < 10; idx++ ) {
 							drawChar( chars[ idx ], y, x + idx, clr );
 						}
