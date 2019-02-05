@@ -626,7 +626,7 @@ public class IBXMPlayer extends JFrame {
 					for( String extension : EXTENSIONS ) {
 						supported = supported || filename.startsWith( extension ) || filename.endsWith( extension );
 					}
-					if( !child.isHidden() && ( child.isDirectory() || supported ) ) {
+					if( supported || ( child.isDirectory() && !child.isHidden() ) ) {
 						files.put( filename, child );
 					}
 				}
