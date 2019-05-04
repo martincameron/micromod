@@ -24,6 +24,8 @@ static short reverb_buffer[ REVERB_BUF_LEN ];
 static short mix_buffer[ BUFFER_SAMPLES * NUM_CHANNELS * OVERSAMPLE ];
 static long reverb_len, reverb_idx, filt_l, filt_r;
 
+struct micromod_obj mmodobj;
+
 /*
 	2:1 downsampling with simple but effective anti-aliasing.
 	Count is the number of stereo samples to process, and must be even.
@@ -84,7 +86,7 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	if( count > 0 ) {
 		/* Get audio from replay.*/
 		memset( mix_buffer, 0, count * NUM_CHANNELS * sizeof( short ) );
-		micromod_get_audio( mix_buffer, count );
+		micromod_get_audio_obj( &mmodobj, mix_buffer, count );
 		downsample( mix_buffer, ( short * ) stream, count );
 		crossfeed( ( short * ) stream, count / OVERSAMPLE );
 		reverb( ( short * ) stream, count / OVERSAMPLE );
@@ -123,9 +125,9 @@ static void print_module_info() {
 	int inst;
 	char string[ 23 ];
 	for( inst = 0; inst < 16; inst++ ) {
-		micromod_get_string( inst, string );
+		micromod_get_string_obj( &mmodobj, inst, string );
 		printf( "%02i - %-22s ", inst, string );
-		micromod_get_string( inst + 16, string );
+		micromod_get_string_obj( &mmodobj, inst + 16, string );
 		printf( "%02i - %-22s\n", inst + 16, string );
 	}
 }
@@ -150,11 +152,11 @@ static long play_module( signed char *module ) {
 	long result;
 	SDL_AudioSpec audiospec;
 	/* Initialise replay.*/
-	result = micromod_initialise( module, SAMPLING_FREQ * OVERSAMPLE );
+	result = micromod_initialise_obj( &mmodobj, module, SAMPLING_FREQ * OVERSAMPLE );
 	if( result == 0 ) {
 		print_module_info();
 		/* Calculate song length. */
-		samples_remaining = micromod_calculate_song_duration();
+		samples_remaining = micromod_calculate_song_duration_obj( &mmodobj );
 		printf( "Song Duration: %li seconds.\n", samples_remaining / ( SAMPLING_FREQ * OVERSAMPLE ) );
 		fflush( NULL );
 		/* Initialise SDL_AudioSpec Structure. */
