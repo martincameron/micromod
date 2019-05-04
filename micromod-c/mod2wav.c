@@ -8,6 +8,10 @@
 
 #include "micromod.h"
 
+#if !MICROMOD_API_VERSION || MICROMOD_API_VERSION < 200
+#error "MICROMOD_API_VERSION 200 or higher is required"
+#endif
+
 /*
 	Protracker MOD to WAV/IFF-8SVX converter. (c)2018 mumart@gmail.com
 */

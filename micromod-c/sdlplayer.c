@@ -8,6 +8,10 @@
 
 #include "micromod.h"
 
+#if !MICROMOD_API_VERSION || MICROMOD_API_VERSION < 200
+#error "MICROMOD_API_VERSION 200 or higher is required"
+#endif
+
 /*
 	Simple command-line test player for micromod using SDL.
 */

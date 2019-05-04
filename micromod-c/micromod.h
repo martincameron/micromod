@@ -6,6 +6,18 @@
 #endif
 
 /*
+	Coders-friendly way to know API version in form ABB, where
+	same A and different BB mean insignificant API extentions
+	while keeping full compatiblity
+
+	API version history:
+	< 200 or not defined = global state API
+	2xx                  = OOP-like API, compatible with global state API
+*/
+
+#define MICROMOD_API_VERSION 200
+
+/*
 	Structures for internal usage
 */
 
