@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20171013 (c)2017 mumart@gmail.com";
+		return "20190513 (c)2019 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -426,7 +426,7 @@ function IBXMChannel( replay, id ) {
 				tremolo();
 				break;
 			case 0x08: /* Set Panning.*/
-				panning = ( noteParam < 128 ) ? ( noteParam << 1 ) : 255;
+				panning = noteParam & 0xFF;
 				break;
 			case 0x0A: case 0x84: /* Vol Slide. */
 				if( noteParam > 0 ) vslideParam = noteParam;
@@ -1409,7 +1409,15 @@ function IBXMModule( moduleData ) {
 				var param  = ibxmData.uByte( moduleDataIdx + 3 );
 				if( param == 0 && ( effect < 3 || effect == 0xA ) ) effect = 0;
 				if( param == 0 && ( effect == 5 || effect == 6 ) ) effect -= 2;
-				if( effect == 8 && this.numChannels == 4 ) effect = param = 0;
+				if( effect == 8 ) {
+					if( this.numChannels == 4 ) {
+						effect = param = 0;
+					} else if( param > 128 ) {
+						param = 128;
+					} else {
+						param = ( param * 255 ) >> 7;
+					}
+				}
 				pattern.data[ patDataIdx + 3 ] = effect;
 				pattern.data[ patDataIdx + 4 ] = param;
 				moduleDataIdx += 4;

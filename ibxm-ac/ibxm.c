@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20171013 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20190513 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -787,8 +787,14 @@ static struct module* module_load_mod( struct data *data, char *message ) {
 				if( param == 0 && ( effect == 5 || effect == 6 ) ) {
 					effect -= 2;
 				}
-				if( effect == 8 && module->num_channels == 4 ) {
-					effect = param = 0;
+				if( effect == 8 ) {
+					if( module->num_channels == 4 ) {
+						effect = param = 0;
+					} else if( param > 128 ) {
+						param = 128;
+					} else {
+						param = ( param * 255 ) >> 7;
+					}
 				}
 				pattern_data[ pat_data_idx + 3 ] = effect;
 				pattern_data[ pat_data_idx + 4 ] = param;
@@ -1432,7 +1438,7 @@ static void channel_row( struct channel *channel, struct note *note ) {
 			channel_tremolo( channel );
 			break;
 		case 0x08: /* Set Panning.*/
-			channel->panning = ( channel->note.param < 128 ) ? ( channel->note.param << 1 ) : 255;
+			channel->panning = channel->note.param & 0xFF;
 			break;
 		case 0x0A: case 0x84: /* Vol Slide. */
 			if( channel->note.param > 0 ) {
