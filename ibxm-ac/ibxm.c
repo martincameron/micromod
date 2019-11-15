@@ -190,7 +190,7 @@ static int envelope_next_tick( struct envelope *envelope, int tick, int key_on )
 	}
 	return tick;
 }
-	
+
 static int envelope_calculate_ampl( struct envelope *envelope, int tick ) {
 	int idx, point, dt, da;
 	int ampl = envelope->points_ampl[ envelope->num_points - 1 ];
@@ -287,7 +287,7 @@ static struct module* module_load_xm( struct data *data, char *message ) {
 		module->default_tempo = data_u16le( data, 78 );
 		module->c2_rate = 8363;
 		module->gain = 64;
-		module->default_panning = calloc( module->num_channels, sizeof( unsigned char ) );
+		module->default_panning = calloc( module->num_channels+1, sizeof( unsigned char ) );
 		if( !module->default_panning ) {
 			dispose_module( module );
 			return NULL;
