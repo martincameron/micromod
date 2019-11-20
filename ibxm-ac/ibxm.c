@@ -190,7 +190,7 @@ static int envelope_next_tick( struct envelope *envelope, int tick, int key_on )
 	}
 	return tick;
 }
-	
+
 static int envelope_calculate_ampl( struct envelope *envelope, int tick ) {
 	int idx, point, dt, da;
 	int ampl = envelope->points_ampl[ envelope->num_points - 1 ];
@@ -1861,6 +1861,10 @@ static int calculate_tick_len( int tempo, int sample_rate ) {
 /* Returns the length of the output buffer required by replay_get_audio(). */
 int calculate_mix_buf_len( int sample_rate ) {
 	return ( calculate_tick_len( 32, sample_rate ) + 65 ) * 4;
+}
+
+int replay_calculate_tick_len( struct replay *replay) {
+	return calculate_tick_len(replay->tempo, replay->sample_rate);
 }
 
 /* Returns the song duration in samples at the current sampling rate. */

@@ -10,5 +10,5 @@ clean:
 xm2wav: xm2wav.c ibxm.c ibxm.h
 	$(CC) $(CFLAGS) xm2wav.c ibxm.c -o xm2wav
 
-sdlplayer: sdlplayer_ibxm.c ibxm.c ibxm.h
-	$(CC) $(CFLAGS) sdlplayer_ibxm.c ibxm.c -o sdlplayer `sdl-config --cflags --libs`
+sdlplayer: sdlplayer.c ibxm.c ibxm.h
+	$(CC) $(CFLAGS) sdlplayer.c ibxm.c -o sdlplayer `sdl-config --cflags --libs`

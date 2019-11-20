@@ -64,3 +64,5 @@ void replay_set_sequence_pos( struct replay *replay, int pos );
 int replay_get_audio( struct replay *replay, int *mix_buf );
 /* Returns the length of the output buffer required by replay_get_audio(). */
 int calculate_mix_buf_len( int sample_rate );
+/* Returns the length of the output buffer that replay_get_audio() will end up returning. */
+int replay_calculate_tick_len(struct replay *replay);

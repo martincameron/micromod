@@ -23,11 +23,9 @@ uint8_t loop = FALSE;
 static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	long count;
 	long sam = 0;
-	size_t i;
 	int idx, ampl, offset = 0;
 	int mix_buf[16384 ];
 	count = len / 2;
-	printf("len:%i  samples_remaining:%lu count:%i\n", len,  samples_remaining, count);
 	if( samples_remaining < count ) {
 		/* Clear output.*/
 		memset( stream, 0, len );
@@ -35,20 +33,20 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	}
 	if( count > 0 ) {
 		/* Get audio from replay.*/
-		for (i = 0; i < 10; i++) {
-			sam = replay_get_audio(replay, mix_buf) * 2;
-			for( idx = 0; idx < sam; idx++ ) {
-				ampl = mix_buf[ idx ]>>1;
-				if( ampl > 32767 ) {
-					ampl = 32767;
-				}
-				if( ampl < -32768 ) {
-					ampl = -32768;
-				}
-				stream[ offset++ ] = ampl & 0xFF;
-				stream[ offset++ ] = ( ampl >> 8 ) & 0xFF;
+
+		sam = replay_get_audio(replay, mix_buf) * 2;
+		for( idx = 0; idx < sam; idx++ ) {
+			ampl = mix_buf[ idx ]>>1;
+			if( ampl > 32767 ) {
+				ampl = 32767;
 			}
+			if( ampl < -32768 ) {
+				ampl = -32768;
+			}
+			stream[ offset++ ] = ampl & 0xFF;
+			stream[ offset++ ] = ( ampl >> 8 ) & 0xFF;
 		}
+
 		if(!loop) samples_remaining -= count;
 	} else {
 		/* Notify the main thread to stop playback.*/
@@ -73,7 +71,7 @@ static long setup_sdl() {
 	audiospec.freq = SAMPLING_FREQ;
 	audiospec.format = AUDIO_S16SYS;
 	audiospec.channels = NUM_CHANNELS;
-	audiospec.samples = tick_len*20;
+	audiospec.samples = tick_len*2;
 	audiospec.callback = audio_callback;
 	audiospec.userdata = NULL;
 
