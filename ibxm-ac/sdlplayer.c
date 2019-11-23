@@ -22,7 +22,7 @@ static SDL_sem *semaphore;
 static int samples_remaining;
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static int mix_buffer[ SAMPLING_FREQ / 3 ];
-static int mix_len, mix_idx, reverb_len, reverb_idx;
+static int mix_len, mix_idx, reverb_len, reverb_idx, interpolation;
 
 /* Simple stereo cross delay with feedback. */
 static void reverb( short *buffer, int count ) {
@@ -44,8 +44,22 @@ static void reverb( short *buffer, int count ) {
 	}
 }
 
+static void clip_audio( int *input, short *output, int count ) {
+	int idx, end, sam;
+	for( idx = 0, end = count << 1; idx < end; idx++ ) {
+		sam = input[ idx ];
+		if( sam < -32768 ) {
+			sam = -32768;
+		}
+		if( sam > 32767 ) {
+			sam = 32767;
+		}
+		output[ idx ] = sam;
+	}
+}
+
 static void get_audio( struct replay *replay, short *buffer, int count ) {
-	int buf_idx = 0, remain, buf_end;
+	int buf_idx = 0, remain;
 	while( buf_idx < count ) {
 		if( mix_idx >= mix_len ) {
 			mix_len = replay_get_audio( replay, mix_buffer );
@@ -55,10 +69,9 @@ static void get_audio( struct replay *replay, short *buffer, int count ) {
 		if( ( buf_idx + remain ) > count ) {
 			remain = count - buf_idx;
 		}
-		for( buf_end = buf_idx + remain; buf_idx < buf_end; buf_idx++, mix_idx++ ) {
-			buffer[ buf_idx << 1 ] = mix_buffer[ mix_idx << 1 ];
-			buffer[ ( buf_idx << 1 ) + 1 ] = mix_buffer[ ( mix_idx << 1 ) + 1 ];
-		}
+		clip_audio( &mix_buffer[ mix_idx << 1 ], &buffer[ buf_idx << 1 ], remain );
+		mix_idx += remain;
+		buf_idx += remain;
 	}
 }
 
@@ -116,7 +129,7 @@ static int play_module( struct module *module ) {
 	int result;
 	SDL_AudioSpec audiospec;
 	/* Initialise replay.*/
-	struct replay *replay = new_replay( module, SAMPLING_FREQ, 0 );
+	struct replay *replay = new_replay( module, SAMPLING_FREQ, interpolation );
 	if( replay ) {
 		/* Calculate song length. */
 		samples_remaining = replay_calculate_duration( replay );
@@ -169,17 +182,18 @@ int main( int argc, char **argv ) {
 		/* Parse arguments.*/
 		if( strcmp( argv[ arg ], "-reverb" ) == 0 ) {
 			reverb_len = REVERB_BUF_LEN;
+		} else if( strcmp( argv[ arg ], "-interp" ) == 0 ) {
+			interpolation = 1;
 		} else {
 			filename = argv[ arg ];
 		}
 	}
 	if( filename == NULL ) {
-		fprintf( stderr, "%s\nUsage: %s module.xm\n", IBXM_VERSION, argv[ 0 ] );
+		fprintf( stderr, "%s\nUsage: %s [-reverb] [-interp] module.xm\n", IBXM_VERSION, argv[ 0 ] );
 	} else {
 		/* Read module file.*/
 		length = read_file( filename, NULL );
 		if( length >= 0 ) {
-			printf( "Module Data Length: %d bytes.\n", length );
 			input = calloc( length, 1 );
 			if( input != NULL ) {
 				if( read_file( filename, input ) >= 0 ) {
@@ -187,6 +201,7 @@ int main( int argc, char **argv ) {
 					data.length = length;
 					module = module_load( &data, message );
 					if( module ) {
+						printf( "Playing '%s'.\n", module->name );
 						/* Install signal handlers.*/
 						signal( SIGTERM, termination_handler );
 						signal( SIGINT,  termination_handler );
