@@ -21,7 +21,7 @@
 static SDL_sem *semaphore;
 static int samples_remaining;
 static short reverb_buffer[ REVERB_BUF_LEN ];
-static int mix_buffer[ SAMPLING_FREQ / 4 ];
+static int mix_buffer[ SAMPLING_FREQ / 3 ];
 static int mix_len, mix_idx, reverb_len, reverb_idx;
 
 /* Simple stereo cross delay with feedback. */
