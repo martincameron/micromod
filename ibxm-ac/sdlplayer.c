@@ -22,7 +22,7 @@ static SDL_sem *semaphore;
 static int samples_remaining;
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static int mix_buffer[ SAMPLING_FREQ / 3 ];
-static int mix_len, mix_idx, reverb_len, reverb_idx, interpolation;
+static int mix_len, mix_idx, reverb_len, reverb_idx, interpolation, loop;
 
 /* Simple stereo cross delay with feedback. */
 static void reverb( short *buffer, int count ) {
@@ -86,7 +86,9 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 		/* Get audio from replay.*/
 		get_audio( ( struct replay * ) udata, ( short * ) stream, count );
 		reverb( ( short * ) stream, count );
-		samples_remaining -= count;
+		if( !loop ) {
+			samples_remaining -= count;
+		}
 	} else {
 		/* Notify the main thread to stop playback.*/
 		SDL_SemPost( semaphore );
@@ -123,6 +125,25 @@ static long read_file( char *file_name, void *buffer ) {
 		fputs( "\n", stderr );
 	}
 	return file_length;
+}
+
+static char* trim( char *string ) {
+	int end = strlen( string );
+	while( ( string[ end ] & 0xFF ) <= 32 ) {
+		string[ end-- ] = 0;
+	}
+	return string;
+}
+
+static void print_module_info( struct module *module ) {
+	int idx, end;
+	for( idx = 0, end = module->num_instruments / 2; idx < end; idx++ ) {
+		printf( "%03i - %-32s ", idx + 1, module->instruments[ idx ].name );
+		printf( "%03i - %-32s\n", idx + end + 1, module->instruments[ idx + end ].name );
+	}
+	if( idx + end < module->num_instruments ) {
+		printf( "%39s%03i - %-32s\n", "", idx + end + 1, module->instruments[ idx + end ].name );
+	}
 }
 
 static int play_module( struct module *module ) {
@@ -180,7 +201,9 @@ int main( int argc, char **argv ) {
 	struct module *module;
 	for( arg = 1; arg < argc; arg++ ) {
 		/* Parse arguments.*/
-		if( strcmp( argv[ arg ], "-reverb" ) == 0 ) {
+		if( strcmp( argv[ arg ], "-loop" ) == 0 ) {
+			loop = 1;
+		} else if( strcmp( argv[ arg ], "-reverb" ) == 0 ) {
 			reverb_len = REVERB_BUF_LEN;
 		} else if( strcmp( argv[ arg ], "-interp" ) == 0 ) {
 			interpolation = 1;
@@ -189,7 +212,7 @@ int main( int argc, char **argv ) {
 		}
 	}
 	if( filename == NULL ) {
-		fprintf( stderr, "%s\nUsage: %s [-reverb] [-interp] module.xm\n", IBXM_VERSION, argv[ 0 ] );
+		fprintf( stderr, "%s\nUsage: %s [-loop] [-reverb] [-interp] module.xm\n", IBXM_VERSION, argv[ 0 ] );
 	} else {
 		/* Read module file.*/
 		length = read_file( filename, NULL );
@@ -201,7 +224,8 @@ int main( int argc, char **argv ) {
 					data.length = length;
 					module = module_load( &data, message );
 					if( module ) {
-						printf( "Playing '%s'.\n", module->name );
+						printf( "Playing \"%s\".\n", trim( module->name ) );
+						print_module_info( module );
 						/* Install signal handlers.*/
 						signal( SIGTERM, termination_handler );
 						signal( SIGINT,  termination_handler );
