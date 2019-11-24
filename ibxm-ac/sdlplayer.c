@@ -128,8 +128,8 @@ static long read_file( char *file_name, void *buffer ) {
 }
 
 static char* trim( char *string ) {
-	int end = strlen( string );
-	while( ( string[ end ] & 0xFF ) <= 32 ) {
+	int end = strlen( string ) - 1;
+	while( end >= 0 && ( string[ end ] & 0xFF ) <= 32 ) {
 		string[ end-- ] = 0;
 	}
 	return string;
@@ -138,11 +138,11 @@ static char* trim( char *string ) {
 static void print_module_info( struct module *module ) {
 	int idx, end;
 	for( idx = 0, end = module->num_instruments / 2; idx < end; idx++ ) {
-		printf( "%03i - %-32s ", idx + 1, module->instruments[ idx ].name );
-		printf( "%03i - %-32s\n", idx + end + 1, module->instruments[ idx + end ].name );
+		printf( "%03i - %-32s ", idx + 1, module->instruments[ idx + 1 ].name );
+		printf( "%03i - %-32s\n", idx + end + 1, module->instruments[ idx + end + 1 ].name );
 	}
 	if( idx + end < module->num_instruments ) {
-		printf( "%39s%03i - %-32s\n", "", idx + end + 1, module->instruments[ idx + end ].name );
+		printf( "%39s%03i - %-32s\n", "", idx + end + 1, module->instruments[ idx + end + 1 ].name );
 	}
 }
 
