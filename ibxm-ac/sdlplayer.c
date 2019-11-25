@@ -127,22 +127,14 @@ static long read_file( char *file_name, void *buffer ) {
 	return file_length;
 }
 
-static char* trim( char *string ) {
-	int end = strlen( string ) - 1;
-	while( end >= 0 && ( string[ end ] & 0xFF ) <= 32 ) {
-		string[ end-- ] = 0;
-	}
-	return string;
-}
-
 static void print_module_info( struct module *module ) {
-	int idx, end;
-	for( idx = 0, end = module->num_instruments / 2; idx < end; idx++ ) {
-		printf( "%03i - %-32s ", idx + 1, module->instruments[ idx + 1 ].name );
-		printf( "%03i - %-32s\n", idx + end + 1, module->instruments[ idx + end + 1 ].name );
+	int idx = 0, end = 0;
+	for( idx = 0, end = ( module->num_instruments + 1 ) / 2; idx < end; idx++ ) {
+		printf( "%03i - %-32s ", idx, idx ? module->instruments[ idx ].name : module->name );
+		printf( "%03i - %-32s\n", idx + end, module->instruments[ idx + end ].name );
 	}
-	if( idx + end < module->num_instruments ) {
-		printf( "%39s%03i - %-32s\n", "", idx + end + 1, module->instruments[ idx + end + 1 ].name );
+	if( idx + end <= module->num_instruments ) {
+		printf( "%39s%03i - %-32s\n", "", idx + end, module->instruments[ idx + end ].name );
 	}
 }
 
@@ -224,7 +216,6 @@ int main( int argc, char **argv ) {
 					data.length = length;
 					module = module_load( &data, message );
 					if( module ) {
-						printf( "Playing \"%s\".\n", trim( module->name ) );
 						print_module_info( module );
 						/* Install signal handlers.*/
 						signal( SIGTERM, termination_handler );
