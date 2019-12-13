@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20190513 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20191213 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
