@@ -62,5 +62,9 @@ int replay_seek( struct replay *replay, int sample_pos );
 void replay_set_sequence_pos( struct replay *replay, int pos );
 /* Generates audio and returns the number of stereo samples written into mix_buf. */
 int replay_get_audio( struct replay *replay, int *mix_buf );
+/* Returns the currently playing pattern in the sequence.*/
+int replay_get_sequence_pos( struct replay *replay );
+/* Returns the currently playing row in the pattern. */
+int replay_get_row( struct replay *replay );
 /* Returns the length of the output buffer required by replay_get_audio(). */
 int calculate_mix_buf_len( int sample_rate );

@@ -1931,3 +1931,13 @@ int replay_get_audio( struct replay *replay, int *mix_buf ) {
 	replay_tick( replay );
 	return tick_len;
 }
+
+/* Returns the currently playing pattern in the sequence.*/
+int replay_get_sequence_pos( struct replay *replay ) {
+	return replay->seq_pos;
+}
+
+/* Returns the currently playing row in the pattern. */
+int replay_get_row( struct replay *replay ) {
+	return replay->row;
+}
