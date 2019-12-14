@@ -4,7 +4,7 @@
 
 #include "ibxm.h"
 
-const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20191213 (c)mumart@gmail.com";
+const char *IBXM_VERSION = "ibxm/ac mod/xm/s3m replay 20191214 (c)mumart@gmail.com";
 
 static const int FP_SHIFT = 15, FP_ONE = 32768, FP_MASK = 32767;
 
@@ -862,7 +862,7 @@ static struct module* module_load_mod( struct data *data, char *message ) {
 }
 
 /* Allocate and initialize a module from the specified data, returns NULL on error.
-   Message should point to a 64-character buffer to receive error messages. */
+   Message must point to a 64-character buffer to receive error messages. */
 struct module* module_load( struct data *data, char *message ) {
 	char ascii[ 16 ];
 	struct module* module;
@@ -1912,8 +1912,9 @@ static void downsample( int *buf, int count ) {
 	}
 }
 
-/* Generates audio and returns the number of stereo samples written into mix_buf. */
-int replay_get_audio( struct replay *replay, int *mix_buf ) {
+/* Generates audio and returns the number of stereo samples written into mix_buf.
+   Individual channels may be excluded using the mute bitmask. */
+int replay_get_audio( struct replay *replay, int *mix_buf, int mute ) {
 	struct channel *channel;
 	int idx, num_channels, tick_len = calculate_tick_len( replay->tempo, replay->sample_rate );
 	/* Clear output buffer. */
@@ -1922,9 +1923,12 @@ int replay_get_audio( struct replay *replay, int *mix_buf ) {
 	num_channels = replay->module->num_channels;
 	for( idx = 0; idx < num_channels; idx++ ) {
 		channel = &replay->channels[ idx ];
-		channel_resample( channel, mix_buf, 0, ( tick_len + 65 ) * 2,
-			replay->sample_rate * 2, replay->interpolation );
+		if( !( mute & 1 ) ) {
+			channel_resample( channel, mix_buf, 0, ( tick_len + 65 ) * 2,
+				replay->sample_rate * 2, replay->interpolation );
+		}
 		channel_update_sample_idx( channel, tick_len * 2, replay->sample_rate * 2 );
+		mute >>= 1;
 	}
 	downsample( mix_buf, tick_len + 64 );
 	replay_volume_ramp( replay, mix_buf, tick_len );

@@ -70,7 +70,7 @@ static int song_end_event, display_event;
 static int samples_remaining;
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static int mix_buffer[ SAMPLING_FREQ / 3 ];
-static int mix_len, mix_idx, reverb_len, reverb_idx, loop;
+static int mix_len, mix_idx, reverb_len, reverb_idx, mute, loop;
 
 /* Simple stereo cross delay with feedback. */
 static void reverb( short *buffer, int count ) {
@@ -110,7 +110,7 @@ static void get_audio( struct replay *replay, short *buffer, int count ) {
 	int buf_idx = 0, remain;
 	while( buf_idx < count ) {
 		if( mix_idx >= mix_len ) {
-			mix_len = replay_get_audio( replay, mix_buffer );
+			mix_len = replay_get_audio( replay, mix_buffer, mute );
 			mix_idx = 0;
 		}
 		remain = mix_len - mix_idx;
@@ -457,7 +457,7 @@ static void redraw_display() {
 }
 
 static int play_module( struct module *module, int interpolation, int display ) {
-	int result, chan = 0, mute = 0;
+	int result, chan, scroll = 0;
 	SDL_AudioSpec audiospec;
 	SDL_Event event = { 0 };
 	/* Initialise replay.*/
@@ -494,11 +494,28 @@ static int play_module( struct module *module, int interpolation, int display ) 
 					SDL_WaitEvent( &event );
 					if( event.type == display_event ) {
 						/*printf( "%03d %03d\n", ( int ) event.user.code >> 8, ( int ) event.user.code & 0xFF );*/
-						draw_pattern( module, module->sequence[ event.user.code >> 8 ], event.user.code & 0xFF, chan, mute );
+						draw_pattern( module, module->sequence[ event.user.code >> 8 ], event.user.code & 0xFF, scroll, mute );
 						redraw_display();
 					} else if( event.type == SDL_MOUSEBUTTONDOWN ) {
 						if( event.button.y > 256 ) {
-							chan = scroll_click( module, event.button.x, chan );
+							scroll = scroll_click( module, event.button.x, scroll );
+						} else {
+							chan = ( event.button.x - 4 * 8 ) / ( 11 * 8 );
+							if( event.button.x < 4 * 8 || chan >= module->num_channels ) {
+								mute = 0;
+							} else {
+								chan = 1 << ( scroll + chan );
+								if( mute == ~chan ) {
+									/* Solo channel, unmute all. */
+									mute = 0;
+								} else if( mute & chan ) {
+									/* Muted channel, unmute. */
+									mute ^= chan;
+								} else {
+									/* Unmuted channel, set as solo. */
+									mute = -1 ^ chan;
+								}
+							}
 						}
 					} else if( event.type == song_end_event ){
 						break;

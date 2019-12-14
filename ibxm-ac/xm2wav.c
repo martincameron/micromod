@@ -76,7 +76,7 @@ static int xm_to_wav( struct module *module, char *wav ) {
 			replay_seek( replay, 0 );
 			offset = 44;
 			while( offset < length ) {
-				samples = replay_get_audio( replay, mix_buf ) * 2;
+				samples = replay_get_audio( replay, mix_buf, 0 ) * 2;
 				for( idx = 0; idx < samples; idx++ ) {
 					ampl = mix_buf[ idx ];
 					if( ampl > 32767 ) {
