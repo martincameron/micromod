@@ -18,8 +18,8 @@
 #define REVERB_BUF_LEN 4800 /* 50ms. */
 #define BUFFER_SAMPLES 2048 /* 8k buffer. */
 
-/* Display dimensions. */
-static const int WIDTH = ( 8 * 11 + 4 ) * 8, HEIGHT = 17 * 16;
+/* Maximum pattern display dimensions. */
+static const int MAX_WIDTH = ( 16 * 11 + 4 ) * 8, MAX_HEIGHT = 17 * 16;
 
 static const int PAL_ENTRIES[] = { /*
 	Blue      Green     Cyan      Red       Magenta   Yellow    White     Lime */
@@ -315,16 +315,16 @@ static void get_note( struct pattern *pat, int row, int chn, char *note ) {
 	note[ 9 ] = ( effect > 0 || param > 0 ) ? B36_TO_STR[ param & 0xF ] : 45;
 }
 
-static void draw_pattern( struct module *mod, int pat, int row, int channel, int mute ) {
+static void draw_pattern( struct module *mod, int pat, int row, int channel, int width, int mute ) {
 	int c, c1, y, r, x, clr, bclr, scroll_x, scroll_w;
 	char note[ 10 ];
 	int num_chan = mod->patterns[ pat ].num_channels;
 	int num_rows = mod->patterns[ pat ].num_rows;
-	int num_cols = ( WIDTH - 4 * 8 ) / ( 11 * 8 );
+	int num_cols = ( width - 4 * 8 ) / ( 11 * 8 );
 	if( num_cols > num_chan - channel ) {
 		num_cols = num_chan - channel;
 	}
-	fill_rect( 0, 0, WIDTH, HEIGHT, 0 );
+	fill_rect( 0, 0, MAX_WIDTH, MAX_HEIGHT, 0 );
 	draw_int( pat, 3, 0, 0, 3 );
 	for( c = 0; c < num_cols; c++ ) {
 		if( mute & ( 1 << ( c + channel ) ) ) {
@@ -377,10 +377,13 @@ static void draw_pattern( struct module *mod, int pat, int row, int channel, int
 	draw_char( 93, 16, scroll_x + scroll_w - 1, 0 );
 }
 
-static int scroll_click( struct module *mod, int x, int channel ) {
+static int scroll_click( struct module *mod, int x, int channel, int width ) {
 	int num_chan = mod->num_channels;
-	int num_cols = ( WIDTH - 4 * 8 ) / ( 11 * 8 );
+	int num_cols = ( width - 4 * 8 ) / ( 11 * 8 );
 	if( num_cols > num_chan - channel ) {
+		if( channel > 0 ) {
+			channel = num_chan - num_cols;
+		}
 		num_cols = num_chan - channel;
 	}
 	if( x > ( 4 + num_cols * 11 * channel / num_chan ) * 8 ) {
@@ -388,7 +391,7 @@ static int scroll_click( struct module *mod, int x, int channel ) {
 		if( channel > mod->num_channels - num_cols ) {
 			channel = mod->num_channels - num_cols;
 		}
-	} else {
+	} else if( x > 0 ) {
 		channel -= 4;
 		if( channel < 0 ) {
 			channel = 0;
@@ -419,11 +422,13 @@ static void close_display() {
 static int open_display() {
 	int result = 0, length;
 	char * buffer;
-	window = SDL_CreateWindow( IBXM_VERSION, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, 0 );
+	window = SDL_CreateWindow( IBXM_VERSION,
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		800, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
 	if( window ) {
 		renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_TARGETTEXTURE );
 		if( renderer ) {
-			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WIDTH, HEIGHT );
+			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, MAX_WIDTH, MAX_HEIGHT );
 			if( target ) { 
 				SDL_SetRenderTarget( renderer, target );
 				length = read_file( "topaz8.txt", NULL );
@@ -448,16 +453,20 @@ static int open_display() {
 }
 
 static void redraw_display() {
+	SDL_Rect rect = { 0 };
 	if( renderer && target ) {
 		SDL_SetRenderTarget( renderer, NULL );
-		SDL_RenderCopy( renderer, target, NULL, NULL );
+		SDL_GetWindowSize( window, &rect.w, &rect.h );
+		fill_rect( 0, 0, rect.w, rect.h, 0 );
+		SDL_QueryTexture( target, NULL, NULL, &rect.w, &rect.h );
+		SDL_RenderCopy( renderer, target, NULL, &rect );
 		SDL_RenderPresent( renderer );
 		SDL_SetRenderTarget( renderer, target );
 	}
 }
 
 static int play_module( struct module *module, int interpolation, int display ) {
-	int result, chan, scroll = 0;
+	int result, chan, width, height, scroll = 0;
 	SDL_AudioSpec audiospec;
 	SDL_Event event = { 0 };
 	/* Initialise replay.*/
@@ -492,33 +501,41 @@ static int play_module( struct module *module, int interpolation, int display ) 
 				/* Wait for playback to finish. */
 				while( event.type != SDL_QUIT ) {
 					SDL_WaitEvent( &event );
-					if( event.type == display_event ) {
-						/*printf( "%03d %03d\n", ( int ) event.user.code >> 8, ( int ) event.user.code & 0xFF );*/
-						draw_pattern( module, module->sequence[ event.user.code >> 8 ], event.user.code & 0xFF, scroll, mute );
-						redraw_display();
-					} else if( event.type == SDL_MOUSEBUTTONDOWN ) {
-						if( event.button.y > 256 ) {
-							scroll = scroll_click( module, event.button.x, scroll );
-						} else {
-							chan = ( event.button.x - 4 * 8 ) / ( 11 * 8 );
-							if( event.button.x < 4 * 8 || chan >= module->num_channels ) {
-								mute = 0;
+					if( event.type == song_end_event ) {
+						break;
+					} else if( window ) {
+						/* Handle display events. */
+						SDL_GetWindowSize( window, &width, &height );
+						if( width > MAX_WIDTH ) {
+							width = MAX_WIDTH;
+						}
+						if( event.type == display_event ) {
+							/*printf( "%03d %03d\n", ( int ) event.user.code >> 8, ( int ) event.user.code & 0xFF );*/
+							scroll = scroll_click( module, -1, scroll, width );
+							draw_pattern( module, module->sequence[ event.user.code >> 8 ], event.user.code & 0xFF, scroll, width, mute );
+							redraw_display();
+						} else if( event.type == SDL_MOUSEBUTTONDOWN ) {
+							if( event.button.y > 256 ) {
+								scroll = scroll_click( module, event.button.x, scroll, width );
 							} else {
-								chan = 1 << ( scroll + chan );
-								if( mute == ~chan ) {
-									/* Solo channel, unmute all. */
+								chan = ( event.button.x - 4 * 8 ) / ( 11 * 8 );
+								if( event.button.x < 4 * 8 || chan >= module->num_channels ) {
 									mute = 0;
-								} else if( mute & chan ) {
-									/* Muted channel, unmute. */
-									mute ^= chan;
 								} else {
-									/* Unmuted channel, set as solo. */
-									mute = -1 ^ chan;
+									chan = 1 << ( scroll + chan );
+									if( mute == ~chan ) {
+										/* Solo channel, unmute all. */
+										mute = 0;
+									} else if( mute & chan ) {
+										/* Muted channel, unmute. */
+										mute ^= chan;
+									} else {
+										/* Unmuted channel, set as solo. */
+										mute = -1 ^ chan;
+									}
 								}
 							}
 						}
-					} else if( event.type == song_end_event ){
-						break;
 					}
 				}
 				/* Shut down. */
