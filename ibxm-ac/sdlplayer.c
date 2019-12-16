@@ -21,6 +21,9 @@
 /* Maximum pattern display dimensions. */
 static const int MAX_WIDTH = ( 16 * 11 + 4 ) * 8, MAX_HEIGHT = 17 * 16;
 
+/* 95 8x16 ASCII characters, 4bpp. */
+extern const int CHAR_SET[];
+
 static const int PAL_ENTRIES[] = { /*
 	Blue      Green     Cyan      Red       Magenta   Yellow    White     Lime */
 	0x0000C0, 0x008000, 0x008080, 0x800000, 0x800080, 0x806600, 0x808080, 0x668000,
@@ -210,28 +213,27 @@ static SDL_Texture* create_texture( int width, int height, Uint32 *pixels ) {
 	return texture;
 }
 
-static SDL_Texture* create_charset( char *source, const int *pal_entries, int pal_size ) {
+static SDL_Texture* create_charset( const int *source, const int *pal_entries, int pal_size ) {
 	int w, h, clr, chr, y, x;
-	int stride, srcoff, pixoff;
+	int src_off, pix_off;
 	Uint32 *pixels;
 	SDL_Texture *texture = NULL;
-	stride = source[ 9 ] < 32 ? 10 : 9;
 	w = 8 * 96;
 	h = 16 * pal_size;
 	pixels = calloc( w * h, sizeof( Uint32 ) );
 	if( pixels ) {
 		for( clr = 0; clr < pal_size; clr++ ) {
-			srcoff = 0;
+			src_off = 0;
 			for( chr = 1; chr < 95; chr++ ) {
-				pixoff = clr * w * 16 + chr * 8;
+				pix_off = clr * w * 16 + chr * 8;
 				for( y = 0; y < 16; y++ ) {
-					for( x = 0; x < 8; x++ ) {
-						if( source[ srcoff + x ] > 32 ) {
-							pixels[ pixoff + x ] = ( pal_entries[ clr ] << 8 ) | 0xFF;
+					for( x = 7; x >= 0; x-- ) {
+						if( ( source[ src_off ] >> x * 4 ) & 0xF ) {
+							pixels[ pix_off + x ] = ( pal_entries[ clr ] << 8 ) | 0xFF;
 						}
 					}
-					srcoff += stride;
-					pixoff += w;
+					src_off++;
+					pix_off += w;
 				}
 			}
 		}
@@ -420,8 +422,7 @@ static void close_display() {
 }
 
 static int open_display() {
-	int result = 0, length;
-	char * buffer;
+	int result = 0;
 	window = SDL_CreateWindow( IBXM_VERSION,
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		800, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
@@ -431,17 +432,9 @@ static int open_display() {
 			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, MAX_WIDTH, MAX_HEIGHT );
 			if( target ) { 
 				SDL_SetRenderTarget( renderer, target );
-				length = read_file( "topaz8.txt", NULL );
-				if( length > 0 ) {
-					buffer = calloc( length + 1, sizeof( char ) );
-					if( buffer ) {
-						read_file( "topaz8.txt", buffer );
-						charset = create_charset( buffer, PAL_ENTRIES, 16 );
-						if( charset ) {
-							result = 1;
-						}
-						free( buffer );
-					}
+				charset = create_charset( CHAR_SET, PAL_ENTRIES, 16 );
+				if( charset ) {
+					result = 1;
 				}
 			}
 		}
