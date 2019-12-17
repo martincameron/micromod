@@ -19,7 +19,7 @@
 #define BUFFER_SAMPLES 2048 /* 8k buffer. */
 
 /* Maximum pattern display dimensions. */
-static const int MAX_WIDTH = ( 16 * 11 + 4 ) * 8, MAX_HEIGHT = 17 * 16;
+static const int MAX_WIDTH = ( 16 * 11 + 4 ) * 8, MAX_HEIGHT = 18 * 16;
 
 /* 95 8x16 ASCII characters, 4bpp. */
 extern const int CHAR_SET[];
@@ -327,20 +327,21 @@ static void draw_pattern( struct module *mod, int pat, int row, int channel, int
 		num_cols = num_chan - channel;
 	}
 	fill_rect( 0, 0, MAX_WIDTH, MAX_HEIGHT, 0 );
-	draw_int( pat, 3, 0, 0, 3 );
+	draw_text( mod->name, 32, 0, 4, 0 );
+	draw_int( pat, 3, 1, 0, 3 );
 	for( c = 0; c < num_cols; c++ ) {
 		if( mute & ( 1 << ( c + channel ) ) ) {
-			draw_text( " Muted  ", 8, 0, c * 11 + 4, 3 );
-			draw_int( c + channel, 2, 0, c * 11 + 12, 3 );
+			draw_text( " Muted  ", 8, 1, c * 11 + 4, 3 );
+			draw_int( c + channel, 2, 1, c * 11 + 12, 3 );
 		} else {
-			draw_text( "Channel ", 8, 0, c * 11 + 4, 0 );
-			draw_int( c + channel, 2, 0, c * 11 + 12, 0 );
+			draw_text( "Channel ", 8, 1, c * 11 + 4, 0 );
+			draw_int( c + channel, 2, 1, c * 11 + 12, 0 );
 		}
 	}
-	for( y = 1; y < 16; y++ ) {
-		r = row - 8 + y;
+	for( y = 2; y < 17; y++ ) {
+		r = row - 9 + y;
 		if( r >= 0 && r < num_rows ) {
-			bclr = ( y == 8 ) ? 8 : 0;
+			bclr = ( y == 9 ) ? 8 : 0;
 			draw_int( r, 3, y, 0, bclr );
 			for( c = 0; c < num_cols; c++ ) {
 				x = 4 + c * 11;
@@ -372,11 +373,11 @@ static void draw_pattern( struct module *mod, int pat, int row, int channel, int
 	}
 	scroll_x = 4 + num_cols * 11 * channel / num_chan;
 	scroll_w = num_cols * 11 * num_cols / num_chan;
-	draw_char( 91, 16, scroll_x - 1, 0 );
+	draw_char( 91, 17, scroll_x - 1, 0 );
 	for( c = scroll_x, c1 = scroll_x + scroll_w - 1; c < c1; c++ ) {
-		draw_char( 61, 16, c, 0 );
+		draw_char( 61, 17, c, 0 );
 	}
-	draw_char( 93, 16, scroll_x + scroll_w - 1, 0 );
+	draw_char( 93, 17, scroll_x + scroll_w - 1, 0 );
 }
 
 static int scroll_click( struct module *mod, int x, int channel, int width ) {
@@ -425,8 +426,10 @@ static int open_display() {
 	int result = 0;
 	window = SDL_CreateWindow( IBXM_VERSION,
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		800, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
+		( 11 * 8 + 4 ) * 8, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
 	if( window ) {
+		SDL_SetWindowMinimumSize( window, ( 11 * 4 + 4 ) * 8, MAX_HEIGHT );
+		SDL_SetWindowMaximumSize( window, MAX_WIDTH, MAX_HEIGHT );
 		renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_TARGETTEXTURE );
 		if( renderer ) {
 			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, MAX_WIDTH, MAX_HEIGHT );
