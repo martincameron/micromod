@@ -1,4 +1,8 @@
 
+#include "SDL.h"
+
+#include "ibxm.h"
+
 /* Maximum pattern display dimensions. */
 static const int MAX_WIDTH = ( 16 * 11 + 4 ) * 8, MAX_HEIGHT = 18 * 16;
 
@@ -13,8 +17,6 @@ static const int PAL_ENTRIES[] = { /*
 
 static const char *KEY_TO_STR = "A-A#B-C-C#D-D#E-F-F#G-G#";
 static const char *B36_TO_STR = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-static int mute;
 
 /* Colours to use for effect commands (MOD/XM upper case, S3M lower case). */
 static const char FX_CLR[] = {
@@ -51,6 +53,7 @@ static const char VC_CLR[] = {
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *target, *charset;
+static int mute;
 
 static SDL_Texture* create_texture( int width, int height, Uint32 *pixels ) {
 	struct SDL_Texture *texture = SDL_CreateTexture( renderer,
@@ -219,6 +222,9 @@ static void draw_pattern( struct module *mod, int pat, int row, int channel, int
 					} else if( note[ 7 ] >= 48 && note[ 7 ] <= 126 ) {
 						clr = clr + FX_CLR[ note[ 7 ] - 48 ];
 					}
+					if( note[ 7 ] >= 97 ) {
+						note[ 7 ] -= 32;
+					}
 					draw_text( &note[ 7 ], 3, y, x + 7, clr );
 				}
 			}
@@ -256,51 +262,6 @@ static int scroll_click( struct module *mod, int x, int channel, int width ) {
 	return channel;
 }
 
-static void close_display() {
-	if( charset ) {
-		SDL_DestroyTexture( charset );
-		charset = NULL;
-	}
-	if( target ) {
-		SDL_DestroyTexture( target );
-		target = NULL;
-	}
-	if( renderer ) {
-		SDL_DestroyRenderer( renderer );
-		renderer = NULL;
-	}
-	if( window ) {
-		SDL_DestroyWindow( window );
-		window = NULL;
-	}
-}
-
-static int open_display() {
-	int result = 0;
-	window = SDL_CreateWindow( IBXM_VERSION,
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		( 11 * 8 + 4 ) * 8, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
-	if( window ) {
-		SDL_SetWindowMinimumSize( window, ( 11 * 4 + 4 ) * 8, MAX_HEIGHT );
-		SDL_SetWindowMaximumSize( window, MAX_WIDTH, MAX_HEIGHT );
-		renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_TARGETTEXTURE );
-		if( renderer ) {
-			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, MAX_WIDTH, MAX_HEIGHT );
-			if( target ) { 
-				SDL_SetRenderTarget( renderer, target );
-				charset = create_charset( CHAR_SET, PAL_ENTRIES, 16 );
-				if( charset ) {
-					result = 1;
-				}
-			}
-		}
-	}
-	if( !result ) {
-		close_display();
-	}
-	return result;
-}
-
 static void redraw_display() {
 	SDL_Rect rect = { 0 };
 	if( renderer && target ) {
@@ -323,7 +284,52 @@ static int get_width( SDL_Window *window ) {
 	return width;
 }
 
-static int handle_redraw_event( SDL_Event *event, struct module *module, int scroll ) {
+void pattern_display_close() {
+	if( charset ) {
+		SDL_DestroyTexture( charset );
+		charset = NULL;
+	}
+	if( target ) {
+		SDL_DestroyTexture( target );
+		target = NULL;
+	}
+	if( renderer ) {
+		SDL_DestroyRenderer( renderer );
+		renderer = NULL;
+	}
+	if( window ) {
+		SDL_DestroyWindow( window );
+		window = NULL;
+	}
+}
+
+int pattern_display_open() {
+	int result = 0;
+	window = SDL_CreateWindow( IBXM_VERSION,
+		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		( 11 * 8 + 4 ) * 8, MAX_HEIGHT, SDL_WINDOW_RESIZABLE );
+	if( window ) {
+		SDL_SetWindowMinimumSize( window, ( 11 * 4 + 4 ) * 8, MAX_HEIGHT );
+		SDL_SetWindowMaximumSize( window, MAX_WIDTH, MAX_HEIGHT );
+		renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_TARGETTEXTURE );
+		if( renderer ) {
+			target = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, MAX_WIDTH, MAX_HEIGHT );
+			if( target ) { 
+				SDL_SetRenderTarget( renderer, target );
+				charset = create_charset( CHAR_SET, PAL_ENTRIES, 16 );
+				if( charset ) {
+					result = 1;
+				}
+			}
+		}
+	}
+	if( !result ) {
+		pattern_display_close();
+	}
+	return result;
+}
+
+int pattern_display_redraw_event( SDL_Event *event, struct module *module, int scroll ) {
 	int width;
 	if( window ) {
 		width = get_width( window );
@@ -335,7 +341,7 @@ static int handle_redraw_event( SDL_Event *event, struct module *module, int scr
 	return scroll;
 }
 
-static int handle_button_event( SDL_Event *event, struct module *module, int scroll ) {
+int pattern_display_button_event( SDL_Event *event, struct module *module, int scroll ) {
 	int chan, width;
 	if( window ) {
 		width = get_width( window );
@@ -361,4 +367,8 @@ static int handle_button_event( SDL_Event *event, struct module *module, int scr
 		}
 	}
 	return scroll;
+}
+
+int pattern_display_get_mute() {
+	return mute;
 }

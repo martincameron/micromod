@@ -9,8 +9,7 @@
 #include "SDL_main.h"
 
 #include "ibxm.h"
-
-#include "patterndisplay.c"
+#include "patterndisplay.h"
 
 /*
 	Simple command-line test player for ibxm-ac using SDL.
@@ -22,7 +21,7 @@
 
 static short reverb_buffer[ REVERB_BUF_LEN ];
 static int mix_buffer[ SAMPLING_FREQ / 3 ];
-static int mix_len, mix_idx, reverb_len, reverb_idx, loop;
+static int mix_len, mix_idx, reverb_len, reverb_idx, loop, display;
 static int samples_remaining, redraw_event, song_end_event;
 
 /* Simple stereo cross delay with feedback. */
@@ -63,7 +62,7 @@ static void get_audio( struct replay *replay, short *buffer, int count ) {
 	int buf_idx = 0, remain;
 	while( buf_idx < count ) {
 		if( mix_idx >= mix_len ) {
-			mix_len = replay_get_audio( replay, mix_buffer, mute );
+			mix_len = replay_get_audio( replay, mix_buffer, pattern_display_get_mute() );
 			mix_idx = 0;
 		}
 		remain = mix_len - mix_idx;
@@ -80,7 +79,7 @@ static void audio_callback( void *udata, Uint8 *stream, int len ) {
 	struct replay *replay = ( struct replay * ) udata;
 	SDL_Event event = { 0 };
 	int count = len / 4;
-	if( window ) {
+	if( display ) {
 		/* Update display. */
 		event.type = redraw_event;
 		event.user.code = ( replay_get_sequence_pos( replay ) << 8 ) | replay_get_row( replay );
@@ -172,7 +171,7 @@ static int play_module( struct module *module, int interpolation, int display ) 
 		result = SDL_Init( SDL_INIT_AUDIO | ( display ? SDL_INIT_VIDEO : 0 ) );
 		if( result == 0 ) {
 			if( display ) {
-				display = open_display();
+				display = pattern_display_open();
 			}
 			/* Open the audio device. */
 			result = SDL_OpenAudio( &audiospec, NULL );
@@ -188,14 +187,14 @@ static int play_module( struct module *module, int interpolation, int display ) 
 					if( event.type == song_end_event ) {
 						break;
 					} else if( event.type == redraw_event ) {
-						scroll = handle_redraw_event( &event, module, scroll );
+						scroll = pattern_display_redraw_event( &event, module, scroll );
 					} else if( event.type == SDL_MOUSEBUTTONDOWN ) {
-						scroll = handle_button_event( &event, module, scroll );
+						scroll = pattern_display_button_event( &event, module, scroll );
 					}
 				}
 				/* Shut down. */
 				SDL_CloseAudio();
-				close_display();
+				pattern_display_close();
 				SDL_Quit();
 			} else {
 				fprintf( stderr, "Unable to open audio device: %s\n", SDL_GetError() );
@@ -212,7 +211,7 @@ static int play_module( struct module *module, int interpolation, int display ) 
 
 int main( int argc, char **argv ) {
 	int arg, length, result = EXIT_FAILURE;
-	int interpolation = 0, display = 0;
+	int interpolation = 0;
 	char *filename = NULL, *input, message[ 64 ] = "";
 	struct data data;
 	struct module *module;
