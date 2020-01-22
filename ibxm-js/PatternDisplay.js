@@ -137,6 +137,9 @@ function PatternDisplay( charsetImg, cw, ch ) {
 								clr = clr + fxclr[ chars[ 7 ] - 48 ];
 							}
 						}
+						if( chars[ 7 ] >= 97 ) {
+							chars[ 7 ] -= 32;
+						}
 						for( var idx = 7; idx < 10; idx++ ) {
 							drawChar( chars[ idx ], y, x + idx, clr, ctx );
 						}
