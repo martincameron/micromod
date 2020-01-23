@@ -149,7 +149,7 @@ static void print_module_info( struct module *module ) {
 }
 
 static int play_module( struct module *module, int interpolation, int display ) {
-	int result, scroll = 0;
+	int result;
 	SDL_AudioSpec audiospec;
 	SDL_Event event = { 0 };
 	/* Initialise replay.*/
@@ -187,9 +187,9 @@ static int play_module( struct module *module, int interpolation, int display ) 
 					if( event.type == song_end_event ) {
 						break;
 					} else if( event.type == redraw_event ) {
-						scroll = pattern_display_redraw_event( &event, module, scroll );
+						pattern_display_redraw_event( &event, module );
 					} else if( event.type == SDL_MOUSEBUTTONDOWN ) {
-						scroll = pattern_display_button_event( &event, module, scroll );
+						pattern_display_button_event( &event, module );
 					}
 				}
 				/* Shut down. */

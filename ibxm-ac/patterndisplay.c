@@ -53,7 +53,7 @@ static const char VC_CLR[] = {
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *target, *charset;
-static int mute;
+static int scroll, mute;
 
 static SDL_Texture* create_texture( int width, int height, Uint32 *pixels ) {
 	struct SDL_Texture *texture = SDL_CreateTexture( renderer,
@@ -329,7 +329,11 @@ int pattern_display_open() {
 	return result;
 }
 
-int pattern_display_redraw_event( SDL_Event *event, struct module *module, int scroll ) {
+int pattern_display_get_mute() {
+	return mute;
+}
+
+void pattern_display_redraw_event( SDL_Event *event, struct module *module ) {
 	int width;
 	if( window ) {
 		width = get_width( window );
@@ -338,10 +342,9 @@ int pattern_display_redraw_event( SDL_Event *event, struct module *module, int s
 		draw_pattern( module, module->sequence[ event->user.code >> 8 ], event->user.code & 0xFF, scroll, width, mute );
 		redraw_display();
 	}
-	return scroll;
 }
 
-int pattern_display_button_event( SDL_Event *event, struct module *module, int scroll ) {
+void pattern_display_button_event( SDL_Event *event, struct module *module ) {
 	int chan, width;
 	if( window ) {
 		width = get_width( window );
@@ -366,9 +369,4 @@ int pattern_display_button_event( SDL_Event *event, struct module *module, int s
 			}
 		}
 	}
-	return scroll;
-}
-
-int pattern_display_get_mute() {
-	return mute;
 }
