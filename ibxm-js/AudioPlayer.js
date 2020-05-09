@@ -24,6 +24,7 @@ function AudioPlayer( callback, effect ) {
 	this.play = function() {
 		scriptProcessor.onaudioprocess = onaudioprocess;
 		scriptProcessor.connect( audioContext.destination );
+		audioContext.resume();
 	}
 	this.stop = function() {
 		if( scriptProcessor.onaudioprocess ) {
