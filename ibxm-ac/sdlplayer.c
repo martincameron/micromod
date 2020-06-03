@@ -149,7 +149,7 @@ static void print_module_info( struct module *module ) {
 }
 
 static int play_module( struct module *module, int interpolation, int display ) {
-	int result;
+	int result = 1;
 	SDL_AudioSpec audiospec;
 	SDL_Event event = { 0 };
 	/* Initialise replay.*/

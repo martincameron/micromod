@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS=-ansi -pedantic -Wall -g
+CFLAGS=-ansi -pedantic -Wall -Og
 
 all: micromod-sdl
 
