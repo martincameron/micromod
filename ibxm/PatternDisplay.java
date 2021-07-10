@@ -39,7 +39,7 @@ public class PatternDisplay extends Canvas {
 
 	private int[] vcclr = new int[] {
 		/* 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F */
-		   5,5,5,5,5,0,5,5,5,5,0,0,0,0,0,0,0,1,1,5,5,5,1
+		   5,5,5,5,5,5,5,5,5,5,0,0,0,0,0,0,0,1,1,5,5,5,1
 	};
 
 	private synchronized void drawBuffer( int x0, int y0, int x1, int y1 ) {
