@@ -1936,6 +1936,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 			max = displayChannels;
 		}
 		gadMax[ GADNUM_PATTERN_HSLIDER ] = max;
+		gadValue[ GADNUM_PATTERN_HSLIDER ] = 0;
 		gadRedraw[ GADNUM_PATTERN_HSLIDER ] = true;
 		setInstrument( 1 );
 		listInstruments();
