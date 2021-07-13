@@ -2,17 +2,17 @@
 package ibxm;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2019 mumart@gmail.com
+	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2021 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a74 (c)2019 mumart@gmail.com";
+	public static final String VERSION = "a75 (c)2021 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
-	private boolean[] muted;
 	private byte[][] playCount;
 	private Channel[] channels;
 	private int sampleRate, interpolation;
+	private boolean muted[], sequencerEnabled;
 	private int seqPos, breakSeqPos, row, nextRow, tick;
 	private int speed, tempo, plCount, plChannel;
 	private GlobalVol globalVol;
@@ -44,6 +44,11 @@ public class IBXM {
 			throw new IllegalArgumentException( "Unsupported sampling rate!" );
 		}
 		sampleRate = rate;
+	}
+	
+	/* Return the current resampling quality setting. */
+	public int getInterpolation() {
+		return interpolation;
 	}
 
 	/* Set the resampling quality to one of
@@ -98,6 +103,7 @@ public class IBXM {
 			channels[ idx ] = new Channel( module, idx, globalVol );
 		for( int idx = 0; idx < 128; idx++ )
 			rampBuf[ idx ] = 0;
+		sequencerEnabled = true;
 		tick();
 	}
 
@@ -149,6 +155,22 @@ public class IBXM {
 		}
 	}
 
+	/* Return true if the sequencer is enabled. */
+	public boolean getSequencerEnabled() {
+		return sequencerEnabled;
+	}
+
+	/* Enable or disable the sequencer. */
+	public void setSequencerEnabled( boolean enabled ) {
+		sequencerEnabled = enabled;
+	}
+
+	/* Send a row command to the specified channel. */
+	public void trigger( int channel, Note note )
+	{
+		channels[ channel ].row( note );
+	}
+
 	/* Generate audio.
 	   The number of samples placed into outputBuf is returned.
 	   The output buffer length must be at least that returned by getMixBufferLength().
@@ -196,7 +218,7 @@ public class IBXM {
 	}
 
 	private boolean tick() {
-		if( --tick <= 0 ) {
+		if( sequencerEnabled && --tick <= 0 ) {
 			tick = speed;
 			row();
 		} else {

@@ -191,19 +191,29 @@ public class Sample {
 		}
 		return sampleIdx;
 	}
-	
+
 	public boolean looped() {
 		return loopLength > 1;
 	}
 
-	public void toStringBuffer( StringBuffer out ) {
-		out.append( "Name: " + name + '\n' );
-		out.append( "Volume: " + volume + '\n' );
-		out.append( "Panning: " + panning + '\n' );
-		out.append( "Relative Note: " + relNote + '\n' );
-		out.append( "Fine Tune: " + fineTune + '\n' );
-		out.append( "Loop Start: " + loopStart + '\n' );
-		out.append( "Loop Length: " + loopLength + '\n' );
+	public int getLoopStart() {
+		return loopStart;
+	}
+	
+	public int getLoopLength() {
+		return loopLength;
+	}
+
+	public void toStringBuffer( StringBuffer out, String prefix ) {
+		out.append( prefix + "Name: " + name + '\n' );
+		out.append( prefix + "Volume: " + volume + '\n' );
+		if( panning >= 0 ) {
+			out.append( prefix + "Panning: " + panning + '\n' );
+		}
+		out.append( prefix + "Relative Note: " + relNote + '\n' );
+		out.append( prefix + "Fine Tune: " + fineTune + '\n' );
+		out.append( prefix + "Loop Start: " + loopStart + '\n' );
+		out.append( prefix + "Loop Length: " + loopLength + '\n' );
 		/*
 		out.append( "Sample Data: " );
 		for( int idx = 0; idx < sampleData.length; idx++ )

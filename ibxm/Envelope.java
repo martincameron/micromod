@@ -29,16 +29,19 @@ public class Envelope {
 		return ampl;
 	}
 	
-	public void toStringBuffer( StringBuffer out ) {
-		out.append( "Enabled: " + enabled + '\n' );
-		out.append( "Sustain: " + sustain + '\n' );
-		out.append( "Looped: " + looped + '\n' );
-		out.append( "Sustain Tick: " + sustainTick + '\n' );
-		out.append( "Loop Start Tick: " + loopStartTick + '\n' );
-		out.append( "Loop End Tick: " + loopEndTick + '\n' );
-		out.append( "Num Points: " + numPoints + '\n' );
-		out.append( "Points: " );
+	public void toStringBuffer( StringBuffer out, String prefix ) {
+		if( sustain ) {
+			out.append( prefix + "Sustain Tick: " + sustainTick + '\n' );
+		}
+		if( looped ) {
+			out.append( prefix + "Loop Start Tick: " + loopStartTick + '\n' );
+			out.append( prefix + "Loop End Tick: " + loopEndTick + '\n' );
+		}
+		out.append( prefix + "Points:" );
 		for( int point = 0; point < numPoints; point++ ) {
+			if( point % 3 == 0 ) {
+				out.append( '\n' + prefix + prefix );
+			}
 			out.append( "(" + pointsTick[ point ] + ", " + pointsAmpl[ point ] + "), " );
 		}
 		out.append( '\n' );

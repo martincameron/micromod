@@ -14,24 +14,41 @@ public class Instrument {
 	public void toStringBuffer( StringBuffer out ) {
 		out.append( "Name: " + name + '\n' );
 		if( numSamples > 0 ) {
+			if( vibratoDepth > 0 ) {
+				out.append( "Vibrato Type: " + vibratoType + '\n' );
+				out.append( "Vibrato Sweep: " + vibratoSweep + '\n' );
+				out.append( "Vibrato Depth: " + vibratoDepth + '\n' );
+				out.append( "Vibrato Rate: " + vibratoRate + '\n' );
+			}
+			if( volumeFadeOut > 0 ) {
+				out.append( "Volume Fade Out: " + volumeFadeOut + '\n' );
+			}
+			if( volumeEnvelope.enabled ) {
+				out.append( "Volume Envelope:\n" );
+				volumeEnvelope.toStringBuffer( out, "   " );
+			}
+			if( panningEnvelope.enabled ) {
+				out.append( "Panning Envelope:\n" );
+				panningEnvelope.toStringBuffer( out, "   " );
+			}
 			out.append( "Num Samples: " + numSamples + '\n' );
-			out.append( "Vibrato Type: " + vibratoType + '\n' );
-			out.append( "Vibrato Sweep: " + vibratoSweep + '\n' );
-			out.append( "Vibrato Depth: " + vibratoDepth + '\n' );
-			out.append( "Vibrato Rate: " + vibratoRate + '\n' );
-			out.append( "Volume Fade Out: " + volumeFadeOut + '\n' );
-			out.append( "Volume Envelope:\n" );
-			volumeEnvelope.toStringBuffer( out );
-			out.append( "Panning Envelope:\n" );
-			panningEnvelope.toStringBuffer( out );
 			for( int samIdx = 0; samIdx < numSamples; samIdx++ ) {
 				out.append( "Sample " + samIdx + ":\n" );
-				samples[ samIdx ].toStringBuffer( out );
+				samples[ samIdx ].toStringBuffer( out, "   " );
 			}
-			out.append( "Key To Sample: " );
-			for( int keyIdx = 1; keyIdx < 97; keyIdx++ )
-				out.append( keyToSample[ keyIdx ] + ", " );
-			out.append( '\n' );
+			if( numSamples > 1 ) {
+				out.append( "Key To Sample:\n" );
+				for( int oct = 0; oct < 8; oct++ ) {
+					out.append( "   Oct " + oct + ": " );
+					for( int key = 0; key < 12; key++ ) {
+						out.append( keyToSample[ oct * 12 + key + 1 ] );
+						if( key < 11 ) {
+							out.append( "," );
+						}
+					}
+					out.append( '\n' );
+				}
+			}
 		}
 	}
 }
