@@ -26,6 +26,19 @@ import java.util.Arrays;
 
 public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, MouseMotionListener, WindowListener
 {
+	private static final String[] KEYS = new String[]
+	{
+		"F1-F4: Keyboard transpose.",
+		"F5: Toggle reverb effect.",
+		"F6: No interpolation filter.",
+		"F7: Linear interpolation filter.",
+		"F8: Sinc interpolation filter.",
+		"Q-P: Keyboard octave 1.",
+		"Z-M: Keyboard octave 2.",
+		"Enter: Release all notes.",
+		"Space: All notes off."
+	};
+	
 	private static final long[] TOPAZ_8 = new long[]
 	{
 		0x0000000000000000L,
@@ -276,7 +289,6 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	private Module module = new Module();
 	private IBXM ibxm = new IBXM( module, SAMPLING_RATE );
 	private int instrument, octave = 4, selectedFile, triggerChannel;
-	private byte[] copyBuf = new byte[ 0 ];
 	private boolean reverb;
 	private String error;
 	private long mute;
@@ -416,7 +428,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		gadLink[ GADNUM_PATTERN_HSLIDER ] = GADNUM_PATTERN;
 		createDiskGadgets( 4, 4 );
 		createLabel( GADNUM_TITLE_LABEL, 67 * 8, 4 + 6, "Title", TEXT_SHADOW_SELECTED );
-		createTextbox( GADNUM_TITLE_TEXTBOX, 72 * 8 + 4, 4, 23 * 8, 28, "" );
+		createTextbox( GADNUM_TITLE_TEXTBOX, 72 * 8 + 4, 4, 23 * 8, 28, module.songName );
 		createInstGadgets( 42 * 8, 4 );
 		createSequenceGadgets( 83 * 8 + 4, 36 );
 		String version = "IBXM " + IBXM.VERSION;
@@ -460,6 +472,12 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				case KeyEvent.VK_F8:
 					ibxm.setInterpolation( Channel.SINC );
 					break;
+				case KeyEvent.VK_ENTER:
+					for( int chn = 0; chn < module.numChannels; chn++ )
+					{
+						trigger( chn, 97 );
+					}
+					break;
 				default:
 					switch( gadType[ focus ] )
 					{
@@ -467,11 +485,8 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 							keyTextbox( focus, e.getKeyChar(), e.getKeyCode(), e.isShiftDown() );
 							break;
 						case GAD_TYPE_LISTBOX:
-							keyListbox( focus, e.getKeyChar(), e.getKeyCode(), e.isShiftDown()  );
+							keyListbox( focus, e.getKeyChar(), e.getKeyCode(), e.isShiftDown() );
 							trigger( -1, mapEventKey( KEY_MAP, e.getKeyCode() ) );
-							break;
-						case GAD_TYPE_PATTERN:
-							keyPattern( focus, e.getKeyChar(), e.getKeyCode(), e.isShiftDown() );
 							break;
 						default:
 							trigger( -1, mapEventKey( KEY_MAP, e.getKeyCode() ) );
@@ -1514,8 +1529,10 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				}
 				Note note = new Note();
 				note.key = noteKey + octave * 12;
-				note.instrument = instrument;
-				//note.effect = 0x14;
+				if( noteKey < 97 )
+				{
+					note.instrument = instrument;
+				}
 				ibxm.trigger( channel, note );
 			}
 			else
@@ -1523,11 +1540,6 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				stop();
 			}
 		}
-	}
-	
-	private void keyPattern( int gadnum, char chr, int key, boolean shift )
-	{
-		trigger( -1, mapEventKey( KEY_MAP, key ) );
 	}
 	
 	private int findGadget( int x, int y )
@@ -1609,6 +1621,12 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	
 	private void escape( int gadnum )
 	{
+		switch( gadnum )
+		{
+			case GADNUM_TITLE_TEXTBOX:
+				gadText[ gadnum ][ 0 ] = module.songName;
+				break;
+		}
 	}
 	
 	private void action( int gadnum, boolean shift )
@@ -1665,6 +1683,9 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				case GADNUM_INST_DEC_BUTTON:
 					setInstrument( instrument - 1 );
 					listInstruments();
+					break;
+				case GADNUM_TITLE_TEXTBOX:
+					gadText[ gadnum ][ 0 ] = module.songName;
 					break;
 				case GADNUM_SEQ_LISTBOX:
 					setSeqPos( gadItem[ gadnum ] );
@@ -1775,8 +1796,10 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		gadItem[ GADNUM_DIR_LISTBOX ] = 0;
 		gadValue[ GADNUM_DIR_SLIDER ] = 0;
 		gadValues[ GADNUM_DIR_LISTBOX ] = values;
+		gadText[ GADNUM_INST_LISTBOX ] = KEYS;
 		gadRedraw[ GADNUM_DIR_TEXTBOX ] = true;
 		gadRedraw[ GADNUM_DIR_LISTBOX ] = true;
+		gadRedraw[ GADNUM_INST_LISTBOX ] = true;
 	}
 	
 	private static int parsePositiveInt( String str, int max )
