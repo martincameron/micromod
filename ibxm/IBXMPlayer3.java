@@ -35,7 +35,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		"F8: Sinc interpolation filter.",
 		"Q-P: Keyboard octave 1.",
 		"Z-M: Keyboard octave 2.",
-		"Enter: Release all notes.",
+		"Shift: Sustain notes.",
 		"Space: All notes off."
 	};
 	
@@ -201,7 +201,6 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	
 	private static final int[] KEY_MAP = new int[]
 	{
-		KeyEvent.VK_SPACE,
 		KeyEvent.VK_Z, KeyEvent.VK_S, KeyEvent.VK_X, KeyEvent.VK_D,
 		KeyEvent.VK_C, KeyEvent.VK_V, KeyEvent.VK_G, KeyEvent.VK_B,
 		KeyEvent.VK_H, KeyEvent.VK_N, KeyEvent.VK_J, KeyEvent.VK_M,
@@ -289,6 +288,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	private Module module = new Module();
 	private IBXM ibxm = new IBXM( module, SAMPLING_RATE );
 	private int instrument, octave = 4, selectedFile, triggerChannel;
+	private int[] keyChannel = new int[ 97 ];
 	private boolean reverb;
 	private String error;
 	private long mute;
@@ -472,12 +472,6 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				case KeyEvent.VK_F8:
 					ibxm.setInterpolation( Channel.SINC );
 					break;
-				case KeyEvent.VK_ENTER:
-					for( int chn = 0; chn < module.numChannels; chn++ )
-					{
-						trigger( chn, 97 );
-					}
-					break;
 				default:
 					switch( gadType[ focus ] )
 					{
@@ -486,10 +480,10 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 							break;
 						case GAD_TYPE_LISTBOX:
 							keyListbox( focus, e.getKeyChar(), e.getKeyCode(), e.isShiftDown() );
-							trigger( -1, mapEventKey( KEY_MAP, e.getKeyCode() ) );
+							trigger( -1, mapNoteKey( e ), e.isShiftDown() );
 							break;
 						default:
-							trigger( -1, mapEventKey( KEY_MAP, e.getKeyCode() ) );
+							trigger( -1, mapNoteKey( e ), e.isShiftDown() );
 							break;
 					}
 					break;
@@ -505,6 +499,14 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	
 	public synchronized void keyReleased( KeyEvent e )
 	{
+		switch( gadType[ focus ] )
+		{
+			case GAD_TYPE_TEXTBOX:
+				break;
+			default:
+				release( mapNoteKey( e ) );
+				break;
+		}
 	}
 	
 	public synchronized void keyTyped( KeyEvent e )
@@ -1497,23 +1499,28 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		gadRedraw[ GADNUM_PATTERN ] = true;
 	}
 	
-	private static int mapEventKey( int[] keyMap, int eventKey )
+	private int mapNoteKey( KeyEvent event )
 	{
-		for( int idx = 0; idx < keyMap.length; idx++ )
+		int keyCode = event.getKeyCode();
+		for( int idx = 0; idx < KEY_MAP.length; idx++ )
 		{
-			if( keyMap[ idx ] == eventKey )
+			if( KEY_MAP[ idx ] == keyCode )
 			{
-				return idx;
+				return idx + 1 + octave * 12;
 			}
 		}
 		return -1;
 	}
 	
-	private void trigger( int channel, int noteKey )
+	private void trigger( int channel, int noteKey, boolean sustain )
 	{
 		if( !ibxm.getSequencerEnabled() )
 		{
-			if( noteKey > 0 )
+			if( noteKey < 1 || noteKey > 96 )
+			{
+				stop();
+			}
+			else if( keyChannel[ noteKey ] < 1 )
 			{
 				if( channel < 0 )
 				{
@@ -1528,16 +1535,25 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 					channel = triggerChannel;
 				}
 				Note note = new Note();
-				note.key = noteKey + octave * 12;
-				if( noteKey < 97 )
-				{
-					note.instrument = instrument;
-				}
+				note.key = noteKey;
+				note.instrument = instrument;
 				ibxm.trigger( channel, note );
+				keyChannel[ noteKey ] = sustain ? 0 : channel + 1;
 			}
-			else
+		}
+	}
+	
+	private void release( int noteKey )
+	{
+		if( !ibxm.getSequencerEnabled() && noteKey > 0 && noteKey < 97 )
+		{
+			int channel = keyChannel[ noteKey ] - 1;
+			if( channel >= 0 )
 			{
-				stop();
+				Note note = new Note();
+				note.key = 97;
+				ibxm.trigger( channel, note );
+				keyChannel[ noteKey ] = 0;
 			}
 		}
 	}
@@ -1922,6 +1938,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 			note.effect = 0x8;
 			note.param = ( ( idx & 3 ) == 1 || ( idx & 3 ) == 2 ) ? 204 : 51;
 			ibxm.trigger( idx, note );
+			keyChannel[ idx ] = 0;
 		}
 		gadText[ GADNUM_PLAY_BUTTON ][ 0 ] = "Play";
 		gadRedraw[ GADNUM_PLAY_BUTTON ] = true;
