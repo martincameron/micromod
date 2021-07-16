@@ -1938,6 +1938,9 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 			note.effect = 0x8;
 			note.param = ( ( idx & 3 ) == 1 || ( idx & 3 ) == 2 ) ? 204 : 51;
 			ibxm.trigger( idx, note );
+		}
+		for( int idx = 0; idx < keyChannel.length; idx++ )
+		{
 			keyChannel[ idx ] = 0;
 		}
 		gadText[ GADNUM_PLAY_BUTTON ][ 0 ] = "Play";
