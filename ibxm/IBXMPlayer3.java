@@ -386,9 +386,8 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		return ( r << 16 ) | ( g << 8 ) | b;
 	}
 	
-	private void createDiskGadgets( int x, int y, int cols )
+	private void createDiskGadgets( int x, int y, int rows, int cols )
 	{
-		int rows = 7;
 		createTextbox( GADNUM_DIR_TEXTBOX, x, y, ( cols - 1 ) * 8, 28, "" );
 		createButton( GADNUM_DIR_BUTTON, x + ( cols - 1 ) * 8 + 4, y + 2, 44, 24, "Dir" );
 		createListbox( GADNUM_DIR_LISTBOX, x, y + 32, ( cols + 2 ) * 8, rows * 16 + 12, GADNUM_DIR_SLIDER );
@@ -396,9 +395,8 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		createButton( GADNUM_LOAD_BUTTON, x, y + rows * 16 + 48, 96, 24, "Load" );
 	}
 	
-	private void createInstGadgets( int x, int y )
+	private void createInstGadgets( int x, int y, int rows, int cols )
 	{
-		int rows = 7, cols = 36;
 		createLabel( GADNUM_INST_LABEL, x, y + 6, "Instrument", TEXT_SHADOW_SELECTED );
 		createTextbox( GADNUM_INST_TEXTBOX, x + 10 * 8 + 4, y, 4 * 8, 28, "00" );
 		createButton( GADNUM_INST_DEC_BUTTON, x + 15 * 8, y + 2, 24, 24, "<" );
@@ -407,9 +405,8 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		createVSlider( GADNUM_INST_SLIDER, x + ( cols + 2 ) * 8 + 4, y + 32, 20, rows * 16 + 12, 1, 1 );
 	}
 	
-	private void createSequenceGadgets( int x, int y )
+	private void createSequenceGadgets( int x, int y, int rows )
 	{
-		int rows = 7;
 		createListbox( GADNUM_SEQ_LISTBOX, x, y, 9 * 8, rows * 16 + 12, GADNUM_SEQ_SLIDER );
 		gadText[ GADNUM_SEQ_LISTBOX ] = new String[] { "000   0" };
 		createVSlider( GADNUM_SEQ_SLIDER, x + 9 * 8 + 4, y, 20, rows * 16 + 12, 1, 1 );
@@ -418,28 +415,29 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	
 	public IBXMPlayer3( int channels )
 	{
+		int rows = 9;
 		displayChannels = channels;
 		addKeyListener( this );
 		addMouseListener( this );
 		addMouseMotionListener( this );
-		createPattern( GADNUM_PATTERN, 4, 192, channels, GADNUM_PATTERN_VSLIDER );
-		createVSlider( GADNUM_PATTERN_VSLIDER, gadWidth[ GADNUM_PATTERN ] + 8, 192, 20, 256, 15, 78 );
-		createHSlider( GADNUM_PATTERN_HSLIDER, 4, 452, gadWidth[ GADNUM_PATTERN ], 20, channels, channels );
+		createPattern( GADNUM_PATTERN, 4, 80 + rows * 16, channels, GADNUM_PATTERN_VSLIDER );
+		createVSlider( GADNUM_PATTERN_VSLIDER, gadWidth[ GADNUM_PATTERN ] + 8, 80 + rows * 16, 20, 256, 15, 78 );
+		createHSlider( GADNUM_PATTERN_HSLIDER, 4, 340 + rows * 16, gadWidth[ GADNUM_PATTERN ], 20, channels, channels );
 		gadLink[ GADNUM_PATTERN_HSLIDER ] = GADNUM_PATTERN;
-		createDiskGadgets( 4, 4, ( channels - 8 ) * 11 + 36 );
+		createDiskGadgets( 4, 4, rows, ( channels - 8 ) * 11 + 36 );
 		createLabel( GADNUM_TITLE_LABEL, ( channels * 11 - 21 ) * 8, 4 + 6, "Title", TEXT_SHADOW_SELECTED );
 		createTextbox( GADNUM_TITLE_TEXTBOX, ( channels * 11 - 16 ) * 8 + 4, 4, 23 * 8, 28, module.songName );
-		createInstGadgets( ( channels * 11 - 46 ) * 8, 4 );
-		createSequenceGadgets( ( channels * 11 - 5 ) * 8 + 4, 36 );
+		createInstGadgets( ( channels * 11 - 46 ) * 8, 4, rows, 36 );
+		createSequenceGadgets( ( channels * 11 - 5 ) * 8 + 4, 36, rows );
 		String version = "IBXM " + IBXM.VERSION;
 		int x = 4 + ( ( channels * 11 + 4 ) * 8 - version.length() * 8 ) / 2;
-		createLabel( GADNUM_VER_LABEL, x, 6 + 7 * 16 + 50, version, TEXT_HIGHLIGHT_SELECTED );
+		createLabel( GADNUM_VER_LABEL, x, 6 + rows * 16 + 50, version, TEXT_HIGHLIGHT_SELECTED );
 		ibxm.setSequencerEnabled( false );
 		setInstrument( 1 );
 		listDir( getDir() );
 		gadRedraw[ 0 ] = true;
 		width = gadWidth[ GADNUM_PATTERN ] + 32;
-		height = 476;
+		height = gadY[ GADNUM_PATTERN ] + gadHeight[ GADNUM_PATTERN ] + 28;
 	}
 	
 	public synchronized void keyPressed( KeyEvent e )
@@ -1968,7 +1966,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 		System.arraycopy( module.sequence, 0, sequence, 0, sequence.length );
 		setSequence( sequence );
 		gadItem[ GADNUM_PATTERN ] = 0;
-		gadText[ GADNUM_TITLE_TEXTBOX ][ 0 ] = module.songName;
+		gadText[ GADNUM_TITLE_TEXTBOX ][ 0 ] = module.songName.trim();
 		gadRedraw[ GADNUM_TITLE_TEXTBOX ] = true;
 		setSeqPos( 0 );
 		gadValue[ GADNUM_SEQ_SLIDER ] = 0;
@@ -2001,7 +1999,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 				if( seqPos != getSeqPos() && ( dt < 0 || dt > 500 ) )
 				{
 					setSeqPos( seqPos );
-					gadValue[ GADNUM_SEQ_SLIDER ] = seqPos - 3;
+					gadValue[ GADNUM_SEQ_SLIDER ] = seqPos - 4;
 				}
 				setRow( row );
 				repaint();
@@ -2012,7 +2010,7 @@ public class IBXMPlayer3 extends Canvas implements KeyListener, MouseListener, M
 	
 	public static void main( String[] args ) throws Exception
 	{
-		int channels = 8;
+		int channels = 10;
 		if( args.length > 0 )
 		{
 			channels = parsePositiveInt( args[ 0 ], 32 );
