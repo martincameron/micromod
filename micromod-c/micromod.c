@@ -1,34 +1,10 @@
-
 #include "micromod.h"
 
-#define MAX_CHANNELS 16
 #define FP_SHIFT 14
 #define FP_ONE   16384
 #define FP_MASK  16383
 
 static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180625 (c)mumart@gmail.com";
-
-struct note {
-	unsigned short key;
-	unsigned char instrument, effect, param;
-};
-
-struct instrument {
-	unsigned char volume, fine_tune;
-	unsigned long loop_start, loop_length;
-	signed char *sample_data;
-};
-
-struct channel {
-	struct note note;
-	unsigned short period, porta_period;
-	unsigned long sample_offset, sample_idx, step;
-	unsigned char volume, panning, fine_tune, ampl, mute;
-	unsigned char id, instrument, assigned, porta_speed, pl_row, fx_count;
-	unsigned char vibrato_type, vibrato_phase, vibrato_speed, vibrato_depth;
-	unsigned char tremolo_type, tremolo_phase, tremolo_speed, tremolo_depth;
-	signed char tremolo_add, vibrato_add, arpeggio_add;
-};
 
 static const unsigned short fine_tuning[] = {
 	4340, 4308, 4277, 4247, 4216, 4186, 4156, 4126,
@@ -44,17 +20,6 @@ static const unsigned char sine_table[] = {
 	  0,  24,  49,  74,  97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253,
 	255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120,  97,  74,  49,  24
 };
-
-static signed char *module_data;
-static unsigned char *pattern_data, *sequence;
-static long song_length, restart, num_patterns, num_channels;
-static struct instrument instruments[ 32 ];
-
-static long sample_rate, gain, c2_rate, tick_len, tick_offset;
-static long pattern, break_pattern, row, next_row, tick;
-static long speed, pl_count, pl_channel, random_seed;
-
-static struct channel channels[ MAX_CHANNELS ];
 
 static long calculate_num_patterns( signed char *module_header ) {
 	long num_patterns, order_entry, pattern;
@@ -85,7 +50,7 @@ static long calculate_num_channels( signed char *module_header ) {
 			numchan = 0;
 			break;
 	}
-	if( numchan > MAX_CHANNELS ) numchan = 0;
+	if( numchan > MICROMOD_MAX_CHANNELS ) numchan = 0;
 	return numchan;
 }
 
@@ -93,26 +58,26 @@ static long unsigned_short_big_endian( signed char *buf, long offset ) {
 	return ( ( buf[ offset ] & 0xFF ) << 8 ) | ( buf[ offset + 1 ] & 0xFF );
 }
 
-static void set_tempo( long tempo ) {
-	tick_len = ( ( sample_rate << 1 ) + ( sample_rate >> 1 ) ) / tempo;
+static void set_tempo( struct micromod_obj* obj, long tempo ) {
+	obj->tick_len = ( ( obj->sample_rate << 1 ) + ( obj->sample_rate >> 1 ) ) / tempo;
 }
 
-static void update_frequency( struct channel *chan ) {
+static void update_frequency( struct micromod_obj* obj, struct micromod_channel *chan ) {
 	long period, volume;
 	unsigned long freq;
 	period = chan->period + chan->vibrato_add;
 	period = period * arp_tuning[ chan->arpeggio_add ] >> 11;
 	period = ( period >> 1 ) + ( period & 1 );
 	if( period < 14 ) period = 6848;
-	freq = c2_rate * 428 / period;
-	chan->step = ( freq << FP_SHIFT ) / sample_rate;
+	freq = obj->c2_rate * 428 / period;
+	chan->step = ( freq << FP_SHIFT ) / obj->sample_rate;
 	volume = chan->volume + chan->tremolo_add;
 	if( volume > 64 ) volume = 64;
 	if( volume < 0 ) volume = 0;
-	chan->ampl = ( volume * gain ) >> 5;
+	chan->ampl = ( volume * obj->gain ) >> 5;
 }
 
-static void tone_portamento( struct channel *chan ) {
+static void tone_portamento( struct micromod_channel *chan ) {
 	long source, dest;
 	source = chan->period;
 	dest = chan->porta_period;
@@ -126,7 +91,7 @@ static void tone_portamento( struct channel *chan ) {
 	chan->period = source;
 }
 
-static void volume_slide( struct channel *chan, long param ) {
+static void volume_slide( struct micromod_channel *chan, long param ) {
 	long volume;
 	volume = chan->volume + ( param >> 4 ) - ( param & 0xF );
 	if( volume < 0 ) volume = 0;
@@ -134,7 +99,7 @@ static void volume_slide( struct channel *chan, long param ) {
 	chan->volume = volume;
 }
 
-static long waveform( long phase, long type ) {
+static long waveform( struct micromod_obj* obj, long phase, long type ) {
 	long amplitude = 0;
 	switch( type & 0x3 ) {
 		case 0: /* Sine. */
@@ -148,30 +113,30 @@ static long waveform( long phase, long type ) {
 			amplitude = 255 - ( ( phase & 0x20 ) << 4 );
 			break;
 		case 3: /* Random. */
-			amplitude = ( random_seed >> 20 ) - 255;
-			random_seed = ( random_seed * 65 + 17 ) & 0x1FFFFFFF;
+			amplitude = ( obj->random_seed >> 20 ) - 255;
+			obj->random_seed = ( obj->random_seed * 65 + 17 ) & 0x1FFFFFFF;
 			break;
 	}
 	return amplitude;
 }
 
-static void vibrato( struct channel *chan ) {
-	chan->vibrato_add = waveform( chan->vibrato_phase, chan->vibrato_type ) * chan->vibrato_depth >> 7;
+static void vibrato( struct micromod_obj* obj, struct micromod_channel *chan ) {
+	chan->vibrato_add = waveform( obj, chan->vibrato_phase, chan->vibrato_type ) * chan->vibrato_depth >> 7;
 }
 
-static void tremolo( struct channel *chan ) {
-	chan->tremolo_add = waveform( chan->tremolo_phase, chan->tremolo_type ) * chan->tremolo_depth >> 6;
+static void tremolo( struct micromod_obj* obj, struct micromod_channel *chan ) {
+	chan->tremolo_add = waveform( obj, chan->tremolo_phase, chan->tremolo_type ) * chan->tremolo_depth >> 6;
 }
 
-static void trigger( struct channel *channel ) {
+static void trigger( struct micromod_obj* obj, struct micromod_channel *channel ) {
 	long period, ins;
 	ins = channel->note.instrument;
 	if( ins > 0 && ins < 32 ) {
 		channel->assigned = ins;
 		channel->sample_offset = 0;
-		channel->fine_tune = instruments[ ins ].fine_tune;
-		channel->volume = instruments[ ins ].volume;
-		if( instruments[ ins ].loop_length > 0 && channel->instrument > 0 )
+		channel->fine_tune = obj->instruments[ ins ].fine_tune;
+		channel->volume = obj->instruments[ ins ].volume;
+		if( obj->instruments[ ins ].loop_length > 0 && channel->instrument > 0 )
 			channel->instrument = ins;
 	}
 	if( channel->note.effect == 0x09 ) {
@@ -192,14 +157,14 @@ static void trigger( struct channel *channel ) {
 	}
 }
 
-static void channel_row( struct channel *chan ) {
+static void channel_row( struct micromod_obj* obj, struct micromod_channel *chan ) {
 	long effect, param, volume, period;
 	effect = chan->note.effect;
 	param = chan->note.param;
 	chan->vibrato_add = chan->tremolo_add = chan->arpeggio_add = chan->fx_count = 0;
 	if( !( effect == 0x1D && param > 0 ) ) {
 		/* Not note delay. */
-		trigger( chan );
+		trigger( obj, chan );
 	}
 	switch( effect ) {
 		case 0x3: /* Tone Portamento.*/
@@ -208,41 +173,41 @@ static void channel_row( struct channel *chan ) {
 		case 0x4: /* Vibrato.*/
 			if( ( param & 0xF0 ) > 0 ) chan->vibrato_speed = param >> 4;
 			if( ( param & 0x0F ) > 0 ) chan->vibrato_depth = param & 0xF;
-			vibrato( chan );
+			vibrato( obj, chan );
 			break;
 		case 0x6: /* Vibrato + Volume Slide.*/
-			vibrato( chan );
+			vibrato( obj, chan );
 			break;
 		case 0x7: /* Tremolo.*/
 			if( ( param & 0xF0 ) > 0 ) chan->tremolo_speed = param >> 4;
 			if( ( param & 0x0F ) > 0 ) chan->tremolo_depth = param & 0xF;
-			tremolo( chan );
+			tremolo( obj, chan );
 			break;
 		case 0x8: /* Set Panning (0-127). Not for 4-channel Protracker. */
-			if( num_channels != 4 ) {
+			if( obj->num_channels != 4 ) {
 				chan->panning = ( param < 128 ) ? param : 127;
 			}
 			break;
 		case 0xB: /* Pattern Jump.*/
-			if( pl_count < 0 ) {
-				break_pattern = param;
-				next_row = 0;
+			if( obj->pl_count < 0 ) {
+				obj->break_pattern = param;
+				obj->next_row = 0;
 			}
 			break;
 		case 0xC: /* Set Volume.*/
 			chan->volume = param > 64 ? 64 : param;
 			break;
 		case 0xD: /* Pattern Break.*/
-			if( pl_count < 0 ) {
-				if( break_pattern < 0 ) break_pattern = pattern + 1;
-				next_row = ( param >> 4 ) * 10 + ( param & 0xF );
-				if( next_row >= 64 ) next_row = 0;
+			if( obj->pl_count < 0 ) {
+				if( obj->break_pattern < 0 ) obj->break_pattern = obj->pattern + 1;
+				obj->next_row = ( param >> 4 ) * 10 + ( param & 0xF );
+				if( obj->next_row >= 64 ) obj->next_row = 0;
 			}
 			break;
 		case 0xF: /* Set Speed.*/
 			if( param > 0 ) {
-				if( param < 32 ) tick = speed = param;
-				else set_tempo( param );
+				if( param < 32 ) obj->tick = obj->speed = param;
+				else set_tempo( obj, param );
 			}
 			break;
 		case 0x11: /* Fine Portamento Up.*/
@@ -258,20 +223,20 @@ static void channel_row( struct channel *chan ) {
 			break;
 		case 0x16: /* Pattern Loop.*/
 			if( param == 0 ) /* Set loop marker on this channel. */
-				chan->pl_row = row;
-			if( chan->pl_row < row && break_pattern < 0 ) { /* Marker valid. */
-				if( pl_count < 0 ) { /* Not already looping, begin. */
-					pl_count = param;
-					pl_channel = chan->id;
+				chan->pl_row = obj->row;
+			if( chan->pl_row < obj->row && obj->break_pattern < 0 ) { /* Marker valid. */
+				if( obj->pl_count < 0 ) { /* Not already looping, begin. */
+					obj->pl_count = param;
+					obj->pl_channel = chan->id;
 				}
-				if( pl_channel == chan->id ) { /* Next Loop.*/
-					if( pl_count == 0 ) { /* Loop finished. */
+				if( obj->pl_channel == chan->id ) { /* Next Loop.*/
+					if( obj->pl_count == 0 ) { /* Loop finished. */
 						/* Invalidate current marker. */
-						chan->pl_row = row + 1;
+						chan->pl_row = obj->row + 1;
 					} else { /* Loop. */
-						next_row = chan->pl_row;
+						obj->next_row = chan->pl_row;
 					}
-					pl_count--;
+					--(obj->pl_count);
 				}
 			}
 			break;
@@ -290,13 +255,13 @@ static void channel_row( struct channel *chan ) {
 			if( param <= 0 ) chan->volume = 0;
 			break;
 		case 0x1E: /* Pattern Delay.*/
-			tick = speed + speed * param;
+			obj->tick = obj->speed * (param + 1L);
 			break;
 	}
-	update_frequency( chan );
+	update_frequency( obj, chan );
 }
 
-static void channel_tick( struct channel *chan ) {
+static void channel_tick( struct micromod_obj* obj, struct micromod_channel *chan ) {
 	long effect, param, period;
 	effect = chan->note.effect;
 	param = chan->note.param;
@@ -315,7 +280,7 @@ static void channel_tick( struct channel *chan ) {
 			break;
 		case 0x4: /* Vibrato.*/
 			chan->vibrato_phase += chan->vibrato_speed;
-			vibrato( chan );
+			vibrato( obj, chan );
 			break;
 		case 0x5: /* Tone Porta + Volume Slide.*/
 			tone_portamento( chan );
@@ -323,12 +288,12 @@ static void channel_tick( struct channel *chan ) {
 			break;
 		case 0x6: /* Vibrato + Volume Slide.*/
 			chan->vibrato_phase += chan->vibrato_speed;
-			vibrato( chan );
+			vibrato( obj, chan );
 			volume_slide( chan, param );
 			break;
 		case 0x7: /* Tremolo.*/
 			chan->tremolo_phase += chan->tremolo_speed;
-			tremolo( chan );
+			tremolo( obj, chan );
 			break;
 		case 0xA: /* Volume Slide.*/
 			volume_slide( chan, param );
@@ -349,40 +314,40 @@ static void channel_tick( struct channel *chan ) {
 			if( param == chan->fx_count ) chan->volume = 0;
 			break;
 		case 0x1D: /* Note Delay.*/
-			if( param == chan->fx_count ) trigger( chan );
+			if( param == chan->fx_count ) trigger( obj, chan );
 			break;
 	}
-	if( effect > 0 ) update_frequency( chan );
+	if( effect > 0 ) update_frequency( obj, chan );
 }
 
-static long sequence_row( void ) {
+static long sequence_row( struct micromod_obj* obj ) {
 	long song_end, chan_idx, pat_offset;
 	long effect, param;
-	struct note *note;
+	struct micromod_note *note;
 	song_end = 0;
-	if( next_row < 0 ) {
-		break_pattern = pattern + 1;
-		next_row = 0;
+	if( obj->next_row < 0 ) {
+		obj->break_pattern = obj->pattern + 1;
+		obj->next_row = 0;
 	}
-	if( break_pattern >= 0 ) {
-		if( break_pattern >= song_length ) break_pattern = next_row = 0;
-		if( break_pattern <= pattern ) song_end = 1;
-		pattern = break_pattern;
-		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) channels[ chan_idx ].pl_row = 0;
-		break_pattern = -1;
+	if( obj->break_pattern >= 0 ) {
+		if( obj->break_pattern >= obj->song_length ) obj->break_pattern = obj->next_row = 0;
+		if( obj->break_pattern <= obj->pattern ) song_end = 1;
+		obj->pattern = obj->break_pattern;
+		for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ ) obj->channels[ chan_idx ].pl_row = 0;
+		obj->break_pattern = -1;
 	}
-	row = next_row;
-	next_row = row + 1;
-	if( next_row >= 64 ) next_row = -1;
-	pat_offset = ( sequence[ pattern ] * 64 + row ) * num_channels * 4;
-	for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
-		note = &channels[ chan_idx ].note;
-		note->key  = ( pattern_data[ pat_offset ] & 0xF ) << 8;
-		note->key |=   pattern_data[ pat_offset + 1 ];
-		note->instrument  = pattern_data[ pat_offset + 2 ] >> 4;
-		note->instrument |= pattern_data[ pat_offset ] & 0x10;
-		effect = pattern_data[ pat_offset + 2 ] & 0xF;
-		param = pattern_data[ pat_offset + 3 ];
+	obj->row = obj->next_row;
+	obj->next_row = obj->row + 1;
+	if( obj->next_row >= 64 ) obj->next_row = -1;
+	pat_offset = ( obj->sequence[ obj->pattern ] * 64 + obj->row ) * obj->num_channels * 4;
+	for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ ) {
+		note = &obj->channels[ chan_idx ].note;
+		note->key  = ( obj->pattern_data[ pat_offset ] & 0xF ) << 8;
+		note->key |=   obj->pattern_data[ pat_offset + 1 ];
+		note->instrument  = obj->pattern_data[ pat_offset + 2 ] >> 4;
+		note->instrument |= obj->pattern_data[ pat_offset ] & 0x10;
+		effect = obj->pattern_data[ pat_offset + 2 ] & 0xF;
+		param = obj->pattern_data[ pat_offset + 3 ];
 		pat_offset += 4;
 		if( effect == 0xE ) {
 			effect = 0x10 | ( param >> 4 );
@@ -391,33 +356,33 @@ static long sequence_row( void ) {
 		if( effect == 0 && param > 0 ) effect = 0xE;
 		note->effect = effect;
 		note->param = param;
-		channel_row( &channels[ chan_idx ] );
+		channel_row( obj, &obj->channels[ chan_idx ] );
 	}
 	return song_end;
 }
 
-static long sequence_tick( void ) {
+static long sequence_tick( struct micromod_obj* obj ) {
 	long song_end, chan_idx;
 	song_end = 0;
-	if( --tick <= 0 ) {
-		tick = speed;
-		song_end = sequence_row();
+	if( --(obj->tick) <= 0 ) {
+		obj->tick = obj->speed;
+		song_end = sequence_row(obj);
 	} else {
-		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ )
-			channel_tick( &channels[ chan_idx ] );
+		for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ )
+			channel_tick( obj, &obj->channels[ chan_idx ] );
 	}
 	return song_end;
 }
 
-static void resample( struct channel *chan, short *buf, long offset, long count ) {
+static void resample( struct micromod_obj* obj, struct micromod_channel *chan, short *buf, long offset, long count ) {
 	unsigned long epos;
 	unsigned long buf_idx = offset << 1;
 	unsigned long buf_end = ( offset + count ) << 1;
 	unsigned long sidx = chan->sample_idx;
 	unsigned long step = chan->step;
-	unsigned long llen = instruments[ chan->instrument ].loop_length;
-	unsigned long lep1 = instruments[ chan->instrument ].loop_start + llen;
-	signed char *sdat = instruments[ chan->instrument ].sample_data;
+	unsigned long llen = obj->instruments[ chan->instrument ].loop_length;
+	unsigned long lep1 = obj->instruments[ chan->instrument ].loop_start + llen;
+	signed char *sdat = obj->instruments[ chan->instrument ].sample_data;
 	short ampl = buf && !chan->mute ? chan->ampl : 0;
 	short lamp = ampl * ( 127 - chan->panning ) >> 5;
 	short ramp = ampl * chan->panning >> 5;
@@ -491,34 +456,34 @@ long micromod_calculate_mod_file_len( signed char *module_header ) {
 	Returns -1 if the data is not recognised as a module.
 	Returns -2 if the sampling rate is less than 8000hz.
 */
-long micromod_initialise( signed char *data, long sampling_rate ) {
-	struct instrument *inst;
+long micromod_initialise_obj( struct micromod_obj* obj, signed char *data, long sampling_rate ) {
+	struct micromod_instrument *inst;
 	long sample_data_offset, inst_idx;
 	long sample_length, volume, fine_tune, loop_start, loop_length;
-	num_channels = calculate_num_channels( data );
-	if( num_channels <= 0 ) {
-		num_channels = 0;
+	obj->num_channels = calculate_num_channels( data );
+	if( obj->num_channels <= 0 ) {
+		obj->num_channels = 0;
 		return -1;
 	}
 	if( sampling_rate < 8000 ) return -2;
-	module_data = data;
-	sample_rate = sampling_rate;
-	song_length = module_data[ 950 ] & 0x7F;
-	restart = module_data[ 951 ] & 0x7F;
-	if( restart >= song_length ) restart = 0;
-	sequence = (unsigned char *) module_data + 952;
-	pattern_data = (unsigned char *) module_data + 1084;
-	num_patterns = calculate_num_patterns( module_data );
-	sample_data_offset = 1084 + num_patterns * 64 * num_channels * 4;
+	obj->module_data = data;
+	obj->sample_rate = sampling_rate;
+	obj->song_length = obj->module_data[ 950 ] & 0x7F;
+	obj->restart = obj->module_data[ 951 ] & 0x7F;
+	if( obj->restart >= obj->song_length ) obj->restart = 0;
+	obj->sequence = (unsigned char *) obj->module_data + 952;
+	obj->pattern_data = (unsigned char *) obj->module_data + 1084;
+	obj->num_patterns = calculate_num_patterns( obj->module_data );
+	sample_data_offset = 1084 + obj->num_patterns * 64 * obj->num_channels * 4;
 	for( inst_idx = 1; inst_idx < 32; inst_idx++ ) {
-		inst = &instruments[ inst_idx ];
-		sample_length = unsigned_short_big_endian( module_data, inst_idx * 30 + 12 ) * 2;
-		fine_tune = module_data[ inst_idx * 30 + 14 ] & 0xF;
+		inst = &obj->instruments[ inst_idx ];
+		sample_length = unsigned_short_big_endian( obj->module_data, inst_idx * 30 + 12 ) * 2;
+		fine_tune = obj->module_data[ inst_idx * 30 + 14 ] & 0xF;
 		inst->fine_tune = ( fine_tune & 0x7 ) - ( fine_tune & 0x8 ) + 8;
-		volume = module_data[ inst_idx * 30 + 15 ] & 0x7F;
+		volume = obj->module_data[ inst_idx * 30 + 15 ] & 0x7F;
 		inst->volume = volume > 64 ? 64 : volume;
-		loop_start = unsigned_short_big_endian( module_data, inst_idx * 30 + 16 ) * 2;
-		loop_length = unsigned_short_big_endian( module_data, inst_idx * 30 + 18 ) * 2;
+		loop_start = unsigned_short_big_endian( obj->module_data, inst_idx * 30 + 16 ) * 2;
+		loop_length = unsigned_short_big_endian( obj->module_data, inst_idx * 30 + 18 ) * 2;
 		if( loop_start + loop_length > sample_length ) {
 			if( loop_start / 2 + loop_length <= sample_length ) {
 				/* Some old modules have loop start in bytes. */
@@ -533,13 +498,13 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 		}
 		inst->loop_start = loop_start << FP_SHIFT;
 		inst->loop_length = loop_length << FP_SHIFT;
-		inst->sample_data = module_data + sample_data_offset;
+		inst->sample_data = obj->module_data + sample_data_offset;
 		sample_data_offset += sample_length;
 	}
-	c2_rate = ( num_channels > 4 ) ? 8363 : 8287;
-	gain = ( num_channels > 4 ) ? 32 : 64;
-	micromod_mute_channel( -1 );
-	micromod_set_position( 0 );
+	obj->c2_rate = ( obj->num_channels > 4 ) ? 8363 : 8287;
+	obj->gain = ( obj->num_channels > 4 ) ? 32 : 64;
+	micromod_mute_channel_obj( obj, -1 );
+	micromod_set_position_obj( obj, 0 );
 	return 0;
 }
 
@@ -549,9 +514,9 @@ long micromod_initialise( signed char *data, long sampling_rate ) {
 	The name is copied into the location pointed to by string,
 	and is at most 23 characters long, including the trailing null.
 */
-void micromod_get_string( long instrument, char *string ) {
+void micromod_get_string_obj( struct micromod_obj* obj, long instrument, char *string ) {
 	long index, offset, length, character;
-	if( num_channels <= 0 ) {
+	if( obj->num_channels <= 0 ) {
 		string[ 0 ] = 0;
 		return;
 	}
@@ -562,7 +527,7 @@ void micromod_get_string( long instrument, char *string ) {
 		length = 22;
 	}
 	for( index = 0; index < length; index++ ) {
-		character = module_data[ offset + index ];
+		character = obj->module_data[ offset + index ];
 		if( character < 32 || character > 126 ) character = ' ';
 		string[ index ] = character;
 	}
@@ -572,17 +537,17 @@ void micromod_get_string( long instrument, char *string ) {
 /*
 	Returns the total song duration in samples at the current sampling rate.
 */
-long micromod_calculate_song_duration( void ) {
+long micromod_calculate_song_duration_obj( struct micromod_obj* obj ) {
 	long duration, song_end;
 	duration = 0;
-	if( num_channels > 0 ) {
-		micromod_set_position( 0 );
+	if( obj->num_channels > 0 ) {
+		micromod_set_position_obj( obj, 0 );
 		song_end = 0;
 		while( !song_end ) {
-			duration += tick_len;
-			song_end = sequence_tick();
+			duration += obj->tick_len;
+			song_end = sequence_tick(obj);
 		}
-		micromod_set_position( 0 );
+		micromod_set_position_obj( obj, 0 );
 	}
 	return duration;
 }
@@ -590,20 +555,20 @@ long micromod_calculate_song_duration( void ) {
 /*
 	Jump directly to a specific pattern in the sequence.
 */
-void micromod_set_position( long pos ) {
+void micromod_set_position_obj( struct micromod_obj* obj, long pos ) {
 	long chan_idx;
-	struct channel *chan;
-	if( num_channels <= 0 ) return; 
-	if( pos >= song_length ) pos = 0;
-	break_pattern = pos;
-	next_row = 0;
-	tick = 1;
-	speed = 6;
-	set_tempo( 125 );
-	pl_count = pl_channel = -1;
-	random_seed = 0xABCDEF;
-	for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
-		chan = &channels[ chan_idx ];
+	struct micromod_channel *chan;
+	if( obj->num_channels <= 0 ) return; 
+	if( pos >= obj->song_length ) pos = 0;
+	obj->break_pattern = pos;
+	obj->next_row = 0;
+	obj->tick = 1;
+	obj->speed = 6;
+	set_tempo( obj, 125 );
+	obj->pl_count = obj->pl_channel = -1;
+	obj->random_seed = 0xABCDEF;
+	for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ ) {
+		chan = &obj->channels[ chan_idx ];
 		chan->id = chan_idx;
 		chan->instrument = chan->assigned = 0;
 		chan->volume = 0;
@@ -612,8 +577,8 @@ void micromod_set_position( long pos ) {
 			case 1: case 2: chan->panning = 127; break;
 		}
 	}
-	sequence_tick();
-	tick_offset = 0;
+	sequence_tick(obj);
+	obj->tick_offset = 0;
 }
 
 /*
@@ -621,16 +586,16 @@ void micromod_set_position( long pos ) {
 	If channel is negative, un-mute all channels.
 	Returns the number of channels.
 */
-long micromod_mute_channel( long channel ) {
+long micromod_mute_channel_obj( struct micromod_obj* obj, long channel ) {
 	long chan_idx;
 	if( channel < 0 ) {
-		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
-			channels[ chan_idx ].mute = 0;
+		for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ ) {
+			obj->channels[ chan_idx ].mute = 0;
 		}
-	} else if( channel < num_channels ) {
-		channels[ channel ].mute = 1;
+	} else if( channel < obj->num_channels ) {
+		obj->channels[ channel ].mute = 1;
 	}
-	return num_channels;
+	return obj->num_channels;
 }
 
 /*
@@ -638,8 +603,8 @@ long micromod_mute_channel( long channel ) {
 	For 4-channel modules, a value of 64 can be used without distortion.
 	For 8-channel modules, a value of 32 or less is recommended.
 */
-void micromod_set_gain( long value ) {
-	gain = value;
+void micromod_set_gain_obj( struct micromod_obj* obj, long value ) {
+	obj->gain = value;
 }
 
 /*
@@ -647,22 +612,56 @@ void micromod_set_gain( long value ) {
 	If output pointer is zero, the replay will quickly skip count samples.
 	The output buffer should be cleared with zeroes.
 */
-void micromod_get_audio( short *output_buffer, long count ) {
+void micromod_get_audio_obj( struct micromod_obj* obj, short *output_buffer, long count ) {
 	long offset, remain, chan_idx;
-	if( num_channels <= 0 ) return;
+	if( obj->num_channels <= 0 ) return;
 	offset = 0;
 	while( count > 0 ) {
-		remain = tick_len - tick_offset;
+		remain = obj->tick_len - obj->tick_offset;
 		if( remain > count ) remain = count;
-		for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
-			resample( &channels[ chan_idx ], output_buffer, offset, remain );
+		for( chan_idx = 0; chan_idx < obj->num_channels; chan_idx++ ) {
+			resample( obj, &obj->channels[ chan_idx ], output_buffer, offset, remain );
 		}
-		tick_offset += remain;
-		if( tick_offset == tick_len ) {
-			sequence_tick();
-			tick_offset = 0;
+		obj->tick_offset += remain;
+		if( obj->tick_offset == obj->tick_len ) {
+			sequence_tick(obj);
+			obj->tick_offset = 0;
 		}
 		offset += remain;
 		count -= remain;
 	}
+}
+
+/*
+	Implement global-state compatiblity functions
+*/
+
+static struct micromod_obj micromod_global;
+
+long micromod_initialise( signed char *data, long sampling_rate ) {
+	return micromod_initialise_obj(&micromod_global, data, sampling_rate);
+}
+
+void micromod_get_string( long instrument, char *string ) {
+	micromod_get_string_obj(&micromod_global, instrument, string);
+}
+
+long micromod_calculate_song_duration( void ) {
+	return micromod_calculate_song_duration_obj(&micromod_global);
+}
+
+void micromod_set_position( long pos ) {
+	micromod_set_position_obj(&micromod_global, pos);
+}
+
+long micromod_mute_channel( long channel ) {
+	return micromod_mute_channel_obj(&micromod_global, channel);
+}
+
+void micromod_set_gain( long value ) {
+	micromod_set_gain_obj(&micromod_global, value);
+}
+
+void micromod_get_audio( short *output_buffer, long count ) {
+	micromod_get_audio_obj(&micromod_global, output_buffer, count);
 }

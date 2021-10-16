@@ -8,6 +8,10 @@
 
 #include "micromod.h"
 
+#if !MICROMOD_API_VERSION || MICROMOD_API_VERSION < 200
+#error "MICROMOD_API_VERSION 200 or higher is required"
+#endif
+
 /*
 	Protracker MOD to WAV/IFF-8SVX converter. (c)2018 mumart@gmail.com
 */
@@ -30,6 +34,8 @@ static const short key_to_period[] = { 1814, /*
 
 static short mix_buf[ 8192 ];
 static int filt_l, filt_r, qerror, interrupted;
+
+struct micromod_obj mmodobj;
 
 static int read_file( char *file_name, void *buffer, int limit ) {
 	int file_length = -1, bytes_read;
@@ -209,7 +215,7 @@ static int get_audio_s16le( char *out_buf, int num_samples ) {
 			count = length - offset;
 		}
 		memset( mix_buf, 0, count * sizeof( short ) );
-		micromod_get_audio( mix_buf, count >> 1 );
+		micromod_get_audio_obj( &mmodobj, mix_buf, count >> 1 );
 		downsample( mix_buf, mix_buf, count >> 1 );
 		crossfeed( mix_buf, count >> 2 );
 		idx = 0;
@@ -231,7 +237,7 @@ static int get_audio_s8( char *out_buf, int length, int gain ) {
 			count = length - offset;
 		}
 		memset( mix_buf, 0, ( count << 2 ) * sizeof( short ) );
-		micromod_get_audio( mix_buf, count << 1 );
+		micromod_get_audio_obj( &mmodobj, mix_buf, count << 1 );
 		downsample( mix_buf, mix_buf, count << 1 );
 		quantize( mix_buf, &out_buf[ offset ], gain, count );
 		offset += count;
@@ -310,18 +316,18 @@ static int mod_to_wav( signed char *module_data, char *file_name, int sample_rat
 	} else {
 		printf( "Generating %d 8-bit mono %s files.\n", num_files, type == IFF ? "IFF-8SVX" : "RAW" );
 	}
-	result = micromod_initialise( module_data, sample_rate * 2 );
+	result = micromod_initialise_obj( &mmodobj, module_data, sample_rate * 2 );
 	if( result == 0 ) {
-		num_channels = micromod_mute_channel( -1 );
+		num_channels = micromod_mute_channel_obj( &mmodobj, -1 );
 		if( chan >= 0 && chan < num_channels ) {
 			printf( "Muting all but channel %d.\n", chan );
 			for( idx = 0; idx < num_channels; idx++ ) {
 				if( idx != chan ) {
-					micromod_mute_channel( idx );
+					micromod_mute_channel_obj( &mmodobj, idx );
 				}
 			}
 		}
-		duration = micromod_calculate_song_duration() >> 1;
+		duration = micromod_calculate_song_duration_obj( &mmodobj ) >> 1;
 		count = num_files > 0 ? duration / num_files : duration;
 		while( offset < duration && result == 0 && !interrupted ) {
 			if( file >= num_files - 1 ) {
