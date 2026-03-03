@@ -21,10 +21,12 @@ public class Envelope {
 			int point = 0;
 			for( int idx = 1; idx < numPoints; idx++ )
 				if( pointsTick[ idx ] <= tick ) point = idx;
-			int dt = pointsTick[ point + 1 ] - pointsTick[ point ];
-			int da = pointsAmpl[ point + 1 ] - pointsAmpl[ point ];
 			ampl = pointsAmpl[ point ];
-			ampl += ( ( da << 24 ) / dt ) * ( tick - pointsTick[ point ] ) >> 24;
+			int dt = pointsTick[ point + 1 ] - pointsTick[ point ];
+			if( dt > 0 ) {
+				int da = pointsAmpl[ point + 1 ] - pointsAmpl[ point ];
+				ampl += ( ( da << 24 ) / dt ) * ( tick - pointsTick[ point ] ) >> 24;
+			}
 		}
 		return ampl;
 	}

@@ -13,10 +13,6 @@ public class Module {
 	public Instrument[] instruments = { new Instrument(), new Instrument() };
 
 	public Module() {}
-	
-	public Module( java.io.InputStream inputStream ) throws java.io.IOException {
-		this( new Data( inputStream ) );
-	}
 
 	public Module( Data moduleData ) throws java.io.IOException {
 		if( moduleData.strLatin1( 0, 17 ).equals( "Extended Module: " ) ) {
@@ -26,6 +22,12 @@ public class Module {
 		} else {
 			loadMod( moduleData );
 		}
+		if( numChannels < 1 || numPatterns < 1 || sequenceLength < 1 )
+			throw new IllegalArgumentException( "Invalid module file!" );
+	}
+
+	public Module( java.io.InputStream inputStream ) throws java.io.IOException {
+		this( new Data( inputStream ) );
 	}
 
 	public Module( byte[] moduleData ) throws java.io.IOException {
@@ -164,10 +166,12 @@ public class Module {
 			if( moduleData.uByte( 64 + chanIdx ) < 16 )
 				channelMap[ chanIdx ] = numChannels++;
 		}
+		int moduleDataIdx = 96 + sequenceLength;
 		sequence = new int[ sequenceLength ];
 		for( int seqIdx = 0; seqIdx < sequenceLength; seqIdx++ )
 			sequence[ seqIdx ] = moduleData.uByte( 96 + seqIdx );
-		int moduleDataIdx = 96 + sequenceLength;
+		while( sequenceLength > 0 && sequence[ sequenceLength - 1 ] >= numPatterns )
+			sequenceLength--;
 		instruments = new Instrument[ numInstruments + 1 ];
 		instruments[ 0 ] = new Instrument();
 		for( int instIdx = 1; instIdx <= numInstruments; instIdx++ ) {
@@ -342,8 +346,10 @@ public class Module {
 			if( numSamples > 0 ) {
 				instrument.numSamples = numSamples;
 				instrument.samples = new Sample[ numSamples ];
-				for( int keyIdx = 0; keyIdx < 96; keyIdx++ )
-					instrument.keyToSample[ keyIdx + 1 ] = moduleData.uByte( dataOffset + 33 + keyIdx );
+				for( int keyIdx = 0; keyIdx < 96; keyIdx++ ) {
+					int sampleIdx = moduleData.uByte( dataOffset + 33 + keyIdx );
+					instrument.keyToSample[ keyIdx + 1 ] = sampleIdx < numSamples ? sampleIdx : 0;
+				}
 				Envelope volEnv = instrument.volumeEnvelope = new Envelope();
 				volEnv.pointsTick = new int[ 16 ];
 				volEnv.pointsAmpl = new int[ 16 ];

@@ -2,7 +2,7 @@
 function IBXMReplay( module, samplingRate ) {
 	/* Return a String representing the version of the replay. */
 	this.getVersion = function() {
-		return "20190513 (c)2019 mumart@gmail.com";
+		return "20260303 (c)2026 mumart@gmail.com";
 	}
 	/* Return the sampling rate of playback. */
 	this.getSamplingRate = function() {
@@ -932,10 +932,12 @@ function IBXMEnvelope() {
 			var point = 0;
 			for( var idx = 1; idx < this.numPoints; idx++ )
 				if( this.pointsTick[ idx ] <= tick ) point = idx;
-			var dt = this.pointsTick[ point + 1 ] - this.pointsTick[ point ];
-			var da = this.pointsAmpl[ point + 1 ] - this.pointsAmpl[ point ];
 			ampl = this.pointsAmpl[ point ];
-			ampl += ( da / dt ) * ( tick - this.pointsTick[ point ] );
+			var dt = this.pointsTick[ point + 1 ] - this.pointsTick[ point ];
+			if( dt > 0 ) {
+				var da = this.pointsAmpl[ point + 1 ] - this.pointsAmpl[ point ];
+				ampl += ( da / dt ) * ( tick - this.pointsTick[ point ] );
+			}
 		}
 		return ampl;
 	}
@@ -1138,8 +1140,10 @@ function IBXMModule( moduleData ) {
 			if( numSamples > 0 ) {
 				instrument.numSamples = numSamples;
 				instrument.samples = new Array( numSamples );
-				for( var keyIdx = 0; keyIdx < 96; keyIdx++ )
-					instrument.keyToSample[ keyIdx + 1 ] = ibxmData.uByte( dataOffset + 33 + keyIdx );
+				for( var keyIdx = 0; keyIdx < 96; keyIdx++ ) {
+					var sampleIdx = ibxmData.uByte( dataOffset + 33 + keyIdx );
+					instrument.keyToSample[ keyIdx + 1 ] = sampleIdx < numSamples ? sampleIdx : 0;
+				}
 				var volEnv = instrument.volumeEnvelope = new IBXMEnvelope();
 				volEnv.pointsTick = new Int32Array( 16 );
 				volEnv.pointsAmpl = new Int32Array( 16 );
@@ -1236,10 +1240,12 @@ function IBXMModule( moduleData ) {
 			if( ibxmData.uByte( 64 + chanIdx ) < 16 )
 				channelMap[ chanIdx ] = this.numChannels++;
 		}
+		var moduleDataIdx = 96 + this.sequenceLength;
 		this.sequence = new Int32Array( this.sequenceLength );
 		for( var seqIdx = 0; seqIdx < this.sequenceLength; seqIdx++ )
 			this.sequence[ seqIdx ] = ibxmData.uByte( 96 + seqIdx );
-		var moduleDataIdx = 96 + this.sequenceLength;
+		while( this.sequenceLength > 0 && this.sequence[ this.sequenceLength - 1 ] >= this.numPatterns )
+			this.sequenceLength--;
 		this.instruments = new Array( this.numInstruments + 1 );
 		this.instruments[ 0 ] = new IBXMInstrument();
 		for( var instIdx = 1; instIdx <= this.numInstruments; instIdx++ ) {
@@ -1463,5 +1469,6 @@ function IBXMModule( moduleData ) {
 		} else {
 			this.loadMod( ibxmData );
 		}
+		if( this.numChannels < 1 || this.numPatterns < 1 || this.sequenceLength < 1 ) throw "Invalid module file!";
 	}
 }

@@ -6,7 +6,7 @@
 #define FP_ONE   16384
 #define FP_MASK  16383
 
-static const char *MICROMOD_VERSION = "Micromod Protracker replay 20180625 (c)mumart@gmail.com";
+static const char *MICROMOD_VERSION = "Micromod Protracker replay 20260303 (c)mumart@gmail.com";
 
 struct note {
 	unsigned short key;
@@ -374,7 +374,7 @@ static long sequence_row( void ) {
 	row = next_row;
 	next_row = row + 1;
 	if( next_row >= 64 ) next_row = -1;
-	pat_offset = ( sequence[ pattern ] * 64 + row ) * num_channels * 4;
+	pat_offset = ( ( sequence[ pattern ] & 0x7F ) * 64 + row ) * num_channels * 4;
 	for( chan_idx = 0; chan_idx < num_channels; chan_idx++ ) {
 		note = &channels[ chan_idx ].note;
 		note->key  = ( pattern_data[ pat_offset ] & 0xF ) << 8;
@@ -488,6 +488,7 @@ long micromod_calculate_mod_file_len( signed char *module_header ) {
 
 /*
 	Set the player to play the specified module data.
+	The data array must not be less than the length given by micromod_calculate_mod_file_len().
 	Returns -1 if the data is not recognised as a module.
 	Returns -2 if the sampling rate is less than 8000hz.
 */

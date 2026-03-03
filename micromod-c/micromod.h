@@ -12,6 +12,7 @@ long micromod_calculate_mod_file_len( signed char *module_header );
 
 /*
 	Set the player to play the specified module data.
+	The data array must not be less than the length given by micromod_calculate_mod_file_len().
 	Returns -1 if the data is not recognised as a module.
 	Returns -2 if the sampling rate is less than 8000hz.
 */

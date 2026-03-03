@@ -2,10 +2,10 @@
 package ibxm;
 
 /*
-	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2021 mumart@gmail.com
+	ProTracker, Scream Tracker 3, FastTracker 2 Replay (c)2026 mumart@gmail.com
 */
 public class IBXM {
-	public static final String VERSION = "a75 (c)2021 mumart@gmail.com";
+	public static final String VERSION = "a76 (c)2026 mumart@gmail.com";
 
 	private Module module;
 	private int[] rampBuf;
