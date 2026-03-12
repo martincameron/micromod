@@ -2,9 +2,11 @@ package micromod.compiler;
 
 public class Point implements Element {
 	private Waveform parent;
+	private Gain sibling;
 
 	public Point( Waveform parent ) {
 		this.parent = parent;
+		this.sibling = new Gain( parent, null );
 	}
 	
 	public String getToken() {
@@ -16,7 +18,7 @@ public class Point implements Element {
 	}
 	
 	public Element getSibling() {
-		return null;
+		return sibling;
 	}
 	
 	public Element getChild() {

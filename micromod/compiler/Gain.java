@@ -1,12 +1,12 @@
 package micromod.compiler;
 
 public class Gain implements Element {
-	private WaveFile parent;
-	private Pitch sibling;
+	private GainParent parent;
+	private Element sibling;
 
-	public Gain( WaveFile parent ) {
+	public Gain( GainParent parent, Element sibling ) {
 		this.parent = parent;
-		sibling = new Pitch( parent );
+		this.sibling = sibling;
 	}
 	
 	public String getToken() {

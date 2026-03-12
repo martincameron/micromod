@@ -13,10 +13,10 @@ Module "PlanetSized(MDC1998)"
 		WaveFile "samples/RollerS2.wav" Pitch 62
 	Instrument 7
 		Name "StringsLow(Micromod)" Volume 24
-		Waveform Sawtooth Octave 1 Chorus 256
+		Waveform Sawtooth Octave 1 Chorus 256 Gain 32
 	Instrument 8
 		Name "StringsHigh(Micromod)" Volume 32
-		Waveform Sawtooth Octave 2 Chorus 256
+		Waveform Sawtooth Octave 2 Chorus 256 Gain 24
 	Instrument 9
 		Name "Xanadu(VAZ1.5)" Volume 64
 		WaveFile "samples/RushXanadu.wav" Gain 256 Pitch 199

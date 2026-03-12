@@ -1,6 +1,6 @@
 package micromod.compiler;
 
-public class WaveFile implements Element {
+public class WaveFile implements Element, GainParent {
 	private Instrument parent;
 	private LoopStart sibling;
 	private Crop child = new Crop( this );

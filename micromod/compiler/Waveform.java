@@ -1,11 +1,11 @@
 package micromod.compiler;
 
-public class Waveform implements Element {
+public class Waveform implements Element, GainParent {
 	private Instrument parent;
 	private WaveFile sibling;
 	private Octave child = new Octave( this );
 	private byte[] envelope = new byte[ 512 ];
-	private int octave, cycles, modRate, lfoRate, detune, mix, x0, y0;
+	private int octave, cycles, modRate, lfoRate, detune, mix, x0, y0, gain;
 	private boolean spectral, noise;
 	private AudioData audioData;
 
@@ -59,13 +59,15 @@ public class Waveform implements Element {
 		} else {
 			throw new IllegalArgumentException( "Invalid waveform type: " + value );
 		}
+		setGain( 64 );
 		setOctave( 0 );
 		setModulation( 1, 0, 0, 0, 128 );
 	}
 
 	public void end() {
+		AudioData audioData;
 		if( noise ) {
-			setAudioData( new AudioData( noise( envelope ), 512 * 262 ) );
+			audioData = new AudioData( noise( envelope ), 512 * 262 );
 		} else {
 			byte[] modulator = cosine();
 			byte[] carrier = spectral ? harmonics( envelope ) : envelope;
@@ -76,18 +78,25 @@ public class Waveform implements Element {
 				for( int idx = 0; idx < outBuf.length; idx++ ) {
 					outBuf[ idx ] = waveform[ idx % waveform.length ];
 				}
-				AudioData audioData = new AudioData( outBuf, 512 * 262 );
+				audioData = new AudioData( outBuf, 512 * 262 );
 				audioData = audioData.resample( audioData.getSamplingRate() >> ( octave + 4 ) );
 				audioData = audioData.crop( 512 >> ( octave + 4 ), audioData.getLength() - ( 1024 >> ( octave + 4 ) ) );
-				setAudioData( audioData );
 			} else {
-				setAudioData( new AudioData( waveform, 512 * 262 ) );
+				audioData = new AudioData( waveform, 512 * 262 );
 			}
 		}
+		if( gain != 64 ) {
+			audioData = audioData.scale( gain );
+		}
+		setAudioData( audioData );
 	}
 
 	public String description() {
 		return "\"Type\" ('Sawtooth', 'Square', 'Sine', or 'Noise'.)";
+	}
+
+	public void setGain( int gain ) {
+		this.gain = gain;
 	}
 
 	public AudioData getAudioData() {

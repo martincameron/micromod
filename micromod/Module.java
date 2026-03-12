@@ -72,8 +72,8 @@ public class Module {
 	}
 	
 	public void setSequenceLength( int sequenceLength ) {
-		if( sequenceLength < 1 || sequenceLength > 128 ) {
-			throw new IllegalArgumentException( "Song length out of range (1 to 128): " + sequenceLength );
+		if( sequenceLength < 1 || sequenceLength > 127 ) {
+			throw new IllegalArgumentException( "Song length out of range (1 to 127): " + sequenceLength );
 		}
 		this.sequenceLength = sequenceLength;
 	}
@@ -101,8 +101,8 @@ public class Module {
 	}
 
 	public int getSequenceEntry( int seqIdx ) {
-		if( seqIdx < 0 || seqIdx > 127 ) {
-			throw new IllegalArgumentException( "Sequence index out of range (0 to 127): " + seqIdx );
+		if( seqIdx < 0 || seqIdx > 126 ) {
+			throw new IllegalArgumentException( "Sequence index out of range (0 to 126): " + seqIdx );
 		}
 		return sequence[ seqIdx ];
 	}

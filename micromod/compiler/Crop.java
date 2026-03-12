@@ -7,7 +7,7 @@ public class Crop implements Element {
 
 	public Crop( WaveFile parent ) {
 		this.parent = parent;
-		sibling = new Gain( parent );
+		sibling = new Gain( parent, new Pitch( parent ) );
 	}
 	
 	public String getToken() {

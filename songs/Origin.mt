@@ -31,7 +31,7 @@ Module "Origin(MDC1998)"
 		WaveFile "samples/RushXanadu.wav" Gain 128 Pitch 199
 		LoopStart 98302 LoopLength 16384 PingPong On
 	Instrument 10 Name "Strings(Micromod)" Volume 64
-		Waveform Sawtooth Octave 1 Chorus 256
+		Waveform Sawtooth Octave 1 Chorus 256 Gain 32
 	Instrument 11
 		Name "Trippy1(VAZ1.5)" Volume 32
 		WaveFile "samples/Trippy.wav" Crop 0,1,8 Gain 128 Pitch 38

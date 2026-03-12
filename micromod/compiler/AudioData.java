@@ -7,7 +7,7 @@ import java.io.OutputStream;
 
 public class AudioData {
 	private static final int
-		FP_SHIFT = 7, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1, HTAPS = 32;
+		FP_SHIFT = 8, FP_ONE = 1 << FP_SHIFT, FP_MASK = FP_ONE - 1, HTAPS = 16;
 	
 	private int sampleRate;
 	private short[] sampleData;
@@ -274,11 +274,20 @@ public class AudioData {
 	/* Return an AudioData instance with the specified sampling rate,
 	   optionally adjusted in pitch by 96 per octave increments. */
 	public AudioData resample( int samplingRate, int pitch ) {
+		samplingRate = ( int ) Math.round( samplingRate * Math.pow( 2, pitch / -96.0 ) );
+		if( samplingRate < this.sampleRate >> 1 ) {
+			/* Downsample to improve anti-aliasing. */
+			return resample( this.sampleRate >> 1, 0 ).resample( samplingRate, 0 );
+		}
+		if( samplingRate > this.sampleRate << 2 ) {
+			/* Upsample to improve pitch accuracy. */
+			return resample( this.sampleRate << 2, 0 ).resample( samplingRate, 0 );
+		}
 		short[] inputBuf = new short[ sampleData.length + HTAPS * 2 ];
 		for( int idx = 0; idx < sampleData.length; idx++ ) {
 			inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
 		}
-		int step = ( int ) Math.round( this.sampleRate * Math.pow( 2, pitch / 96.0 ) * FP_ONE / samplingRate );
+		int step = Math.round( this.sampleRate * ( float ) FP_ONE / samplingRate );
 		int outputLen = ( sampleData.length << FP_SHIFT ) / step;
 		short[] outputBuf = new short[ outputLen ];
 		float[] sinc = sincTable( step > FP_ONE ? FP_ONE / ( double ) step : 1.0 );
