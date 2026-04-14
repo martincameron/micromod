@@ -287,7 +287,7 @@ public class AudioData {
 		for( int idx = 0; idx < sampleData.length; idx++ ) {
 			inputBuf[ idx + HTAPS - 1 ] = sampleData[ idx ];
 		}
-		int step = Math.round( this.sampleRate * ( float ) FP_ONE / samplingRate );
+		int step = ( this.sampleRate << FP_SHIFT ) / samplingRate;
 		int outputLen = ( sampleData.length << FP_SHIFT ) / step;
 		short[] outputBuf = new short[ outputLen ];
 		float[] sinc = sincTable( step > FP_ONE ? FP_ONE / ( double ) step : 1.0 );
